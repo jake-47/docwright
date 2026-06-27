@@ -1,0 +1,45 @@
+{# Flat post list, used by index.html (home) and section.html (archives).
+   Lists the section's own dated, non-hidden pages, then a single link to each
+   subsection that should be listed. A subsection is listed automatically when
+   it contains at least one dated, non-hidden page (a "content section"); a
+   subsection with no posts (about, /now/, ...) stays out. extra.list_in_parent
+   overrides that default in either direction: true forces a postless section
+   into the list, false holds a section with posts out of it. Subsections are
+   linked, not expanded: a reader drills into the section's own archive page to
+   see its posts, and so on to any depth. Posts sort by the section's sort_by
+   ("date" or "weight"); the displayed number is the visible-item position,
+   which renumbers on display when posts are deleted (URLs are slug-based and do
+   not shift).
+
+     show_post_dates = false (default) | true   prepend the publish date
+
+   See the guide's "Home page list style" section. #}
+{% macro post_list(section) %}
+{% set show_dates = config.extra.show_post_dates | default(value=false) %}
+{% set_global count = 0 %}
+<ol class="post-list">
+{% for page in section.pages %}
+    {% if not page.extra.hidden and page.date %}
+    {% set_global count = count + 1 %}
+    <li>
+        {{ count }}.
+        {% if show_dates %} <span class="date">{{ page.date | date(format="%Y-%m-%d") }}</span>{% endif %}
+        <a href="{{ page.permalink }}">{{ page.title }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+{% for sub_path in section.subsections %}
+    {% set sub = get_section(path=sub_path) %}
+    {% set_global sub_dated = 0 %}
+    {% for sp in sub.pages %}{% if sp.date and not sp.extra.hidden %}{% set_global sub_dated = sub_dated + 1 %}{% endif %}{% endfor %}
+    {% set has_posts = sub_dated > 0 %}
+    {% set should_list = sub.extra.list_in_parent | default(value=has_posts) %}
+    {% if should_list %}
+    {% set_global count = count + 1 %}
+    <li class="subsection">
+        {{ count }}. <a href="{{ sub.permalink }}">{{ sub.title }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+</ol>
+{% endmacro %}

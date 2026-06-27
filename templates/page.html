@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }} | {{ config.title }}{% endblock %}
+
+{% block content %}
+<h1>{{ page.title }}</h1>
+{% if page.date %}
+{# last-updated reads page.updated frontmatter only. Set `updated = YYYY-MM-DD`
+   in a post when you want a last-updated date shown; leave it out for
+   "publish date only". Posts still sort by publish date. #}
+{% set pub_date = page.date | date(format="%Y-%m-%d") %}
+{% set rev_date = "" %}
+{% if page.updated %}{% set rev_date = page.updated | date(format="%Y-%m-%d") %}{% endif %}
+<div class="post-meta">
+<time datetime="{{ pub_date }}">{{ pub_date }}</time>{% if rev_date and rev_date != pub_date %}<span class="sep">·</span><time datetime="{{ rev_date }}" class="last-updated">last updated, {{ rev_date }}</time>{% endif %}
+{% if config.extra.history_url and page.relative_path %}
+<span class="sep">·</span><a class="history" href="{{ config.extra.history_url }}/{{ page.relative_path }}"{% if config.extra.history_hint %} title="{{ config.extra.history_hint }}"{% endif %}>view history</a>
+{% endif %}
+{% if config.extra.source_url and page.relative_path %}
+<span class="sep">·</span><a class="source" href="{{ config.extra.source_url }}/{{ page.relative_path }}">suggest an edit</a>
+{% endif %}
+</div>
+{% endif %}
+
+{# Table of contents, server-rendered from page.toc with no script. Gated on
+   show_toc and on the page actually having headings (page.toc is an empty
+   array otherwise, which is falsy). Two levels deep. #}
+{% if config.extra.show_toc | default(value=false) and page.toc %}
+<details class="toc" open>
+<summary>contents</summary>
+<nav aria-label="contents">
+<ul>
+{% for h in page.toc %}
+<li><a href="{{ h.permalink | safe }}">{{ h.title }}</a>
+{%- if h.children %}
+<ul>
+{% for c in h.children %}<li><a href="{{ c.permalink | safe }}">{{ c.title }}</a></li>
+{% endfor %}</ul>
+{%- endif %}
+</li>
+{% endfor %}
+</ul>
+</nav>
+</details>
+{% endif %}
+
+{{ page.content | safe }}
+
+{# Previous/next across the WHOLE site, as one flat timeline, so navigation never
+   dead-ends at a section boundary: a post in content/notes/ sits in sequence
+   among the root posts, and you can read straight through from newest to oldest
+   regardless of how posts are filed into sections. Suppressed on dateless pages,
+   when show_post_nav is false, or on hidden posts; hidden and dateless pages are
+   skipped from the sequence. At the newest end the "newer" link points home (the
+   post list); the oldest post has no "older" link. Wording follows
+   config.extra.post_nav_chronological: newer/older when true (suits the global
+   date order), previous/next when false. Arrows and words are easy to flip here.
+
+   Building the timeline: gather every section in the tree, then collect their
+   dated, non-hidden pages and sort by date. Tera has no recursion, so the tree
+   is walked one level at a time, appending each level's subsections to the next
+   frontier; the five identical blocks below cap nesting at root + 5 levels,
+   which is far past any normal blog. Add another block to go deeper. Because the
+   pages are sorted here by date, a section's own sort_by does not affect this
+   sequence (it still governs that section's archive list). #}
+{% if page.date and config.extra.show_post_nav | default(value=true) and not page.extra.hidden %}
+{% set chrono = config.extra.post_nav_chronological | default(value=true) %}
+{% set root = get_section(path="_index.md") %}
+{% set_global sections = [root] %}
+{% set_global frontier = root.subsections %}
+{% set_global next_frontier = [] %}
+{% for sp in frontier %}{% set s = get_section(path=sp) %}{% set_global sections = sections | concat(with=s) %}{% set_global next_frontier = next_frontier | concat(with=s.subsections) %}{% endfor %}
+{% set_global frontier = next_frontier %}{% set_global next_frontier = [] %}
+{% for sp in frontier %}{% set s = get_section(path=sp) %}{% set_global sections = sections | concat(with=s) %}{% set_global next_frontier = next_frontier | concat(with=s.subsections) %}{% endfor %}
+{% set_global frontier = next_frontier %}{% set_global next_frontier = [] %}
+{% for sp in frontier %}{% set s = get_section(path=sp) %}{% set_global sections = sections | concat(with=s) %}{% set_global next_frontier = next_frontier | concat(with=s.subsections) %}{% endfor %}
+{% set_global frontier = next_frontier %}{% set_global next_frontier = [] %}
+{% for sp in frontier %}{% set s = get_section(path=sp) %}{% set_global sections = sections | concat(with=s) %}{% set_global next_frontier = next_frontier | concat(with=s.subsections) %}{% endfor %}
+{% set_global frontier = next_frontier %}{% set_global next_frontier = [] %}
+{% for sp in frontier %}{% set s = get_section(path=sp) %}{% set_global sections = sections | concat(with=s) %}{% set_global next_frontier = next_frontier | concat(with=s.subsections) %}{% endfor %}
+{% set_global all_posts = [] %}
+{% for s in sections %}{% for p in s.pages %}{%- if p.date and not p.extra.hidden %}{% set_global all_posts = all_posts | concat(with=p) %}{%- endif %}{% endfor %}{% endfor %}
+{% set_global all_posts = all_posts | sort(attribute="date") | reverse %}
+{% set_global prev_post = false %}
+{% set_global next_post = false %}
+{% set_global found_current = false %}
+{% set_global candidate = false %}
+{% for p in all_posts %}
+{%- if p.permalink == page.permalink %}
+{% set_global prev_post = candidate %}
+{% set_global found_current = true %}
+{%- elif found_current and not next_post %}
+{% set_global next_post = p %}
+{%- elif not found_current %}
+{% set_global candidate = p %}
+{%- endif %}
+{%- endfor %}
+{% if found_current %}
+<nav class="post-nav">
+{% if prev_post %}
+<div class="post-nav-prev"><a href="{{ prev_post.permalink }}"><span class="label">&larr; {% if chrono %}newer{% else %}previous{% endif %}:</span>{{ prev_post.title }}</a></div>
+{% else %}
+<div class="post-nav-prev"><a href="{{ get_url(path='/') }}"><span class="label">&larr; back to:</span>{{ home_label | default(value="home") }}</a></div>
+{% endif %}
+{% if next_post %}<div class="post-nav-next"><a href="{{ next_post.permalink }}"><span class="label">{% if chrono %}older{% else %}next{% endif %}:</span>{{ next_post.title }} &rarr;</a></div>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+
+{# Back-to-top on long posts only, no script. word_count is Zola's own count of
+   the rendered body; 400 is a "long enough to need it" threshold you can raise
+   or lower. Returns to #top on the header nav, where the contents list sits. #}
+{% if page.word_count and page.word_count > 400 %}
+<a class="to-top" href="#top" aria-label="back to top">&uarr; top</a>
+{% endif %}
+{% endblock %}

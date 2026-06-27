@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+    <meta name="referrer" content="no-referrer">
+    <title>{% block title %}{{ config.title }}{% endblock %}</title>
+    <link rel="icon" href="{{ get_url(path='favicon.svg') }}" type="image/svg+xml">
+    {% if config.generate_feeds %}
+    <link rel="alternate" type="application/atom+xml"
+          title="RSS" href="{{ get_url(path='atom.xml') }}">
+    {% endif %}
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #000;
+            --fg: #fff;
+            --muted: #888;
+            --link: #8ab4f8;
+            --code-bg: #111;
+            --border: #333;
+            --mark-bg: rgba(255, 255, 255, 0.09);
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg: #fff;
+                --fg: #000;
+                --muted: #666;
+                --link: #1a4fa3;
+                --code-bg: #f4f4f4;
+                --border: #ddd;
+                --mark-bg: rgba(0, 0, 0, 0.06);
+            }
+        }
+
+        /* Cross-page transitions on browsers that support the View Transitions
+           API: the nav holds its place, content cross-fades, and the breadcrumb
+           fades in/out across same-origin navigation. Unsupported browsers do a
+           normal page load. Disabled under prefers-reduced-motion. */
+        @view-transition { navigation: auto; }
+        @media (prefers-reduced-motion: reduce) {
+            @view-transition { navigation: none; }
+        }
+        nav { view-transition-name: site-nav; }
+        main { view-transition-name: site-main; }
+        body > footer { view-transition-name: site-footer; }
+        .breadcrumb { view-transition-name: site-breadcrumb; }
+
+        body {
+            font-family: monospace;
+            font-size: 18px;
+            background: var(--bg);
+            color: var(--fg);
+            max-width: 72ch;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            line-height: 1.7;
+        }
+        a, a:visited { color: var(--link); }
+
+        nav { margin-bottom: 2rem; }
+        nav a, nav a:visited { color: var(--muted); margin-right: 1em; }
+        nav a.current { font-weight: bold; text-decoration: underline; }
+
+        h1, h2, h3, h4, h5, h6 { font-weight: bold; margin-bottom: 0.3rem; }
+        h1 { font-size: 1.6em; margin-bottom: 0.2rem; }
+        h2 { font-size: 1.3em; margin-top: 1.6rem; }
+        h3 { font-size: 1.1em; margin-top: 1.2rem; }
+        h4 { font-size: 1em; margin-top: 1rem; }
+        h5 { font-size: 0.95em; margin-top: 0.8rem; }
+        h6 { font-size: 0.9em; margin-top: 0.8rem; color: var(--muted); }
+
+        body:not(.no-numbers) main { counter-reset: h2; }
+        body:not(.no-numbers) main h2 { counter-reset: h3; }
+        body:not(.no-numbers) main h3 { counter-reset: h4; }
+        body:not(.no-numbers) main h4 { counter-reset: h5; }
+        body:not(.no-numbers) main h5 { counter-reset: h6; }
+        body:not(.no-numbers) main h2::before {
+            counter-increment: h2;
+            content: counter(h2) ". ";
+        }
+        body:not(.no-numbers) main h3::before {
+            counter-increment: h3;
+            content: counter(h2) "." counter(h3) ". ";
+        }
+        body:not(.no-numbers) main h4::before {
+            counter-increment: h4;
+            content: counter(h2) "." counter(h3) "." counter(h4) ". ";
+        }
+        body:not(.no-numbers) main h5::before {
+            counter-increment: h5;
+            content: counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) ". ";
+        }
+        body:not(.no-numbers) main h6::before {
+            counter-increment: h6;
+            content: counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) "." counter(h6) ". ";
+        }
+
+        .subtitle, time, .last-updated, .post-list .date {
+            color: var(--muted);
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        .subtitle { margin: 0.2rem 0 2rem 0; }
+        h1 + time, h1 + .subtitle { display: block; margin-top: 0; }
+
+        .post-meta {
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .post-meta a, .post-meta a:visited { color: var(--muted); }
+        .post-meta .sep { margin: 0 0.7em; }
+
+        sup.footnote-reference { font-size: 0.75em; }
+        sup.footnote-reference a,
+        sup.footnote-reference a:visited {
+            text-decoration: none;
+        }
+        .footnote-definition {
+            font-size: 0.9em;
+            color: var(--muted);
+            padding-left: 2em;
+            position: relative;
+            margin: 0.4rem 0;
+        }
+        .footnote-definition:first-of-type {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+        .footnote-definition-label {
+            position: absolute;
+            left: 0;
+            top: 0;
+            font-size: 1em;
+            font-weight: normal;
+            font-style: normal;
+            vertical-align: baseline;
+        }
+        .footnote-definition-label::after { content: "."; }
+        .footnote-definition p { display: inline; margin: 0; }
+        .footnote-definition p + p { display: block; margin-top: 0.3rem; }
+
+        /* bottom_footnotes (Zola 0.20+) wraps footnote definitions in a
+           <footer> with an <ol>; the OL numbers them, so the absolutely
+           positioned label rules above match nothing (kept, harmless). The
+           reset below undoes the padding meant for the old <div> structure. */
+        main > footer {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9em;
+            color: var(--muted);
+        }
+        main > footer ol { padding-left: 1.5em; margin: 0; }
+        main > footer .footnote-definition {
+            padding-left: 0;
+            position: static;
+            margin: 0.4rem 0;
+            border-top: none;
+            padding-top: 0;
+        }
+        main > footer .footnote-definition:first-of-type {
+            margin-top: 0;
+        }
+
+        hr { border: none; margin: 2rem 0; text-align: center; }
+        hr::after { content: "* * *"; color: var(--muted); }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            -webkit-user-select: all;
+            user-select: all;
+        }
+        code { font-weight: inherit; }
+        pre code { font-weight: normal; }
+        :not(pre) > code {
+            background: var(--code-bg);
+            padding: 0.05em 0.3em;
+            border-radius: 2px;
+        }
+
+        .giallo-l {
+            display: inline-block;
+            min-height: 1lh;
+            width: 100%;
+        }
+        .giallo-ln {
+            display: inline-block;
+            user-select: none;
+            margin-right: 0.4em;
+            padding: 0.4em;
+            min-width: 3ch;
+            text-align: right;
+            opacity: 0.8;
+        }
+        pre mark {
+            background: var(--mark-bg);
+            color: inherit;
+            padding: 0.05em 0.2em;
+            border-radius: 2px;
+        }
+
+        main table {
+            border-collapse: collapse;
+            margin: 1rem 0;
+            width: 100%;
+        }
+        main th, main td {
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+        }
+        main th {
+            background: var(--code-bg);
+            font-weight: bold;
+        }
+
+        blockquote {
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: var(--muted);
+            font-style: italic;
+            border-left: 3px solid var(--border);
+        }
+
+        .post-list { list-style: none; padding-left: 2em; }
+        .post-list li { margin-bottom: 0.5rem; }
+
+        .site-logo {
+            display: inline-block;
+            vertical-align: middle;
+            text-decoration: none;
+        }
+        .site-logo img {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+
+        .breadcrumb {
+            font-size: 0.85em;
+            color: var(--muted);
+            margin-bottom: 1.5rem;
+        }
+        .breadcrumb a, .breadcrumb a:visited { color: var(--muted); text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .breadcrumb .here { color: var(--fg); }
+        .breadcrumb .sep { opacity: 0.55; }
+
+        .post-nav {
+            margin-top: 3rem;
+            padding-top: 1.4rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.9rem;
+        }
+        .post-nav a,
+        .post-nav a:visited {
+            color: var(--muted);
+            text-decoration: none;
+        }
+        .post-nav a:hover { text-decoration: underline; }
+        .post-nav .label {
+            color: var(--muted);
+            font-style: italic;
+            font-size: 0.9em;
+            margin-right: 0.5em;
+        }
+        .post-nav-prev,
+        .post-nav-next { flex: 1 1 250px; }
+        .post-nav-prev { text-align: left; }
+        .post-nav-next { text-align: right; }
+
+        body > footer {
+            margin-top: 4rem;
+            padding-top: 1rem;
+            text-align: center;
+            color: var(--muted);
+        }
+        body > footer a, body > footer a:visited { color: var(--muted); margin: 0 0.4em; }
+
+        /* Per-post table of contents (config.extra.show_toc), server-rendered
+           from page.toc with no script. Sits inline at the top of the post as a
+           <details>, with a muted "contents" summary and a single thin rule
+           below it. No top border: the post-meta's own bottom rule is the
+           divider above it, so the date and the contents list are separated by
+           one line, not two. */
+        .toc {
+            margin: 1.5rem 0;
+            padding: 0 0 1.3rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85em;
+        }
+        .toc summary {
+            cursor: pointer;
+            color: var(--muted);
+            font-style: italic;
+            list-style: none;
+        }
+        .toc summary::-webkit-details-marker { display: none; }
+        .toc nav { margin-top: 0.6rem; }
+        .toc ul { list-style: none; margin: 0; padding: 0; }
+        .toc nav > ul > li { margin: 0.25rem 0; }
+        .toc ul ul { padding-left: 1.4em; }
+        .toc li { line-height: 1.45; }
+        .toc a, .toc a:visited { color: var(--muted); text-decoration: none; }
+        .toc a:hover { color: var(--link); text-decoration: underline; }
+
+        :target { scroll-margin-top: 5rem; }
+        main h2:target, main h3:target, main h4:target,
+        main h5:target, main h6:target {
+            border-left: 3px solid var(--link);
+            padding-left: 0.6rem;
+            margin-left: -0.9rem;
+        }
+        body:not(.no-numbers) .toc nav { counter-reset: toc-h2; }
+        body:not(.no-numbers) .toc nav > ul > li { counter-increment: toc-h2; }
+        body:not(.no-numbers) .toc nav > ul > li > a::before {
+            content: counter(toc-h2) ". ";
+            color: var(--muted);
+        }
+        body:not(.no-numbers) .toc nav > ul > li > ul { counter-reset: toc-h3; }
+        body:not(.no-numbers) .toc nav > ul > li > ul > li { counter-increment: toc-h3; }
+        body:not(.no-numbers) .toc nav > ul > li > ul > li > a::before {
+            content: counter(toc-h2) "." counter(toc-h3) " ";
+            color: var(--muted);
+        }
+
+        /* Thin rule under a section's title, so a section page (notes, about)
+           reads title / line / list, matching the post-meta divider on a post. */
+        .section-title {
+            padding-bottom: 0.9rem;
+            margin-bottom: 1.4rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Back-to-top, shown only on long posts (page.html gates on word_count),
+           no script. Fixed bottom-right, muted monospace, on the page background
+           so text behind stays readable. Returns to #top on the header nav, where
+           the contents list also sits. */
+        .to-top {
+            position: fixed;
+            bottom: 1.4rem;
+            right: 1.4rem;
+            font-size: 0.8em;
+            color: var(--muted);
+            text-decoration: none;
+            background: var(--bg);
+            padding: 0.3rem 0.65rem;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            opacity: 0.85;
+        }
+        .to-top:hover { color: var(--link); opacity: 1; }
+        @media (prefers-reduced-motion: no-preference) {
+            html { scroll-behavior: smooth; }
+        }
+    </style>
+</head>
+{% set heading_numbers = config.extra.heading_numbers | default(value=false) %}
+{# Home-segment label resolved once: walk header_nav for the entry whose
+   url == "/", literal "home" fallback. Both the logo's aria-label and the
+   breadcrumb's first segment read it, so renaming the nav home entry
+   propagates to both. set_global because plain set is for-loop-scoped. #}
+{% set home_label = "home" %}
+{%- for item in config.extra.header_nav | default(value=[]) -%}
+{%- if item.url == "/" %}{% set_global home_label = item.name %}{% endif -%}
+{%- endfor %}
+<body{% if not heading_numbers %} class="no-numbers"{% endif %}>
+    <nav id="top">
+        {% if config.extra.show_logo | default(value=false) %}
+        <a href="{{ get_url(path='/') }}" class="site-logo" aria-label="{{ home_label }}">
+            <img src="{{ get_url(path='logo.svg') }}" alt="" width="22" height="22">
+        </a>
+        {% endif %}
+        {% for item in config.extra.header_nav %}
+        {% if current_path and current_path == item.url %}
+        <a href="{{ get_url(path=item.url) }}" class="current">{{ item.name }}</a>
+        {% else %}
+        <a href="{{ get_url(path=item.url) }}">{{ item.name }}</a>        {% endif %}
+        {% endfor %}
+    </nav>
+
+    {# Breadcrumb. Gated on show_breadcrumbs, hidden on the home page. Two
+       inline branches handle the page and section template contexts; each
+       reads page.ancestors / section.ancestors and renders home, then each
+       ancestor section, then the current title. "_index.md" is filtered so the
+       root doesn't double-render as home. #}
+    {% if config.extra.show_breadcrumbs | default(value=false) and current_path and current_path != "/" %}
+    {% if page and page.ancestors | length > 1 %}    <nav class="breadcrumb" aria-label="breadcrumb">
+        <a href="{{ get_url(path='/') }}">{{ home_label }}</a>
+        {%- for path in page.ancestors -%}
+        {%- if path != "_index.md" %}
+        {%- set anc = get_section(path=path) %}
+        <span class="sep">&nbsp;&gt;&nbsp;</span><a href="{{ anc.permalink }}">{{ anc.title }}</a>
+        {%- endif -%}
+        {%- endfor %}
+        <span class="sep">&nbsp;&gt;&nbsp;</span><span class="here">{{ page.title }}</span>
+    </nav>
+    {% elif section and section.ancestors | length > 1 %}
+    <nav class="breadcrumb" aria-label="breadcrumb">
+        <a href="{{ get_url(path='/') }}">{{ home_label }}</a>
+        {%- for path in section.ancestors -%}
+        {%- if path != "_index.md" %}
+        {%- set anc = get_section(path=path) %}
+        <span class="sep">&nbsp;&gt;&nbsp;</span><a href="{{ anc.permalink }}">{{ anc.title }}</a>
+        {%- endif -%}
+        {%- endfor %}
+        <span class="sep">&nbsp;&gt;&nbsp;</span><span class="here">{{ section.title }}</span>
+    </nav>
+    {% endif %}
+    {% endif %}
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if config.extra.footer_links %}
+    <footer>
+        {% for link in config.extra.footer_links -%}
+        <a href="{{ link.url }}">{{ link.name }}</a>{% if not loop.last %} · {% endif %}
+        {%- endfor %}
+    </footer>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Zola build artifacts
+/public
+
+# macOS filesystem metadata
+.DS_Store
+._*
+.AppleDouble/
+
+# Windows filesystem metadata
+Thumbs.db
+Desktop.ini
+
+# Linux editor backup files
+*~

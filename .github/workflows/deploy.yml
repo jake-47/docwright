@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Build with Zola v0.22.1 (pinned)
+        run: |
+          url="https://github.com/getzola/zola/releases/download/v0.22.1/zola-v0.22.1-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o zola.tar.gz "$url"
+          curl -fsSL -o zola.sha "$url.sha256" || true
+          if [ -s zola.sha ]; then
+            echo "$(awk '{print $1}' zola.sha)  zola.tar.gz" | sha256sum -c -
+          fi
+          tar xzf zola.tar.gz
+          ./zola build
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: public
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

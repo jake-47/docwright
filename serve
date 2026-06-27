@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# preview the blog locally at http://127.0.0.1:1111 with live reload
+cd "$(dirname "$0")"
+exec zola serve --open

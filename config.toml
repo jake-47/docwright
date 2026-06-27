@@ -1,0 +1,50 @@
+base_url = "https://jake-47.github.io/docwright"
+title = "docwright"
+description = "one-line description"
+author = "your name"
+default_language = "en"
+
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+minify_html = true
+
+[markdown]
+# Outbound links get target="_blank" rel="nofollow noopener noreferrer".
+external_links_target_blank = true
+external_links_no_follow = true
+external_links_no_referrer = true
+# Footnotes collected at the foot of the post with back-references (Zola 0.20+).
+bottom_footnotes = true
+
+[markdown.highlighting]
+light_theme = "github-light"
+dark_theme = "github-dark"
+
+[extra]
+# Display toggles. true/false; restart the preview after changing any of them.
+# The guide explains each one.
+heading_numbers = false     # 1., 1.1. autonumbering on h2-h6
+show_post_dates = false     # date in the home list
+show_post_nav = true         # previous/next at the foot of a post
+post_nav_chronological = true  # foot-of-post wording: newer/older vs previous/next (cosmetic; sequence is always by date)
+show_toc = false                   # a contents list at the top of long posts
+show_breadcrumbs = true   # home > section > post trail (useful once you nest sections)
+show_logo = false                 # logo image in the header (replace static/logo.svg first)
+
+# Reader links on each post, pointing at the file on your host. Set by the host
+# flag; empty (and hidden) for a local-only blog.
+source_url = "https://github.com/jake-47/docwright/blob/main/content"             # "suggest an edit"
+history_url = "https://github.com/jake-47/docwright/commits/main/content"           # "view history"
+history_hint = "Click a commit, then 'Display the rich diff' for rendered prose"         # tooltip on the history link
+
+header_nav = [
+    { name = "home", url = "/" },
+    { name = "about", url = "/about/" },
+    { name = "rss", url = "/atom.xml" },
+]
+
+footer_links = [
+    { name = "x", url = "https://x.com/yourhandle" },
+    { name = "nostr", url = "https://nostr.com/npub1yourkeyhere" },
+    { name = "github", url = "https://github.com/jake-47/docwright" },
+]

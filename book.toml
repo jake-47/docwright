@@ -4,6 +4,7 @@ authors = ["Jake"]
 src = "src"
 
 [output.html]
+no-section-label = true
 default-theme = "light"
 preferred-dark-theme = "ayu"
 additional-css = ["custom.css"]

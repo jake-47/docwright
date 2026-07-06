@@ -4,6 +4,7 @@
 [About](./about.md)
 
 [Usage](./usage-docwright.md)
+
 ---
 
 # Backup
@@ -14,3 +15,11 @@
 - [Leveling up: Part 2](./leveling-up-2.md)
 - [Creating passphrase](./creating-passphrase.md)
 - [Terminal basics](./terminal-basics.md)
+
+---
+
+# Version control
+
+- [Whys](./vcs-whys.md)
+- [Git concepts](./gitconcepts.md)
+- [Git reference](./gitreference.md)

@@ -1,7 +1,15 @@
 # Summary
 
+
 [About](./about.md)
 
-- [Chapter 1](./chapter_1.md)
+---
 
-[Changelog](./changelog.md)
+# Backup
+
+- [Whys](./backup-whys.md)
+- [Getting started with Borg](./getting-started-with-borg.md)
+- [Leveling up: Part 1](./leveling-up-1.md)
+- [Leveling up: Part 2](./leveling-up-2.md)
+- [Creating passphrase](./creating-passphrase.md)
+- [Terminal basics](./terminal-basics.md)

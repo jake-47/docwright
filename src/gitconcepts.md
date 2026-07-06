@@ -903,7 +903,7 @@ The setting changes how `git pull` integrates remote work with yours, and the ch
 ### What `git pull` does without `pull.rebase true`
 
 By default, `git pull` is `git fetch` followed by `git merge`.
-If you have local commits that the remote doesn't, and the remote has commits that you don't, the merge step produces a merge commit joining the two lines: a commit with two parents, a message like "Merge branch 'main' of <remote>", and no actual content change of its own.
+If you have local commits that the remote doesn't, and the remote has commits that you don't, the merge step produces a merge commit joining the two lines: a commit with two parents, a message like "Merge branch 'main' of <remote> ", and no actual content change of its own.
 Run this often enough and the log becomes a forest of these no-content merge bubbles.
 They're real history (Git is faithfully recording that two divergent lines were joined) but they're noise: nobody wrote those messages, nothing about them is worth reading later, and they obscure the actual commits.
 

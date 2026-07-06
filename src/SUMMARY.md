@@ -63,3 +63,12 @@
 - [Open letter to Devuan devs](./open-letter-to-devuan.md)
 
 ---
+
+# LLMs
+
+- [Ollama guide: Set up local LLM](./ollama-guide.md)
+
+- [Ollama install script](./ollama-install-script.md)
+
+---
+

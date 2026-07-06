@@ -292,8 +292,7 @@ It contains only the core functions for easy review.
 I hope there's nothing malicious.
 I have been using it for my daily backup-workflow.
 
-```
-
+```bash
 #!/bin/bash
 # borg-simple
 #
@@ -2103,7 +2102,7 @@ Its three settings live at the top of the file: `MOUNT_BASE`, `REPO_SUBDIR`, and
 Point `PASSPHRASE_PATH` at the same combined passphrase file the full tool uses; backup-simple reads one repo's `set_pass` line from it the same way, through `BORG_PASSCOMMAND`.
 Set the three to match your full config so both tools see the same repos.
 
-```
+```bash
 #!/bin/bash
 # backup-really-simple
 #

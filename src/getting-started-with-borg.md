@@ -1,4 +1,4 @@
-# Getting started with Borg hello
+# Getting started with Borg
 *Once Borg is set up, making a backup up takes two commands and restoring it takes two.*
 
 > [!NOTE]

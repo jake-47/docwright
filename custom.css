@@ -1,0 +1,2 @@
+/* Fixed theme: hide the picker so the OS preference drives the light/dark theme. */
+#mdbook-theme-toggle { display: none; }

@@ -1,0 +1,11 @@
+[book]
+title = "docwright"
+authors = ["Jake"]
+src = "src"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "ayu"
+additional-css = ["custom.css"]
+git-repository-url = "https://github.com/jake-47/docwright"
+edit-url-template = "https://github.com/jake-47/docwright/edit/main/src/{path}"

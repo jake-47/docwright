@@ -1,2 +1,145 @@
-/* Fixed theme: hide the picker so the OS preference drives the light/dark theme. */
+/* Fixed theme: hide the picker so the OS preference drives light/dark. A saved
+   theme would otherwise pin the book with no control to change it — theme/head.hbs
+   clears it. */
 #mdbook-theme-toggle { display: none; }
+
+/* Self-hosted Charter (free, ~28KB/weight). custom.css is served from the book
+   root and CSS urls resolve against the stylesheet, so "fonts/x.woff2" finds the
+   copy mdBook makes of src/fonts/x.woff2 — copied verbatim, not content-hashed. */
+@font-face{font-family:"Charter";src:url("fonts/charter_regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Charter";src:url("fonts/charter_italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:"Charter";src:url("fonts/charter_bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"Charter";src:url("fonts/charter_bold_italic.woff2") format("woff2");font-weight:700;font-style:italic;font-display:swap}
+
+/* mdBook sets html{font-size:62.5%} -> 1rem = 10px. px is literal; rem pre-scaled.
+
+   --menu-bar-height is mdBook's own (50px). Everything that depends on the bar is
+   expressed in terms of it — by mdBook (the sticky hover placeholder's height, the
+   negative top margin on .page that pulls the bar to the viewport top, the icons'
+   and the title's line-height, :target's scroll-margin) and by this file (the
+   masthead band, the sidebar's scrollbox padding) — so raising it here raises all
+   of them together and the two columns stay level. 50px leaves a 24px serif title
+   about 13px of air above and below it, and the page scrolls under the bar, so that
+   13px is the whole clearance between the title and the body text passing beneath.
+   60px is the same title with room to breathe. */
+:root{
+  --serif: "Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;
+  --content-max-width: 700px;
+  --menu-bar-height: 60px;
+  --mono-font: ui-monospace,"DejaVu Sans Mono","Liberation Mono",Menlo,Consolas,monospace;
+}
+html{font-family:var(--serif);}
+.sidebar{font-size:1.6rem;}
+.content{font-size:1.9rem;line-height:1.55;}
+.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0 .4em;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
+.content h2{font-size:2.5rem;line-height:1.18;margin:3rem 0 .85rem;padding-bottom:.2em;border-bottom:1px solid var(--rule-strong);}
+.content h3{font-size:1.9rem;line-height:1.18;margin:2.25rem 0 .55rem;}
+
+/* mdBook's own .content a is text-decoration:none, and --links carries the colour.
+   Only the underline is added here; the colour comes from the palette. Search
+   results use --links too, so without an underline they render as plain body text
+   with no affordance at all — give them the same one. */
+.content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
+#mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
+
+/* The sidebar list is left alone. mdBook's own .chapter li.chapter-item is
+   line-height:1.5em; margin-block-start:0.6em — already in em, so it scales with
+   the 1.6rem set above, and it is what spaces the rule a SUMMARY '---' draws.
+   Overriding it in px-equivalent terms only tightens that rule against the text. */
+
+/* Palette. mdBook defines ~43 colour variables per theme; overriding only the page
+   and the sidebar leaves everything else — blockquotes, tables, the search UI, the
+   icons, the separator — painted in the stock theme's blues, which is what shows
+   the moment a page contains a table or a quote. This covers every one that paints.
+   html.<theme> (0,1,1) beats mdBook's own .<theme> (0,1,0). Two rule weights:
+   --rule-strong draws the hairlines under H1/H2, the sidebar separator and the
+   content's <hr>, --rule draws everything else. The copy button is a black SVG
+   recoloured by a filter, so it is set with invert()/opacity() rather than a
+   hue-rotate chain: exact, and it tracks --icons. The five --blockquote-*-color
+   admonition accents are deliberately NOT overridden — those are semantic
+   (note/tip/important/warning/caution) and muting them into the palette is the one
+   place where standing out is the point.
+
+   --code-bg is NOT one of mdBook's variables, and that is the point of it. mdBook
+   paints a code block's background from the highlight.js stylesheet — .hljs, in
+   highlight.css / tomorrow-night.css / ayu-highlight.css — not from a theme
+   variable, so the palette above cannot reach it and never did: a neutral #f6f7f6
+   sat inside this warm page, and a blue-black #191f26 inside its dark counterpart.
+   It is repainted from here (below) onto the same raised-surface tint the sidebar
+   and blockquotes already use. Only the ground moves; the syntax token colours are
+   left exactly as the highlight theme sets them, and both new grounds are within a
+   percent of the lightness of the ones those colours were drawn against. */
+html.light{
+  --bg:#fffff8;--fg:#111;--links:#111;--inline-code-color:#111;--muted:#57564e;
+  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
+  --sidebar-bg:#f4f2e8;--sidebar-fg:#3a3a34;--sidebar-active:#b5540a;
+  --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
+  --icons:#7d7a6e;--icons-hover:#111;
+  --copy-button-filter:opacity(.55);--copy-button-filter-hover:opacity(1);
+  --quote-bg:#f4f2e8;--quote-border:#e5e3d7;--warning-border:#b5540a;--code-bg:#f4f2e8;
+  --table-border-color:#e5e3d7;--table-header-bg:#e0dccb;--table-alternate-bg:#faf8ee;
+  --searchbar-bg:#fffff8;--searchbar-fg:#111;--searchbar-border-color:#c2bda4;--searchbar-shadow-color:#c2bda4;
+  --searchresults-border-color:#e5e3d7;--searchresults-header-fg:#57564e;--searchresults-li-bg:#f9f7ec;
+  --search-mark-bg:#f2d9a8;--footnote-highlight:#f2d9a8;--overlay-bg:rgba(20,19,15,.6);
+}
+html.ayu{
+  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#e8e6da;--muted:#9a988c;
+  --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
+  --sidebar-bg:#1b1b18;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
+  --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
+  --icons:#7a786e;--icons-hover:#e8e6da;
+  --copy-button-filter:invert(1) opacity(.55);--copy-button-filter-hover:invert(1) opacity(1);
+  --quote-bg:#1b1b18;--quote-border:#2c2c28;--warning-border:#ffb454;--code-bg:#1b1b18;
+  --table-border-color:#2c2c28;--table-header-bg:#2c2c28;--table-alternate-bg:#191916;
+  --searchbar-bg:#1b1b18;--searchbar-fg:#e8e6da;--searchbar-border-color:#42423c;--searchbar-shadow-color:#42423c;
+  --searchresults-border-color:#2c2c28;--searchresults-header-fg:#9a988c;--searchresults-li-bg:#191916;
+  --search-mark-bg:#5a4a24;--footnote-highlight:#5a4a24;--overlay-bg:rgba(10,10,8,.7);
+}
+
+/* Repaint the code block's ground from the palette. custom.css is the last
+   stylesheet mdBook links, after all three highlight sheets, and pre > code.hljs
+   (0,1,2) outranks their bare .hljs (0,1,0) anyway. Scoped to pre > : mdBook gives
+   inline code its own rule (:not(pre) > .hljs), which is left alone. When the
+   line-number gutter is on it is painted the same colour, so the block reads as one
+   surface rather than as two columns with a seam down the middle. */
+pre > code.hljs{background-color:var(--code-bg);}
+
+/* print.css resets layout but not colour, and the UA drops backgrounds when
+   printing — so a reader whose OS is dark prints near-white ink onto white paper.
+   Force ink-on-paper for the print media regardless of the theme in force. */
+@media print{
+  html{--bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--muted:#444;
+       --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;
+       --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
+}
+#mdbook-menu-bar .icon-button{font:inherit;line-height:var(--menu-bar-height);}
+
+:root{--mdb-top-gap:2.4rem;}
+.content main > :first-child{margin-block-start:var(--mdb-top-gap);}
+.chapter{margin-block-start:0;}
+.chapter > li:first-child{margin-block-start:0;}
+.chapter > li.chapter-item:empty:first-child + li{margin-block-start:0;}
+.chapter li.part-title{line-height:1.5em;}
+
+.content hr{border:0;height:1px;background-color:var(--rule-strong,var(--table-border-color));margin:3.2rem 0;}
+.chapter .spacer{height:1px;margin-block:1.6em;}
+
+.sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
+.sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
+
+.mdb-print-back{margin:0 0 2rem;font-size:.85em;}
+@media print{.mdb-print-back{display:none;}}
+
+@media screen{.content main:has(.mdb-wide){max-width:1000px;}}
+.sidebar .sidebar-scrollbox{padding-top:0;}
+.menu-title{transition:opacity .3s;}
+html.sidebar-visible .menu-title{opacity:0;}
+.sidebar-scrollbox::before{content:"docwright";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);font-size:2.4rem;font-weight:200;line-height:var(--menu-bar-height);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+pre:has(> .mdb-gutter){display:flex;align-items:stretch;}
+pre > .mdb-gutter{flex:0 0 auto;-webkit-user-select:none;user-select:none;white-space:pre;text-align:right;font-family:var(--mono-font);font-size:var(--code-font-size);padding:1rem .8em 1rem 1rem;background-color:var(--code-bg,transparent);color:var(--muted,#999);border-right:1px solid var(--rule,rgba(128,128,128,.25));}
+pre > .mdb-gutter + code.hljs{flex:1 1 auto;min-width:0;padding-left:1em;}
+@media print{
+  pre:has(> .mdb-gutter){display:block;}
+  pre > .mdb-gutter{display:none;}
+  pre > .mdb-gutter + code.hljs{padding-left:1rem;}
+}

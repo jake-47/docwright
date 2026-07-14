@@ -4,9 +4,11 @@ authors = ["Jake"]
 src = "src"
 
 [output.html]
+additional-js = ["custom.js"]
+additional-css = ["custom.css"]
 no-section-label = true
 default-theme = "light"
 preferred-dark-theme = "ayu"
-additional-css = ["custom.css"]
+site-url = "/docwright/"
 git-repository-url = "https://github.com/jake-47/docwright"
-edit-url-template = "https://github.com/jake-47/docwright/edit/main/src/{path}"
+edit-url-template = "https://github.com/jake-47/docwright/edit/main/{path}"

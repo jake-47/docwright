@@ -1,0 +1,6 @@
+/* Script-owned; regenerated on every run.
+
+   Deliberately declares no faces. Its presence makes mdBook emit this file and
+   only the font files in theme/fonts/ — none — instead of its built-in Open Sans
+   and Source Code Pro, which this theme does not use. Charter is declared in
+   custom.css and its woff2 live in src/fonts/. */

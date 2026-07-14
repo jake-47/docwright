@@ -3,6 +3,7 @@ name: Deploy mdBook to GitHub Pages
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -20,13 +21,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          # 0 = full history and tags. The default (1) fetches neither, and the
+          # version stamped below is the tag on this commit.
+          fetch-depth: 0
 
-      - name: Install mdBook v0.5.3
+      - name: Install mdBook v0.5.4
         run: |
           set -euo pipefail
-          base="https://github.com/rust-lang/mdBook/releases/download/v0.5.3/mdbook-v0.5.3-x86_64-unknown-linux-gnu.tar.gz"
+          base="https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz"
           curl --fail -sSL "$base" -o mdbook.tar.gz
+          # The digest of the bytes the bootstrap script installed locally. A version
+          # tag names a file, not its contents; this pins the contents.
+          echo "3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7  mdbook.tar.gz" | sha256sum -c -
           tar -xz -f mdbook.tar.gz --directory=/usr/local/bin
+
+      - name: Stamp build metadata
+        run: |
+          set -euo pipefail
+          # The version of this build. 'describe --tags' names the tag on this commit
+          # if it carries one, and otherwise the nearest tag reachable from it plus the
+          # distance and the abbreviated commit: v1.2-5-gabc1234. The sed rewrites that
+          # tail to a '+5', which says the same thing without repeating the SHA that is
+          # already the next field of the line — so the label reads v1.2 on the tagged
+          # commit and v1.2+5 five commits later. Never --abbrev=0: that would print
+          # 'v1.2' for a commit that is not v1.2. Empty until the first tag exists;
+          # then it is never empty again. Reduced to a safe charset before being
+          # spliced into a sed replacement and a JS string literal: a git tag name may
+          # legally contain | and ".
+          version=$(git describe --tags 2>/dev/null | sed -E 's/-([0-9]+)-g[0-9a-f]+$/+\1/' || true)
+          version=${version//[^A-Za-z0-9._+-]/}
+          sed -i \
+            -e "s|__MDB_BUILD_VERSION__|${version}|" \
+            -e "s|__MDB_BUILD_DATE__|$(date -u +%Y-%m-%d)|" \
+            -e "s|__MDB_BUILD_SHA__|${GITHUB_SHA::7}|" \
+            custom.js
 
       - name: Build
         run: mdbook build

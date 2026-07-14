@@ -1,0 +1,9 @@
+{{!-- Script-owned; regenerated on every run.
+
+     Fixed theme mode hides the theme picker, so a theme saved in localStorage
+     would pin this book with no control left to change it. localStorage is scoped
+     to the origin, and every GitHub project site under one user shares one origin.
+     Clearing the key here, ahead of mdBook's own theme script, lets that script
+     resolve the theme from the OS preference and pick the matching highlight
+     stylesheet with it. --}}
+<script>try{localStorage.removeItem('mdbook-theme');}catch(e){}</script>

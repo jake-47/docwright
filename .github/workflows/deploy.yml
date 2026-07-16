@@ -17,7 +17,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned like the action SHAs and the mdBook version: the runner image is the last
+    # input that could shift under an otherwise-green build. Bump when 24.04 is retired.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -70,7 +72,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

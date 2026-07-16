@@ -38,10 +38,10 @@ html{font-family:var(--serif);}
 /* Subtitle: <p class="mdb-subtitle"> on the line under a heading. Sits BELOW the
    heading's rule; the heading itself is untouched, so its own H1/H2 rule stays
    identical to a subtitle-less heading's. The :has() rule only trims the heading's
-   bottom MARGIN (not its rule) to a fixed .7rem, so H1 and H2 both leave the same
-   ~7px gap under the rule. */
+   bottom MARGIN (not its rule) to a fixed .5rem, so H1 and H2 both leave the same
+   ~5px gap under the rule. */
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
-.content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.7rem;}
+.content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.5rem;}
 
 /* Blockquote, GitHub-style. Scoped to :not(.blockquote-tag) so mdBook's native
    admonitions (> [!NOTE] etc., which ARE .blockquote-tag) keep their coloured accent.
@@ -76,12 +76,16 @@ html{font-family:var(--serif);}
    The five --blockquote-*-color admonition accents are deliberately NOT overridden —
    they're semantic, and standing out is the point.
 
-   --code-bg is not an mdBook variable: mdBook paints code-block backgrounds from the
-   highlight.js stylesheet, not a theme variable, so the palette can't reach it. It's
-   repainted below onto the same raised tint the sidebar and blockquotes use; only the
-   ground moves, the syntax token colours are left as the highlight theme sets them. */
+   --code-bg and --inline-bg are not mdBook variables: mdBook paints code backgrounds
+   from the highlight.js stylesheet, not a theme variable, so the palette can't reach
+   them. Both are repainted below. In light the code ground is the same raised tint the
+   sidebar and blockquotes use; in dark it sits a step above that tint (#242420 over the
+   #1b1b18 sidebar/quote) because at #1b1b18 the block barely parted from the #111 page.
+   Only the ground moves; the syntax token colours are left as the highlight theme sets
+   them. --inline-bg is a separate, slightly stronger tint so a short inline pill reads
+   against both the page and the running text around it. */
 html.light{
-  --bg:#fffff8;--fg:#111;--links:#111;--inline-code-color:#111;--muted:#57564e;
+  --bg:#fffff8;--fg:#111;--links:#111;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
   --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
   --sidebar-bg:#f4f2e8;--sidebar-fg:#3a3a34;--sidebar-active:#b5540a;
   --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
@@ -94,13 +98,13 @@ html.light{
   --search-mark-bg:#f2d9a8;--footnote-highlight:#f2d9a8;--overlay-bg:rgba(20,19,15,.6);
 }
 html.ayu{
-  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#e8e6da;--muted:#aaa8a0;
+  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
   --sidebar-bg:#1b1b18;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
   --icons:#7a786e;--icons-hover:#e8e6da;
   --copy-button-filter:invert(1) opacity(.55);--copy-button-filter-hover:invert(1) opacity(1);
-  --quote-bg:#1b1b18;--quote-border:#2c2c28;--warning-border:#ffb454;--code-bg:#1b1b18;
+  --quote-bg:#1b1b18;--quote-border:#2c2c28;--warning-border:#ffb454;--code-bg:#242420;
   --table-border-color:#2c2c28;--table-header-bg:#2c2c28;--table-alternate-bg:#191916;
   --searchbar-bg:#1b1b18;--searchbar-fg:#e8e6da;--searchbar-border-color:#42423c;--searchbar-shadow-color:#42423c;
   --searchresults-border-color:#2c2c28;--searchresults-header-fg:#9a988c;--searchresults-li-bg:#191916;
@@ -109,17 +113,30 @@ html.ayu{
 
 /* Repaint the code block's ground from the palette. custom.css is the last
    stylesheet mdBook links, after all three highlight sheets, and pre > code.hljs
-   (0,1,2) outranks their bare .hljs (0,1,0) anyway. Scoped to pre > : mdBook gives
-   inline code its own rule (:not(pre) > .hljs), which is left alone. When the
-   line-number gutter is on it is painted the same colour, so the block reads as one
-   surface rather than as two columns with a seam down the middle. */
+   (0,1,2) outranks their bare .hljs (0,1,0) anyway. Scoped to pre > : inline code is
+   repainted by its own rule below. When the line-number gutter is on it is painted the
+   same colour, so the block reads as one surface rather than as two columns with a
+   seam down the middle. */
 pre > code.hljs{background-color:var(--code-bg);}
+
+/* Inline code. mdBook paints NO ground on inline code: chrome.css gives it only
+   padding + radius (:not(pre) > .hljs) and a text colour (:not(pre):not(a) > .hljs),
+   so the pill's fill is left to whichever highlight sheet is live — #f6f7f6 (light) or
+   #191f26 (ayu), both off this palette and near-invisible on our grounds — and with
+   --inline-code-color set to --fg (as it was) the text carried no signal either.
+   book.js adds .hljs to every non-header <code> at load, so inline code is code.hljs
+   in the browser: repaint it here from the palette. Warm fill + the theme's own accent
+   text (ffb454/b5540a) + a hairline drawn as an inset shadow, which — unlike a border —
+   does not change the inline box's metrics. :not(pre) excludes block code (its parent
+   is <pre>); :not(a) leaves linked code to the link styling. code.hljs makes this
+   (0,1,3), over mdBook's own (0,1,2) and the bare .hljs (0,1,0); custom.css is last. */
+:not(pre):not(a) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);}
 
 /* print.css resets layout but not colour, and the UA drops backgrounds when
    printing — so a reader whose OS is dark prints near-white ink onto white paper.
    Force ink-on-paper for the print media regardless of the theme in force. */
 @media print{
-  html{--bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--muted:#444;
+  html{--bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
@@ -142,7 +159,10 @@ pre > code.hljs{background-color:var(--code-bg);}
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}
 
-@media screen{.content main:has(.mdb-wide){max-width:1000px;}}
+@media screen{
+  .content main:has(.mdb-wide,.mdb-bleed){max-width:1000px;}
+  .content main:has(.mdb-bleed) > :not(.mdb-bleed){box-sizing:border-box;max-width:var(--content-max-width);margin-inline:auto;}
+}
 .sidebar .sidebar-scrollbox{padding-top:0;}
 .sidebar-scrollbox::before{position:sticky;top:0;box-sizing:border-box;background-color:var(--sidebar-bg);border-block-end:1px solid transparent;}
 .sidebar-scrollbox.mdb-scrolled::before{border-block-end-color:var(--table-border-color);}

@@ -14,7 +14,6 @@ It's also a good idea to go through [Creating passphrase](./creating-passphrase.
 > It's old but good.
 
 ## 1. Install Borg
----
 
 **On Debian Linux**
 
@@ -39,11 +38,11 @@ brew install borgbackup
 ```
 
 ## 2. Create the repo
----
+
 Borg calls the backup folder a repository: an encrypted, compressed container that holds your data.
 You have to do this step only once per drive unless, of course, you lose or damage your drive.
 
-### 1.1. Get the path to your drive
+### 2.1. Get the path to your drive
 Plug in your external drive or USB stick, and find the path to it.
 
 > [!NOTE]
@@ -62,7 +61,7 @@ Plug in your external drive or USB stick, and find the path to it.
 > If you have no spare drive, you can still test Borg by using a folder on your system, say`~/Documents`.
 > The point of backing up to a drive is so that if your laptop fails or gets stolen, your backup is not lost with it.
 
-### 1.2. Name and create the repo
+### 2.2. Name and create the repo
 
 Name the repo anything you like, and run the command to create the repo** (edit the path and repo name to match yours):
 
@@ -72,7 +71,7 @@ borg init --encryption=repokey /Volumes/backup1/borg
 
 On Linux that path should look something like `/media/john/backup1/borg`, and if you are testing Borg on your system, then it would look something like `~/Documents/borg`.
 
-### 1.3. Enter the passphrase twice
+### 2.3. Enter the passphrase twice
 
 Pick a strong one.
 For tips on creating a secure passphrase, see [Creating passphrase](./creating-passphrase.md).
@@ -90,7 +89,7 @@ From here on, unless you lose your drive, it's just one command per drive to bac
 See [Levelling up]() details.
 
 ## 3. Back up
----
+
 
 > [!NOTE]
 > From here, every command below uses `/Volumes/backup1/borg`; replace it with your own path.
@@ -141,7 +140,7 @@ Next time you do not have to retype anything: plug in the drive, open the termin
 Two drives in the same drawer both die in the same fire or theft; the one stored elsewhere is the one that saves you.
 
 ## 4. Restore
----
+
 
 ### 4.1. Select archive
 

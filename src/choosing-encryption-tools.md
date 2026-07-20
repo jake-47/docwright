@@ -21,7 +21,6 @@ If you've never encrypted a file in your life and you don't know where to start,
 
 What this artifact is not: a how-to. There are no commands here. This is for picking the right tool for the right job and understanding the politics of each. The companion `devuan-luks2-install.sh` in the project covers the actual install procedure for users who want to bypass distro installer wrappers. For the concepts beneath these tools (what encryption, signing, hashing, keys, and the web of trust actually are), the companion `gpg-concepts.md` is the home; this guide assumes those and points there rather than re-explaining.
 
----
 
 ## Why your encryption choices matter: the surface you're defending
 
@@ -62,7 +61,6 @@ Modern Android (since 10) and modern iOS encrypt the user data partition by defa
 
 Out of scope here: password managers (KeePassXC, Bitwarden), encrypted messaging (Signal, Matrix), and email encryption layered on top of plaintext mail.
 
----
 
 ## Four families of tool
 
@@ -78,7 +76,6 @@ Encryption-at-rest tools cluster into four families. The right tool depends almo
 
 A sub-mode that crosses these categories: filesystem-native encryption. ZFS native encryption and Linux's fscrypt operate at the filesystem layer, neither block-level (whole-disk) nor application-level (per-file). They appear once in the tools list below but conceptually they sit alongside the four families rather than inside any one of them.
 
----
 
 ## The tools
 
@@ -272,7 +269,6 @@ DiskCryptor was a Windows-only TrueCrypt-era full-disk encryption tool. Abandone
 
 BitLocker (Windows) and FileVault (macOS) are excluded from the comparison because they're proprietary and OS-vendor-controlled. See the "Why proprietary disk encryption is hostile" section above for what's wrong with them. Section 6 covers what to do with existing BitLocker / FileVault volumes when migrating to Linux.
 
----
 
 ## Decision matrix
 
@@ -306,7 +302,6 @@ First: full-disk encryption on the system you actually use is the highest-value 
 
 Second: don't try to learn all of these. Pick one tool per job and stick with it. The most common failure mode in this space is people stacking three encryption layers, forgetting one of the passwords two years later, and losing the data permanently. Encryption is the most reliable way to lose your own data. Account for that in the choice.
 
----
 
 ## Political leaning summary
 
@@ -330,7 +325,6 @@ Encryption-at-rest tools cluster into several ideological lineages. Knowing whic
 
 The takeaway: the encryption itself is not the interesting variable. AES-256, ChaCha20-Poly1305, Argon2id, these are mature primitives and any of the actively maintained tools above gets the math right. What differs is the threat model the project assumes, the funding base that sustains it, and the behaviors you're being signed up for when you adopt their workflow. Pick on those.
 
----
 
 ## Migration from Windows or Mac
 
@@ -354,7 +348,6 @@ For files that were in iCloud Drive: check whether you had Advanced Data Protect
 
 **Once you're on Linux.** Default starting setup: LUKS at install on the system disk, plus one secondary tool for whichever specific job is in front of you (Borg for backups, Cryptomator for cloud-synced folders, age for one-off files). Add others only when a new job genuinely requires them. The companion `devuan-luks2-install.sh` covers the LUKS-LVM-Devuan install procedure in detail for users who want full control over the install.
 
----
 
 ## How to think about choosing
 

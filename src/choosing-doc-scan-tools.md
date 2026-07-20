@@ -4,7 +4,6 @@ A comparison of the open-source tools that vet PDF, EPUB, and other documents on
 
 If you came here from `security-overview.md` looking for the input-vetting specialist, the short answer is: ClamAV plus Didier Stevens' pdfid suite plus YARA, with VirusTotal as an optional consensus check and Firejail as the open-it-safely layer. Operational companion is `doc-malware-scan.sh` in this project. Read the rest if you want to understand why those and not the alternatives.
 
----
 
 ## TL;DR
 
@@ -16,7 +15,6 @@ The operational companion is `doc-malware-scan.sh` in this project, which wires 
 
 Tools that compete with ClamAV in the open-source AV space (Linux Malware Detect / maldet) lose on coverage and freshness. Tools in the same category as pdfid for PDF analysis (peepdf, mutool) are complementary rather than replacements. Sandboxed-reader alternatives to Firejail (Bubblewrap, Flatpak's portal model) are usable but require more setup.
 
----
 
 ## What document scanning means and what it doesn't
 
@@ -40,7 +38,6 @@ Adjacent categories worth knowing but not the focus here:
 - **Endpoint AV in the Windows sense.** Continuously scans every file the OS touches. Linux versions exist (ClamAV's clamd daemon, ClamWin, ESET for Linux) but the Linux threat model rarely justifies the resource cost; on-demand scanning of documents you receive covers most of the realistic threat.
 - **Network-level scanning.** Mail gateways and proxy filters that scan attachments before they reach the workstation. Out of scope for single-workstation usage; relevant if you operate a mail server or HTTP proxy.
 
----
 
 ## The tool comparison
 
@@ -277,7 +274,6 @@ Weaknesses:
 
 When to pick: if you've decided Firejail's SUID is unacceptable for your threat model and you're willing to write wrapper scripts. For most users, Firejail's profile system wins on usability.
 
----
 
 ## Political and lineage clustering
 
@@ -291,7 +287,6 @@ Less politically charged than encryption tools — no Snowden-era controversies 
 
 There's no equivalent here to the VeraCrypt-Microsoft situation in the encryption space or to the systemd-Lennart-Poettering controversies in the init space. The trade-offs are about coverage versus privacy and about project maturity versus complexity, not about competing ideological camps.
 
----
 
 ## How to think about choosing
 
@@ -303,7 +298,6 @@ Three questions, in order:
 
 3. **What's your response posture on a hit?** If a hit will be ignored or routinely dismissed, none of this matters. The minimum posture: structural-suspicion hit → don't open without sandbox; signature hit → don't open at all without inspection; critical hit → don't open, quarantine, investigate origin. Pre-decide before the first hit, because the first hit will arrive at an inconvenient moment.
 
----
 
 ## The recommendation
 
@@ -338,7 +332,6 @@ Weekly scan of Downloads via cron (in root's or your own crontab):
 
 After every legitimate apt upgrade that bumped ClamAV, the post-install hook usually runs freshclam; if signatures look stale (older than seven days), run `sudo freshclam` manually.
 
----
 
 ## What about other document formats
 
@@ -354,7 +347,6 @@ The doc-malware-scan workflow above targets PDF and EPUB explicitly. Adjacent fo
 
 **KFX (Amazon's Kindle format) from non-publisher sources.** Harder to inspect without Calibre or Amazon's own tools; the practical guidance is to convert KFX to EPUB first and then scan, or to read KFX only on the Kindle device itself.
 
----
 
 ## Out of scope, deliberately
 

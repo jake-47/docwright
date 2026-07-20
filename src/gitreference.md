@@ -10,7 +10,6 @@ Conventions in this doc:
 3. `HEAD~N` means "N commits before the current one." `HEAD~1` is the previous commit.
 4. Anything marked "local only" rewrites history; never run on commits that have been pushed to a shared remote.
 
----
 
 ## One-time setup
 
@@ -365,7 +364,6 @@ sed -i '/^# === managed by git_setup (multi-identity SSH) BEGIN ===$/,/^# === ma
 Strips the `includeIf` pointing at `~/.gitconfig-anon`, deletes the file itself, and removes both the current and legacy SSH marker blocks.
 If you never ran with `ANON_GH_USER` set, none of these commands do anything; the snippet is safe to run regardless.
 
----
 
 ## Starting a repo
 
@@ -382,7 +380,6 @@ git clone <url>
 git clone <url> <folder-name>   # clone into a specific folder
 ```
 
----
 
 ## The daily cycle
 
@@ -453,7 +450,6 @@ Takes the working-tree content of the named paths and does not touch the index f
 git commit -m "Drop rebase glossary entry: duplicates concepts doc" -- glossary.md
 ```
 
----
 
 ## Everyday workflow
 
@@ -627,7 +623,6 @@ Note on shell quoting: every form that takes a message in quotes (the aliases an
 Apostrophes, parens, `$`, `!`, and `*` need escaping or careful quoting.
 If a message would need heavy escaping, use editor mode instead.
 
----
 
 ## Remotes
 
@@ -729,7 +724,6 @@ git branch -u origin/<branch>
 git branch --set-upstream-to=origin/<branch>     # long form
 ```
 
----
 
 ## Removing and renaming tracked files
 
@@ -752,7 +746,6 @@ git mv <old> <new>
 
 To stop tracking a file while keeping it on disk (the inverse of `git add`), see `git rm --cached` under "Ignoring files".
 
----
 
 ## Ignoring files
 
@@ -795,7 +788,6 @@ Use it for personal editor or scratch files that shouldn't be imposed on collabo
 notes-to-self.md
 ```
 
----
 
 ## .gitattributes template
 
@@ -852,7 +844,6 @@ git config --global core.autocrlf input     # Linux/macOS
 git config --global core.autocrlf true      # Windows
 ```
 
----
 
 ## Inspecting state and history
 
@@ -1052,7 +1043,6 @@ git blame --ignore-rev <sha> <file>
 git config blame.ignoreRevsFile .git-blame-ignore-revs    # apply the file by default
 ```
 
----
 
 ## Undoing
 
@@ -1178,7 +1168,6 @@ git reset --hard ORIG_HEAD
 
 For an operation still in progress (conflicts unresolved), use `--abort` instead; `ORIG_HEAD` is for one that already completed.
 
----
 
 ## Quick recipes for common messes
 
@@ -1228,7 +1217,6 @@ git blame <file>                 # find the sha
 git show <sha>                   # read the commit message
 ```
 
----
 
 ## Branches
 
@@ -1353,7 +1341,6 @@ git rebase --onto HEAD~3 HEAD~1     # replay HEAD onto HEAD~3, dropping HEAD~1 a
 
 Read it as: replay the commits in `<upstream>..<branch>` on top of `<newbase>`.
 
----
 
 ## Merge conflicts
 
@@ -1396,7 +1383,6 @@ In a merge, `--ours` is your current branch and `--theirs` is the branch being m
 In a rebase the sides are swapped: `--ours` is the branch you're replaying onto and `--theirs` is your own commit being replayed.
 Check which operation you're in before picking a side.
 
----
 
 ## Stashing
 
@@ -1460,7 +1446,6 @@ git stash show -p stash@{0}          # full diff of the stash
 git stash show stash@{0}             # summary only
 ```
 
----
 
 ## Rewriting history (local only)
 
@@ -1520,7 +1505,6 @@ git cherry-pick --skip               # drop this commit, keep going
 git cherry-pick --abort              # undo the whole cherry-pick
 ```
 
----
 
 ## Recovery
 
@@ -1555,7 +1539,6 @@ Find dangling commits that the reflog doesn't surface.
 git fsck --lost-found
 ```
 
----
 
 ## Tags
 
@@ -1616,7 +1599,6 @@ git describe --tags
 git describe --tags --dirty          # append -dirty if the working tree has changes
 ```
 
----
 
 ## SSH setup for GitHub
 
@@ -1650,7 +1632,6 @@ ssh -T git@github.com
 
 Use SSH URLs for remotes (`git@github.com:user/repo.git`) rather than HTTPS URLs once SSH is set up.
 
----
 
 ## Identity setup
 
@@ -1745,7 +1726,6 @@ git config --show-origin user.email     # and which file set it
 With the fail-loud global in place, a repo in an uncategorized directory errors here instead of resolving an identity.
 That error is the safety net, not a misconfiguration.
 
----
 
 ## Signed commits
 
@@ -1806,7 +1786,6 @@ git verify-tag <tag>
 
 SSH-signature verification needs the `allowed_signers` file from the SSH signing setup above; without it these report an error instead of a verdict.
 
----
 
 ## Worktrees
 
@@ -1819,7 +1798,6 @@ git worktree list
 git worktree remove ../other-branch-folder
 ```
 
----
 
 ## Submodules and LFS
 
@@ -1851,7 +1829,6 @@ git add .gitattributes                 # the track command writes here
 
 Files matching tracked patterns are stored in LFS instead of the regular git object store.
 
----
 
 ## Purging files from history
 

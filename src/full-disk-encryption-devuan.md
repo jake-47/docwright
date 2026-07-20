@@ -5,7 +5,6 @@
 **Last updated:** 2026-04-14
 **Tested on:** Devuan Daedalus 5.0, amd64, NVMe disk
 
----
 
 ## Before you begin
 
@@ -21,13 +20,11 @@ devuan_daedalus_5.0_amd64_non-free-firmware.iso
 
 Use the non-free firmware ISO — it includes WiFi and other hardware firmware so everything works after install.
 
----
 
 ## Part 1 — Boot from the Devuan USB
 
 Power on with the Devuan USB inserted. Select **"Install"** from the boot menu.
 
----
 
 ## Part 2 — Drop to a shell immediately
 
@@ -43,14 +40,12 @@ fdisk /dev/nvme0n1
 
 Follow each prompt exactly. Commands are in code blocks. What you see on screen is in quotes.
 
----
 
 ```
 g
 ```
 > "Created a new GPT disklabel"
 
----
 
 ```
 n
@@ -73,7 +68,6 @@ If prompted: "Partition #1 contains a vfat signature. Do you want to remove the 
 y
 ```
 
----
 
 ```
 t
@@ -85,7 +79,6 @@ t
 ```
 > "Changed type of partition 'Linux filesystem' to 'EFI System'"
 
----
 
 ```
 n
@@ -102,7 +95,6 @@ If prompted: "Partition #2 contains a signature. Do you want to remove the signa
 y
 ```
 
----
 
 ```
 p
@@ -114,7 +106,6 @@ Confirm you see:
 
 The 1 MB free space at the top and 335 KB at the bottom are normal GPT gaps — ignore them.
 
----
 
 ```
 w
@@ -136,7 +127,6 @@ ls /dev/nvme0n1*
 ```
 > Expected: `nvme0n1  nvme0n1p1  nvme0n1p2`
 
----
 
 ## Part 3 — Set up LUKS2
 
@@ -162,7 +152,6 @@ Enter your LUKS passphrase twice.
 cryptsetup luksOpen /dev/nvme0n1p2 crypt
 ```
 
----
 
 ## Part 4 — Set up LVM
 
@@ -218,7 +207,6 @@ ls /dev/vg0/
 ```
 > Expected: `boot  home  root  swap`
 
----
 
 ## Part 5 — Return to installer
 
@@ -251,7 +239,6 @@ Lowercase, no spaces. Avoid your real name — it appears in file paths and logs
 ### Login password
 Used at the login screen and for `sudo`. At least 12 characters, mix of types. **Do not reuse your LUKS passphrase.**
 
----
 
 ## Part 6 — Partition Disks screen
 
@@ -276,7 +263,6 @@ Select **"Configure the Logical Volume Manager"**.
 
 You will see the LVM configuration summary. Select **"Continue"**, then **"Finish"**, then **"Finish"** again.
 
----
 
 ## Part 7 — Assign mount points
 
@@ -318,7 +304,6 @@ If prompted: "No partition table changes... Continue?" → **Yes**
 
 If prompted: "Partition #2 has been written but we have been unable to inform the kernel of the change" → **Ignore** — normal and safe.
 
----
 
 ## Part 8 — Remaining installer steps
 
@@ -343,7 +328,6 @@ Recommended for a privacy-focused desktop: **XFCE + Standard system utilities**
 ### Init system
 Select **sysvinit** — Devuan's init system, avoids systemd.
 
----
 
 ## Part 9 — GRUB install
 
@@ -388,7 +372,6 @@ This time it will succeed — no fatal error. The installer writes a GRUB EFI im
 
 Let the rest of the install finish. **Do not reboot when prompted.**
 
----
 
 ## Part 10 — Configure before first boot
 
@@ -525,7 +508,6 @@ exit
 
 This returns you to the installer menu. Let the installer finish and reboot from there — it runs cleanup tasks before rebooting.
 
----
 
 ## Part 11 — What to expect at every boot
 
@@ -537,7 +519,6 @@ This returns you to the installer menu. Let the installer finish and reboot from
 
 **Why is the keyfile secure?** The keyfile is inside the initramfs, which lives on `vg0/boot`, which is inside the LUKS2 container. An attacker with physical access cannot reach the initramfs or keyfile without your passphrase first. The keyfile only becomes accessible after GRUB has already unlocked the container.
 
----
 
 ## Part 12 — Harden /tmp after first boot
 
@@ -574,7 +555,6 @@ You should see `tmpfs` mounted on `/tmp`. If you get an error, check the fstab l
 
 Contents clear automatically on every reboot.
 
----
 
 ## Appendix A — Changing the LUKS passphrase later
 
@@ -590,7 +570,6 @@ To see which key slots are in use:
 cryptsetup luksDump /dev/nvme0n1p2 | grep ENABLED
 ```
 
----
 
 ## Appendix B — Notes on security tradeoffs
 

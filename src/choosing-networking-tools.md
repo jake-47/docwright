@@ -4,7 +4,6 @@ How to choose a VPN, mesh, or overlay network in a way that doesn't reintroduce 
 
 This doc is the dedicated landscape for the cross-cutting concern that `security-overview.md` opens with its "Tor versus VPN versus self-hosted mesh" section. That section frames the choice at a high level; this doc fills in the rest of the space.
 
----
 
 ## TL;DR
 
@@ -20,7 +19,6 @@ Sovereignty-frontier projects to track but not yet deploy as a daily driver: nos
 
 What this doc is not: a deep-dive into any specific tool's setup. Each entry names the tool's positioning and the capture-risk shape; setup procedures live elsewhere.
 
----
 
 ## The capture-risk frame for networking
 
@@ -40,7 +38,6 @@ Every networking tool answers two architectural questions: what identifies a nod
 
 **Censorship-evasion proxies** (Shadowsocks, v2ray, Trojan, Hysteria, Outline) answer neither question: they're not privacy tools; they're "make encrypted traffic look like benign TLS so the DPI box doesn't drop it" tools. They live alongside the other tiers and stack on top.
 
----
 
 ## Tier 1: Commercial VPNs
 
@@ -68,7 +65,6 @@ Flag worth naming: Proton AG drew sustained criticism in 2024 from segments of t
 
 Free commercial VPNs that aren't a free tier of a paid product (NordVPN, ExpressVPN, free apps in mobile stores). The business model that pays for the infrastructure is either logging-and-selling or malware. The "you are the product if it's free" frame applies here particularly cleanly.
 
----
 
 ## Tier 2: Self-hosted point-to-point
 
@@ -92,7 +88,6 @@ The pre-WireGuard incumbent. Still widely deployed; still works. Slower than Wir
 
 The poor-person's VPN. `ssh -D` opens a SOCKS proxy through any SSH server you can reach; `sshuttle` wraps it so all traffic to a configured subnet transparently routes via SSH. Not a real VPN (no kernel-level integration, no UDP support), but the right answer when all you need is to bounce traffic through a remote host you already have access to. Zero infrastructure beyond an existing SSH server.
 
----
 
 ## Tier 3: Mesh with central coordinator
 
@@ -136,7 +131,6 @@ Pick this only if you specifically need ZeroTier's older Layer-2 emulation (it c
 
 The Tier 3 class has more entrants than the four above; these are the architectural classes worth naming, and the rest mostly recombine the same trade-offs. Briefly, for completeness: Firezone (WireGuard-based, open-source, self-hostable, policy-driven access), Netmaker (WireGuard mesh with a self-hostable control plane, kernel-WireGuard performance focus), OpenZiti (zero-trust overlay with application-embedded networking rather than host-level tunnels), Defguard (open-source WireGuard with enterprise SSO and MFA), and Twingate (closed-source zero-trust access, commercial, the most Tailscale-like in positioning). These are commercial-backed startups for the most part; expect some to be acquired or to pivot. Evaluate any of them against the same two questions the capture-risk frame poses: who holds the identity, and who operates the coordinator. If the answer to the second is "a company, with no self-hosting path," it's a Tier 1 risk shape wearing Tier 3 clothes.
 
----
 
 ## Tier 4: Coordinator-less mesh
 
@@ -172,7 +166,6 @@ The Hyperboria project's network protocol. End-to-end encrypted IPv6, source-rou
 
 Pick this if you specifically want to connect to Hyperboria or you have a use case where source-routing is the right primitive. For most readers, Yggdrasil is the more practical answer in the same shape.
 
----
 
 ## Tier 5: Nostr-rooted mesh (sovereignty frontier)
 
@@ -222,7 +215,6 @@ The CLI carries a v4.x tag, but its own README still flags network deletion as u
 Name-collision caveat for anyone citing it: this is PearDrive (peardrive.com, Pear/Holepunch stack), distinct from the older and unrelated PeerDrive (peerdrive.org), an alpha-stage Erlang distributed filesystem.[^peerdrive-erlang]
 Revisit when it reaches a tagged beta and file-change sync lands.
 
----
 
 ## Tier 6: Anonymity overlays
 
@@ -272,7 +264,6 @@ Capture-risk shape: the mixnet itself is decentralized with no single operator t
 
 Pick NYM if: your threat model includes a global passive adversary (the nation-state-scale observer that can watch traffic across the whole network), which is the specific case Tor doesn't fully defend against. Use Anonymous Mode for the high-value low-bandwidth traffic that case implies. For ordinary anonymity against a non-global adversary, Tor remains the larger, more battle-tested network; NYM's advantage is specifically the metadata-timing defense against the strongest adversary class.
 
----
 
 ## Tier 7: Censorship-evasion proxies
 
@@ -322,7 +313,6 @@ Trade-off: like Shadowsocks and the other proxies in this tier, your traffic ter
 
 Adjacent commercial-VPN-side development: Mullvad rolled out QUIC obfuscation for WireGuard on its desktop clients in 2026, disguising WireGuard traffic as ordinary QUIC web traffic to bypass DPI in heavily-censored regions. Same convergence point (WireGuard plus DPI-survival obfuscation) from the commercial-VPN direction. The category to watch is "WireGuard with protocol obfuscation"; AmneziaWG and Mullvad's QUIC obfuscation are two implementations of it.
 
----
 
 ## Tier 8: Off-grid mesh and radio-grade
 
@@ -364,7 +354,6 @@ Briar is a P2P messenger (covered in `choosing-communication-tools.md`) that inc
 
 For the messenger landscape including Briar's positioning, see `choosing-communication-tools.md`. For purely-networking off-grid use, prefer Reticulum or Meshtastic.
 
----
 
 ## What to avoid
 
@@ -380,7 +369,6 @@ For the messenger landscape including Briar's positioning, see `choosing-communi
 
 **Censorship-evasion proxies as anonymity tools.** Shadowsocks, v2ray, Trojan, Hysteria, Outline are great at evading DPI; they're not anonymity tools. Your traffic still terminates at your proxy server, which knows your IP and your destinations. Don't conflate these with Tor.
 
----
 
 ## Where to start
 
@@ -408,7 +396,6 @@ A flowchart of common cases.
 
 **"I want all of the above stacked."** Reticulum can transport over Yggdrasil which can transport over Tor; the layering is the design. This is the maximalist configuration and is real ops work to operate; don't start here unless you've operated each layer individually first.
 
----
 
 ## Maturity table
 
@@ -448,7 +435,6 @@ Read the entries above for the substance; this table is the at-a-glance map.
 | B.A.T.M.A.N. (batman-adv) | 8 | Production, in-kernel | None |
 | Briar mesh | 8 | Maintenance | None |
 
----
 
 [^nostr-vpn]: Martti Malmi, *nostr-vpn*, GitHub repository: <https://github.com/mmalmi/nostr-vpn>. README description: "nostr-vpn is a Tailscale-style private mesh VPN built around a FIPS-backed data plane. It includes the nvpn CLI/daemon, a shared native app core, and native shells for desktop and mobile platforms." Malmi's release announcement on X, 19 May 2026: <https://x.com/marttimalmi/status/2056616263925854570>. Malmi's bio: "Bitcoin dev in 2009-2011." Current release v4.0.47 on the GitHub releases page as of 28 May 2026; the project ships multiple releases per week, so the live version number drifts faster than this doc updates.
 

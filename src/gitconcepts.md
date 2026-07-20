@@ -3,7 +3,6 @@
 This post explains important concepts of Git that every knowledge worker must know.
 How did you get by without it even, really?
 
----
 
 ## Four core concepts
 
@@ -1286,7 +1285,6 @@ The commands that actually destroy work, in order of danger:
 When in doubt, make a backup branch first.
 `git branch backup-before-i-try-this` costs nothing and buys you a trivial way to undo whatever you're about to do.
 
----
 
 ## What Git silently discards
 
@@ -1341,7 +1339,6 @@ Git stores snapshots and hashes, not intentions.
 Every high-level operation that looks like it's recording semantics (rename, track, ignore, amend) either discards the semantics at commit time or infers them after the fact.
 Knowing this in advance prevents the class of mistake that comes from assuming the tool is doing more than it actually is.
 
----
 
 ## For writers specifically
 
@@ -1476,7 +1473,6 @@ The writing is the thing.
 Git is the frame that keeps the writing safe and legible across time.
 If you find yourself thinking about Git more than writing, you've inverted the relationship.
 
----
 
 ## Three things to keep in mind
 
@@ -1512,7 +1508,6 @@ The AI gives you a plausible answer quickly; practitioner sources give you the a
 Both are useful.
 Don't confuse them.
 
----
 
 ## Closing: deliberate practice
 

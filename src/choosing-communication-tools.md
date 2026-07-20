@@ -4,7 +4,6 @@ How to choose a messenger or email setup when the goal isn't "what does my conta
 
 This doc complements `choosing-networking-tools.md` (the L3/L4 networking layer) by covering the application-layer messaging and email space. The two intersect at Briar and at Reticulum's LXMF: both projects appear in both docs but with different framings.
 
----
 
 ## TL;DR
 
@@ -26,7 +25,6 @@ For email specifically (the second half of this doc), the ordering is by how muc
 
 Avoid: WhatsApp, Telegram (the default-unencrypted product, not the Secret Chats), iMessage cross-platform, Discord for anything you care about, Wickr (Amazon-owned, end-of-life uncertain). For email: Gmail, Outlook / Microsoft 365, Yahoo for anything sensitive.
 
----
 
 ## The capture-risk frame for messengers
 
@@ -50,7 +48,6 @@ Adoption in 2026: Wire was the early production deployment; Element X is migrati
 
 The MIMI (More Instant Messaging Interoperability) IETF working group is the cross-network interop layer being built on top of MLS. Four drafts are active as of early 2026: `draft-ietf-mimi-arch` (the architecture), `draft-ietf-mimi-protocol` (the MIMI-over-HTTPS-and-MLS transport spec), `draft-ietf-mimi-room-policy` (room policies for groups and multimedia conferences), and `draft-ietf-mimi-content` (the message-content format)[^mimi]. Authors include Richard Barnes (Cisco), Matthew Hodgson and Travis Ralston (Matrix.org Foundation), Konrad Kohbrok and Raphael Robert (Phoenix R&D), and Rohan Mahy. The Matrix-side participation is heavy; Element X's MLS migration is the most visible implementation track. What MIMI lets you do at the spec level once it lands: a user on provider A and a user on provider B exchange E2E messages without either provider operating a bridge. The bridge becomes a protocol, not a piece of infrastructure. Trajectory for the next 18 to 24 months; not deployable yet.
 
----
 
 ## Tier 1: Centrally-coordinated, mass-market
 
@@ -78,7 +75,6 @@ Capture-risk shape: single Swiss company, paid subscriber base. Swiss jurisdicti
 
 Pick Threema if you want the no-phone-number property, you're willing to pay (the payment is the user-not-product signal you actually want here), and your contacts will install it. Common in DACH-region (Germany, Austria, Switzerland) friend and family networks.
 
----
 
 ## Tier 2: Federated
 
@@ -102,7 +98,6 @@ Smaller user base than Matrix; older codebase; fewer feature creep risks. The pr
 
 Pick XMPP if: you want a protocol that has outlasted multiple companies and several federation experiments, you're comfortable picking your own server (or running one), and you don't need the rich-media UX Matrix invests in. Some sovereignty-minded operators specifically prefer XMPP over Matrix on the "older, simpler, more outlasted-companies" axis.
 
----
 
 ## Tier 3: Decentralized cryptography
 
@@ -128,7 +123,6 @@ Australian-headquartered (Session was originally a Loki Project initiative). The
 
 Pick Session if: you want a fully decentralized routing model, you accept the forward-secrecy trade for the offline-delivery property, and the Oxen Network's continued operation matches your time horizon. Smaller user base than SimpleX; less active development as of 2026.
 
----
 
 ## Tier 4: P2P and offline-capable
 
@@ -194,7 +188,6 @@ Capture-risk shape: zero by construction (no servers, no operator). Residual con
 
 Pick bitchat for: dense-Bluetooth scenarios where physical proximity is the use case (concerts, protests, dense urban areas, conference floors); jurisdictions where internet shutdowns are a real threat model (Uganda 2026 is the documented example; similar cases will recur); the Apple-ecosystem case where Briar's Android-first reach doesn't help; and any sovereignty-aligned stack where mainstream-app-store distribution matters for contact onboarding. Pair bitchat (Bluetooth mesh) with Briar (Bluetooth + WiFi-direct + Tor) and Reticulum + LXMF (LoRa mesh) for layered offline-capable messaging across physical-layer options.
 
----
 
 ## Tier 5: Nostr-rooted
 
@@ -281,7 +274,6 @@ So today Pubky is an identity and public-publishing layer, not a messenger, and 
 The sovereignty-complete configuration is a self-hosted homeserver; using the flagship homeserver is trusting one operator, softened by the migration path.
 Revisit when Pubky Noise ships usable end-to-end encryption and signup ungates; until then this is a thing to try with throwaway data and to watch.
 
----
 
 ## Tier 6: Email-as-transport
 
@@ -295,7 +287,6 @@ The advantage: you can talk to anyone with an email address: they see an email; 
 
 Pick DeltaChat if: you already have email, you want PGP-grade encryption without learning a separate app, and you have contacts who'll install it. Particularly useful in mixed-tech-comfort family networks where "I'll send you an email" works and "install this messenger" doesn't. For the email infrastructure DeltaChat rides on (which provider, self-hosting, encryption layers) see the Email section below.
 
----
 
 ## Tier 7: Radio-grade and off-grid
 
@@ -315,7 +306,6 @@ Meshtastic's built-in text messaging, over LoRa. Channel-based (groups of device
 
 Pick Meshtastic messaging if: you've deployed Meshtastic hardware for the community-resilience reasons (cheaper than RNode, simpler protocol) and want messaging as one of the use cases. Not metadata-resistant in the way Reticulum is; not E2E-encrypted between specific pairs (channel-key based).
 
----
 
 ## What to avoid
 
@@ -331,7 +321,6 @@ Pick Meshtastic messaging if: you've deployed Meshtastic hardware for the commun
 
 **Snapchat, Instagram DMs, X DMs (formerly Twitter).** Not end-to-end encrypted by default; metadata extensively logged; the platforms' business models depend on the data. X has experimented with E2E DMs in limited capacity but the rollout has been incomplete.
 
----
 
 ## Where to start
 
@@ -357,7 +346,6 @@ Common scenarios.
 
 **"I want every property at once."** You're picking a Pareto frontier. The sovereignty-aligned stacked stack: White Noise as primary (when stable), SimpleX as the SMS/Signal-replacement secondary, Briar as offline backup, LXMF on Reticulum as the off-grid layer. None of these is Signal in terms of contact reach; the trade-off is real.
 
----
 
 ## Maturity table
 
@@ -384,7 +372,6 @@ Common scenarios.
 | LXMF on Reticulum | 7 | Yes | Production | Yes (ephemeral keys) | Limited | None |
 | Meshtastic messaging | 7 | Yes | Production | No (channel keys) | No | None |
 
----
 
 ## Email
 
@@ -514,7 +501,6 @@ A unique email alias per service means a breach or data-sale at one service expo
 | SimpleLogin | Aliasing | Yes | Production | Proton-owned; self-hostable |
 | addy.io | Aliasing | Yes | Production | Self-hostable |
 
----
 
 [^simplex-no-ids]: SimpleX Chat, project home page: <https://simplex.chat/>. "The first messenger without user IDs. Other apps have user IDs: Signal, Matrix, Session, Briar, Jami, Cwtch, etc. SimpleX does not, not even random numbers. ... To deliver messages, instead of user IDs used by all other platforms, SimpleX uses temporary anonymous pairwise identifiers of message queues, separate for each of your connections, there are no long term identifiers."
 

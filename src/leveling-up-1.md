@@ -1,3 +1,5 @@
+  <div class="mdb-wide"></div>
+
 # Leveling up: Part 1
 
 *This guide explains the [borg-simple script](#the-simple-script) below, which wraps Borg so you can make backups (archive) of folders to repos, restore (extract) repos to its original location or a different one, run integrity checks on repos, change passphrases of a repo, rename repos -- located on multiple drives -- with single commands.*
@@ -6,7 +8,6 @@
 
 *In [Part 2](./leveling-up-2.md), you install GPG and encrypt the passphrase file, so that the passphrase file does not sit in plaintext.*
 
----
 
 ## Script functions
 
@@ -131,14 +132,14 @@ If you leave `PASSPHRASE_PATH` empty, there is no file and borg prompts for each
 
 ### Step 1 — install borg (and gpg, if you encrypt the passphrase file)
 
-```console
+```bash
 sudo apt install borgbackup
 sudo apt install gnupg     # only if your passphrase file ends in .gpg
 ```
 
 Confirm borg is 1.2.x:
 
-```console
+```bash
 borg --version
 ```
 

@@ -2,7 +2,6 @@
 *If you've never used a terminal, here's what you need to know.*
 
 ## The terminal
----
 
 The terminal or CLI (Command Line Interface) is just a text window where you type commands and the computer runs them.
 You type one line, press enter, see what happens, then type the next.
@@ -10,7 +9,6 @@ That's the whole loop.
 It's an alternate way of interacting with your computer, instead of clicking buttons in a graphical interface.
  
 ## Opening the terminal
----
 
 **On macOS**, press <kbd>Cmd+Space</kbd> to open Spotlight, type "Terminal", press <kbd>Return</kbd>.
 
@@ -23,7 +21,6 @@ Don't use the regular Windows Command Prompt or PowerShell for this guide; they 
 But if you're on Linux, you likely know that already.
 
 ## Getting around
----
 
 Once the terminal is open, a few commands are enough to get around:  
 `pwd` prints the current directory (where you are right now in the file system).  
@@ -35,7 +32,6 @@ Once the terminal is open, a few commands are enough to get around:
 **Note**: Commands are case-sensitive on Linux and macOS, so `Ls` won't work where `ls` does.
 
 ## Working with files
----
 
 Once you can move around, a handful more commands let you create files, look at them, and tidy up:  
 `mkdir wallets` makes a new folder called wallets.  
@@ -49,7 +45,6 @@ The `-r` removes all nested files and subfolders; without it, `rm` can only dele
 And the `f` means do not ask for confirmation and override any warnings.
 
 ## Keys that get you unstuck
----
 
 A few keystrokes make the terminal far less tedious and pull you out of trouble.
 The <kbd>Tab</kbd> key autocompletes a file or folder name once you've typed enough of it to be unique, and pressing it twice lists the choices when more than one matches.
@@ -58,14 +53,12 @@ The **Up** arrow brings back your previous command so you don't have to retype i
 The `clear` command wipes the visible text from your terminal screen, though nothing is actually deleted; your command history is still there (you can scroll up or use arrow keys).
 
 ## Running commands as administrator
----
 
 Some commands change system-wide settings and need administrator rights, which you get by putting `sudo` in front of the command.
 The terminal will then ask for your password.
 The password stays completely invisible as you type it, with no dots or stars to show progress; that's normal and not a frozen screen, so just keep typing and press enter.
 
 ## Reading multi-line commands
----
 
 When a command in this knowledge base spans multiple lines connected by `\` at the end of each line, that's one long command; paste the whole block at once.
 When multiple lines look separate, run them one at a time.

@@ -2,7 +2,6 @@
 
 The map. [The security overview](security-overview.md) is the trailhead and the reading order; [why you should secure your system](why-secure-your-system.md) is the reason to bother. This is the terrain in between: what you are actually defending, the layered stack that defends it, how to size your effort, and how far the climb goes. Read it after the overview and before the first rung ([the OS picker](os.md)). You do not need to act on any of it yet; it is orientation, not procedure.
 
----
 
 ## The six layers
 
@@ -21,7 +20,6 @@ Plus cross-cutting concerns that aren't a single layer: hardware tokens, Heads c
 
 Everyone should run the baseline: Linux, full-disk encryption, the hardening floor, document scanning, and integrity monitoring. It is low-friction once set and it helps no matter who is after you. From there, climb as far as your time and money allow: add anonymity (Tor, Tails) for sessions that shouldn't trace back to you; add isolation (Qubes, identity separation) for workloads that can't safely share a machine; combine both into the maximal posture (Qubes-Whonix on coreboot hardware) if you're under active targeting and will keep it maintained. The detail is in "The ascent" below.
 
----
 
 ## The 14 attack surfaces, ranked
 
@@ -44,7 +42,6 @@ First, the broader picture: what attack surfaces actually matter for a normal pe
 
 The browser and DNS together account for the majority of practical privacy loss for most people. Everything else matters, but fixing those two has the highest return. The OS sits at position four, which is why the project's main guide is about switching it. The six layers above are how you systematically address surfaces 1 through 14: foundation (OS at position 4 plus what the OS enables you to defend at positions 1, 2, 5, 10), confidentiality (data at rest, complements 1 and 11), hardening (closes attack surfaces the OS itself opens), input vetting (catches malicious content arriving via surfaces 10 and 11 before it hits the workstation), detection (catches when defenses fail), and compartmentalization (limits damage when one layer falls).
 
----
 
 ## Sizing your effort
 
@@ -64,7 +61,6 @@ Answer all four for each thing you're protecting. The protect-targets usually va
 
 One more thing, because it cuts against the instinct to remove every annoyance: friction in your setup is often doing protective work you can't see. The LUKS passphrase you type at every boot, the AppArmor profile that breaks one workflow per quarter, the hardware-token tap for sudo, the USBGuard block when a colleague hands you a stick, every one of those is a problem you could "solve," and every such solution removes the friction that was the protection. Some problems are immune systems. Be deliberate about which ones you remove.
 
----
 
 ## The ascent: do the baseline, then climb as far as you can afford
 

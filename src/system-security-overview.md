@@ -13,7 +13,6 @@ Secure your system. The long answer for why you must secure it is [explained her
 9. [**Harden the whole workstation**](devuan-secure-workstation.md). The desktop apex: LUKS, VM compartmentalization, USBGuard, nftables, kernel hardening, encrypted DNS. Driven by the [install script](devuan-luks2-install.sh).
 10. [**Harden mobile**](choosing-phone.md). The phone apex, a parallel track you can climb any time after step 1: Pixel plus GrapheneOS, flashed per [the GrapheneOS install guide](grapheneos-install.md).
 
----
 
 ## Cross-cutting concerns
 
@@ -151,7 +150,6 @@ The threat model where backups specifically matter: ransomware, disk failure, th
 
 The hardest part of backups is not the technology; it's the routine. A backup that's never tested doesn't restore. A backup whose passphrase is in the head of someone who's now in the hospital doesn't restore. Test the restore quarterly; document the recovery procedure somewhere a trusted person can find it.
 
----
 
 ## Out of scope, deliberately
 

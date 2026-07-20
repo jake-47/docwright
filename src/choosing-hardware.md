@@ -16,7 +16,6 @@ Do not buy a MacBook to install Linux on. Asahi Linux work covers M1/M2 well, bu
 
 Do not buy a Mac for general computing if sovereignty is the question this document is trying to answer. The companion piece `os.md` covers when keeping a Mac for one specialized workflow (video, audio, Adobe) is a reasonable concession; that concession does not extend to "buy a new Mac for general computing."
 
----
 
 ## How this fits with the OS guide
 
@@ -24,7 +23,6 @@ The OS guide (`os.md`) is upstream of this one. Pick a distro first; pick hardwa
 
 The sovereignty axis used here is the same one the OS guide uses: the question is not "which vendor is best" but "which vendor is in the conversation forever, and on what terms." Apple expects to be in the conversation forever and dictates the terms. Microsoft is increasingly putting itself in the conversation through firmware (Pluton's integration into AMD Ryzen 6000+ and selected Intel chips, pushed through Windows-certified OEM hardware). Google, on Pixel hardware, sells you the device and then leaves the software conversation entirely if you install GrapheneOS. The vendors who sell explicitly for Linux (Framework, System76, Tuxedo, Star Labs, Purism) sit lower on the vendor-presence axis. The desktop you built yourself, from commodity parts, sits lowest.
 
----
 
 ## Tier 1: A desktop you built from parts
 
@@ -46,7 +44,6 @@ A self-assembled desktop is the most sovereign general-purpose computer you can 
 
 What this tier costs you: portability. If you cannot accept a desktop in your home or office, skip to Tier 2.
 
----
 
 ## Tier 2: Laptops
 
@@ -139,7 +136,6 @@ Don't buy a MacBook to install Linux on. Asahi Linux's situation in 2026 is roug
 
 Translated: buying a MacBook with the intention of running Linux on it means either buying an M1/M2 used machine where the work is mostly done (the realistic path) or buying an M3+ machine where you're chasing a target Apple is actively making harder to hit. Either way, you've paid Apple's hardware margin for a machine optimized for an OS you're going to replace. Buy a Framework or ThinkPad. They're cheaper, modular, and supported on every distro the OS guide names.
 
----
 
 ## Tier 3: A phone with a keyboard
 
@@ -189,7 +185,6 @@ Pick this if: hardware kill switches are non-negotiable, the phone is primarily 
 
 For most readers asking "phone as workstation," the Pixel hardware path above is the answer.
 
----
 
 ## What to avoid
 
@@ -200,7 +195,6 @@ For most readers asking "phone as workstation," the Pixel hardware path above is
 
 The MacBook case has its own subsection inside Tier 2 (`#the-macbook-trap`) and is not repeated here.
 
----
 
 [^thinkpad-mwc]: Engadget, *Lenovo's ThinkPads get a spec bump at MWC 2026*, 1 March 2026: <https://www.engadget.com/computing/laptops/lenovos-thinkpads-get-a-spec-bump-at-mwc-2026-230100419.html>. Confirms ThinkPad T14 Gen 7 and T16 Gen 5 starting at $1,799 with Intel Core Ultra Series 3 (vPro) or AMD Ryzen AI Pro 400 Series CPUs, optional 5MP camera with computer vision/vHDR, larger speakers, and an iFixit 10/10 repairability score. T14s Gen 7 starts at $1,899. Most devices shipping Q2 2026.
 

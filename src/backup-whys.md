@@ -6,10 +6,10 @@ Someday a life could depend on it.
 Borg is the best backup tool so far.
 Start simple. 
 Iterate later.
-Bring your data into a single folder, get a couple of USB sticks, and proceed to the next article*
+Bring your data into a single folder, get a couple of USB sticks; and if you're convinced of the significance of making backups, the urgency of making it today, the danger of using cloud services, and the dominance of Borg, proceed to the next article.*
 
 ## Why backup?
----
+
 It's the first thing every serious knowledge-worker should do, for failure is inevitable.
 If you're convinced you need to backup immediately, skip to the [Why offline](#why-offline) or [Why Borg](#why-borg) section.
 
@@ -46,7 +46,7 @@ To be careless with it is to dishonour your time.
 A backup plan is, among other things, an act of respect for your own labour and time.
 
 ## Why offline?
----
+
 
 Don't upload your data to Google Drive or One Drive or some other storage service.
 That's a bad idea, even if it's encrypted.
@@ -87,7 +87,7 @@ And physical risk does not scale the way network risks do.
 Breaching one server affects a million people at once, but how do you burgle a million drawers? 
 And the attacker cannot reach the drive in your home and the drive at a friend's house on the same afternoon.
 
-### Ownership and endgoal
+### Ownership and end goal
 
 Ownership gives you a boundary you can see, inspect, and defend.
 Later, when a drawer of drives is not enough and you want a copy that lives somewhere else, the answer is still hardware you own, a small home server such as StartOS, which is a self-hosted machine you run yourself, rather than a company's cloud.
@@ -95,7 +95,6 @@ Setting one up is a subject for another day.
 
 
 ## Why today?
----
 
 The perfect backup system is worth striving for, but it's unlikely you're going to build it all in one day.
 And the perfect system will always be worse than a working one that's running today.
@@ -113,16 +112,15 @@ A few simple commands in your terminal and you have an encrypted, compressed bac
 And when you're convinced that Borg is the best, you can repeat the steps with your actual data.
 
 ## Why Borg?
----
 
 Borg is the best backup-program available today.
 Don't take my word for it; do your research, but here are some facts.
 
 Nobody bases a product on a backup engine they do not trust.
-BorgBase is a hosting service specialised for BorgBackup and offers append-only repositories and two-factor authentication, and it funds development of the surrounding tooling.
+BorgBase is a hosting service specialized for BorgBackup and offers append-only repositories and two-factor authentication, and it funds development of the surrounding tooling.
 Hetzner added native Borg support to its Storage Box product, with an extended SSH service, official documentation, append-only mode, and per-version remote-path pinning.
 Rsync.net, a longest-standing offsite-storage providers, supports Borg natively as well.
-On the desktop, Pika Backup, a GNOME application, is powered by BorgBackup, and Vorta provides a Qt front-end over the same Borg backend, while borgmatic wraps it for scheduling and retention policy.
+On the desktop, Pika Backup, a GNOME application, is powered by BorgBackup, and Vorta provides a Qt front-end over the same Borg backend, while Borgmatic wraps it for scheduling and retention policy.
 A whole ecosystem of CLIs, Docker servers, and web UIs have grown around the engine.
 
 Borg's headline accomplishment is reach.

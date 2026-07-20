@@ -2,7 +2,6 @@
 
 How to defend the code you install. This is the question the other input-vetting work does not answer: `choosing-document-scanning-tools.md` covers the files you open, this covers the code you install and build. It sits alongside the detection layer (`choosing-hids-tools.md`, which catches tampering after the fact) and the credential-isolation cross-cutting concern in the master overview (which keeps a compromised build environment from acting as you). The motivation, including the IronWorm npm worm that makes this concrete, is in `why-secure-your-system.md`. Recommends a baseline at the end; the rest is the reasoning that defends it.
 
----
 
 ## TL;DR
 
@@ -18,7 +17,6 @@ The baseline, in order of return per minute of effort:
 
 No single one of these stops every attack. Depth is the point, the same as everywhere else in this project. Detection after the fact is `choosing-hids-tools.md`; recovery is backups, in the overview.
 
----
 
 ## The shape of the threat
 
@@ -33,7 +31,6 @@ The IronWorm npm worm in June 2026 is the worked example, and it is worth unders
 
 The result was self-propagating: it stole a developer's publish credentials, republished itself into that developer's packages, and infected the next person who installed them. The lesson for defense is that the package manager's convenience features (run-on-install, automatic version updates, stored publish tokens) are the attack surface, and the defenses below are mostly about removing or containing each one.
 
----
 
 ## The ecosystems, one at a time
 
@@ -129,7 +126,6 @@ So for cargo the defense is review and sandboxing, not flags:
 
 The same principle applies to a tarball or a `git clone` you build with `make`: the build runs whatever the `Makefile` and configure scripts say, with your privileges. Verify the download against a signature or a published checksum from the project (not from the same place you got the file), read the build files if the source is unfamiliar, and build untrusted source in a sandbox.
 
----
 
 ## Cross-cutting defenses
 
@@ -162,7 +158,6 @@ Because the most common payload is an environment-variable and credential-file s
 
 Screen new dependencies with the per-ecosystem scanners: Socket or `npq` for npm, `pip-audit` or `osv-scanner` for pip, `cargo audit` or `cargo deny` (sandboxed) for cargo. Check the human signals too: maintainer history, repository activity, and whether the name is one an AI assistant suggested and an attacker may have registered. The limits are real: these tools catch known-bad and some heuristic-bad, not a novel implant in an otherwise-trusted package, and as noted the cargo plugins are unsafe to point at untrusted code.
 
----
 
 ## Recommendation
 
@@ -182,7 +177,6 @@ Add if you hold meaningful crypto: the seed never lives on the build machine; co
 
 The axis driving this order is security first, then the long term, per the project defaults. Item 6 is the load-bearing one: sandboxing the build of unreviewed code is the control that still works when ignore-scripts is bypassed, when a stolen OIDC token publishes a bad version, or when the registry serves a swapped release. The rest raise the cost of an attack; item 6 contains the blast radius when one gets through.
 
----
 
 ## The honest limits
 
@@ -190,7 +184,6 @@ No single control stops every supply-chain attack, and the marketing around each
 
 These defenses shift the odds and contain the damage; they do not guarantee safety. Detecting a compromise after it lands is a different layer (`choosing-hids-tools.md`), and coming back from one is backups (the overview). Depth across all of these is the posture, not faith in any one of them.
 
----
 
 [^ironworm]: JFrog Security Research, "IronWorm: Shai-Hulud's rustier cousin," 3 June 2026, <https://research.jfrog.com/post/iron-worm-shai-hulud-rustier-cousin/>. Corroborated by BleepingComputer, "New IronWorm malware hits 36 packages in npm supply-chain attack," <https://www.bleepingcomputer.com/news/security/new-ironworm-malware-hits-36-packages-in-npm-supply-chain-attack/>. Disclosed via the compromised `asteroiddao` npm account in the Arweave/WeaveDB ecosystem; reported package count ranges from 36 to 43; 86 environment variables and 20 credential-file paths targeted; 57 back-dated commits across nine organizations under automation identities including dependabot, github-actions, and "claude."
 

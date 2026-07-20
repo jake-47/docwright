@@ -6,11 +6,9 @@
 
 - [Usage](./usage-docwright.md)
 
----
-
 # Backup
 
-- [Whys](./backup-whys.md)
+- [Whys of backup](./backup-whys.md)
 
 - [Getting started with Borg](./getting-started-with-borg.md)
 
@@ -22,11 +20,9 @@
 
 - [Terminal basics](./terminal-basics.md)
 
----
-
 # Version control
 
-- [Whys](./vcs-whys.md)
+- [Whys of version control](./vcs-whys.md)
 
 - [Git concepts](./gitconcepts.md)
 
@@ -34,9 +30,7 @@
 
 - [Git history delete](./git-delete.md)
 
----
-
-# Secure system
+# System security
 
 - [Overview](./system-security-overview.md)
 
@@ -58,17 +52,12 @@
 
 - [Devuan secure workstation](./devuan-secure-workstation.md)
 
-- [Full Disk Encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md)
+- [Full disk encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md)
 
 - [Open letter to Devuan devs](./open-letter-to-devuan.md)
 
----
-
 # LLMs
 
-- [Ollama guide: Set up local LLM](./ollama-guide.md)
+- [Ollama guide: set up a local LLM](./ollama-guide.md)
 
 - [Ollama install script](./ollama-install-script.md)
-
----
-

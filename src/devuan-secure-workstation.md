@@ -4,7 +4,6 @@ A complete install-plus-hardening procedure for a single-user Devuan workstation
 
 The companion executable `devuan-luks2-install.sh` performs the partitioning, LUKS setup, debootstrap, and base configuration. This document explains what that script does, what to do before running it, and the post-install steps the script deliberately does not perform.
 
----
 
 ## TL;DR
 
@@ -28,7 +27,6 @@ The script gets you a working LUKS-LVM Devuan install with a single passphrase p
 
 Items 1 through 14 are mandatory for any threat model that includes a stolen laptop or a network you don't fully control. Item 15 trades capability for reduction in post-compromise damage; enable it only if you understand what it costs.
 
----
 
 ## What this produces
 
@@ -50,7 +48,6 @@ A Devuan workstation with the following properties when complete:
 
 What this is not. Not a Tor-routed system by default (use Tails or Whonix for that — Part 4.5 covers the Whonix-on-this-workstation option). Not amnesic (use Tails). Not the maximalist VM compartmentalization model (use Qubes for that). Not signed-boot-enforced from firmware (Secure Boot is off; see the trade-off in the next section). The threat model assumes a competent attacker with physical access to a powered-off laptop, network-level observers, and ordinary malware — not a nation-state with hardware implants.
 
----
 
 ## Architectural costs
 
@@ -84,7 +81,6 @@ Genuine "everything inside encryption including the ESP" is impossible because s
 
 A note on the script's GRUB install behavior. The script writes the bootloader to `/EFI/devuan/grubx64.efi` and creates an NVRAM boot entry pointing at it. With `INSTALL_REMOVABLE_PATH=true` it also writes `/EFI/BOOT/BOOTX64.EFI` (firmware fallback path), which adds reliability (NVRAM-clear by firmware update or motherboard battery failure still boots) at the cost of one more ESP file an attacker with physical access could swap. Default is `false` for minimum attack surface. The reliability cost is asymmetric: if NVRAM gets cleared without the fallback, you boot from the install USB and run `grub-install` again, ~5 minutes' work. The attack-surface cost is permanent until the file is removed. Set the toggle to `true` only when your firmware is known to ignore NVRAM (some older Macs, some buggy UEFI), or when the disk needs to boot on multiple machines.
 
----
 
 ## Order of operations
 
@@ -100,7 +96,6 @@ Part 4: Architectural upgrades. Optional, more disruptive, do these last.
 
 Part 5: Recovery from failed boot. Reference material for when something breaks.
 
----
 
 # Part 1: Install
 
@@ -204,7 +199,6 @@ Reboot, remove the USB stick. GRUB starts, prompts for the LUKS passphrase, decr
 
 Log in as your user. You now have a working Devuan install. The hardening starts here.
 
----
 
 # Part 2: First-boot essentials
 
@@ -342,7 +336,6 @@ Should report `type tmpfs` with `nosuid` and `nodev` in the options. If not, reb
 
 The same treatment for `/var/tmp` requires more care because some software stores cross-reboot state there. The conservative path: leave `/var/tmp` alone for now.
 
----
 
 # Part 3: Runtime hardening
 
@@ -1173,7 +1166,6 @@ Trade-offs:
 - The fallback is `lockdown=integrity`, which still blocks kernel modification but allows reading kernel memory. Less protection but more compatibility.
 - If something breaks unrecoverably, edit GRUB at boot (you set a GRUB password in Part 2.2, so this requires the password) and remove `lockdown=confidentiality` from the kernel line for one boot.
 
----
 
 # Part 4: Architectural upgrades
 
@@ -1483,7 +1475,6 @@ Pick PIN-binding for laptops, plain TPM2 only for physically secured desktops. T
 
 A note on Devuan specifically: systemd-cryptenroll lives in the `systemd-utilities` package and works without systemd as init, since the cryptenroll tool is a userspace utility that just talks to the TPM and writes LUKS metadata. The initramfs side, where the TPM is queried at boot, uses the `tpm2-tools` package and a custom unlock script (systemd's `systemd-cryptsetup` is not available without systemd as init). The Arch Wiki's dm-crypt page documents the manual initramfs hook required. This is the kind of work that's "doable but not turnkey" on Devuan — the kernel support is fine, the tooling exists, the initramfs glue requires manual setup.
 
----
 
 # Part 5: Recovery from failed boot
 
@@ -1534,7 +1525,6 @@ shred -u /tmp/luks-header.bin
 
 This is destructive (it overwrites the on-disk header with the backup). Be sure you have the right backup file before running it.
 
----
 
 # Appendix A: Changing the LUKS passphrase
 
@@ -1568,7 +1558,6 @@ sudo cryptsetup luksRemoveKey /dev/nvme0n1p2
 
 It prompts for the passphrase to remove (the one you're getting rid of, not the one you're keeping). Confirm the remaining passphrase still works before walking away from the keyboard.
 
----
 
 # Appendix B: Threat model and trade-offs
 
@@ -1588,7 +1577,6 @@ It does not defend against:
 - Compelled disclosure. A government with rubber hoses gets the passphrase. The narrow technical exception (VeraCrypt hidden volumes) is not part of this setup and is high-stakes in its own right.
 - Backup loss. Off-machine backups are good; they don't help if both the original and the backup live in the same building during a fire.
 
----
 
 # Appendix C: What this doesn't cover
 

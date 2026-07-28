@@ -171,3 +171,58 @@ And that's how easy it is to use Borg.
 > The first time you set this up, do this once with any backup to confirm it works.
 A backup you have never restored from is only a guess.
 
+The closing section of getting-started, after extract, telling the reader to check the archive holds what they think before they rely on it. Raw borg only, since that page has no script. Leading with the listing check and using `diff -rq` as the thorough follow-up, per 1.1.
+
+## 5. Verify
+
+
+You can now make an archive and get it back.
+That is not the same as knowing the archive holds what you think it holds.
+
+Borg will not tell you when it does not.
+A mistyped path, a folder you meant to include and did not, an exclude that caught more than you intended: each of those produces a run that finishes cleanly, reports a size, and is quietly missing things.
+There is no warning, because from borg's side nothing went wrong.
+
+So before you delete anything, or start relying on this, spend five minutes checking.
+Do it straight after making an archive and extracting, while the source has not changed underneath you.
+
+### 5.1 Compare
+
+Compare whichever you got against the original:
+
+```console
+diff -rq ~/restore-test/Documents ~/Documents
+```
+
+No output means the two are identical, which is the answer you want.
+
+If there is output, read it before you worry.
+
+`Only in /home/john/Documents: something` means the live folder has a file the archive does not.
+This is the line that matters.
+Either that file was made after the archive was, which is fine, or it was never backed up, which is not.
+
+`Only in /home/john/restore-test/Documents: something` means the archive holds a file you have since deleted.
+Normal.
+
+`Files ... differ` means you have edited that file since archiving.
+Also normal, and the reason to run this immediately after archiving rather than next week.
+
+What you are hunting is a whole folder on the "only in the live copy" side.
+Individual files differing after a few days is the system working.
+
+Clean up when you are done:
+
+```console
+rm -rf ~/restore-test
+```
+
+### 5.2 Test on a different machine
+
+Everything above tests the archive.
+It does not test you.
+
+Restore onto a different machine, or a fresh user account, with nothing but the drive and the passphrase in your head.
+That is the situation you are buying insurance against, and it is where people find out that the only copy of the passphrase was on the machine that died.
+
+Do it once, deliberately, while nothing is wrong.

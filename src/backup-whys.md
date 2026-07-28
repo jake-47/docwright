@@ -1,4 +1,4 @@
-# Whys
+# Whys of backup
 
 *TLDR:
 Get a working backup running today.

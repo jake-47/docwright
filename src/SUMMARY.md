@@ -16,6 +16,12 @@
 
 - [Leveling up: Part 2](./leveling-up-2.md)
 
+- [Script: Borg simple](./borg-simple.md)
+
+- [Script: Borg super-simple](./borg-super-simple.md)
+
+- [Manual Borg and GPG](./manual-borg-gpg.md)
+
 - [Creating passphrase](./creating-passphrase.md)
 
 - [Terminal basics](./terminal-basics.md)

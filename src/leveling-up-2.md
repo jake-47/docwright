@@ -1,4 +1,4 @@
-# Leveling up: Part 2
+# Leveling up: Part 2, v5
 
 *[Part 1](./leveling-up-1.md) left you with working backups and one weak point: the passphrases to every repo are sitting in a readable file in your home directory.*
 *This part encrypts that file with GPG.*
@@ -7,15 +7,17 @@
 *This rung costs you unattended backups, and it hands you a key that you can lose in a way that destroys every backup you own.*
 *It is worth doing anyway, for most people, most of the time.*
 
+*[Doing this without the script](#doing-this-without-the-script), near the end, is the same arrangement in plain gpg and borg commands.*
+
 ## What you are actually fixing
 
 In Part 1, `~/.borg-pass` is protected by exactly one thing: its file permissions.
 
 That is enough to stop another ordinary user on the same machine.
 It is not enough for anything else.
-Anyone with root access can read it.
+Anyone with root can read it.
 An unencrypted backup of your home directory contains it in the clear.
-A laptop that is stolen while in use, or with an unencrypted disk, gives it up.
+A laptop that is stolen while running, or with an unencrypted disk, gives it up.
 And the file is the whole game: it holds every repo's passphrase, so it opens every archive on every drive at once.
 
 Encrypting it moves the secret from "protected by a permission bit" to "protected by a key that lives somewhere else."
@@ -137,10 +139,10 @@ mv ~/.borg-pass.new ~/.borg-pass
 Confirm the whole thing still works end to end:
 
 ```console
-backup list
+backup check
 ```
 
-If that prints your archives, the tool decrypted the file and used the passphrases.
+If that verifies your repos, the tool decrypted the file and used the passphrases.
 
 ### Step 4 — get rid of the plain text copy
 
@@ -209,6 +211,76 @@ So a failed re-encryption cannot destroy a good file.
 
 If the tool cannot work out who the file was encrypted to, it stops and tells you to re-encrypt by hand rather than guess.
 
+## Doing this without the script
+
+The script's only role here is reading the encrypted file for you.
+Everything in this part is gpg, and you can keep the same arrangement without it.
+
+**Keep the passphrases wherever you like and hand one to borg by hand.**
+The simplest version has no file at all: let borg prompt.
+
+```console
+export BORG_REPO=/media/john/d1/documents
+borg create "::{now}" /home/john/./Documents
+```
+
+Borg asks, you type, nothing is stored.
+This is the most secure arrangement there is, and the least convenient.
+
+**Or keep one encrypted file and feed it to borg without the script.**
+Borg takes a command to run whenever it needs a passphrase:
+
+```console
+export BORG_REPO=/media/john/d1/documents
+export BORG_PASSCOMMAND="gpg --quiet --decrypt /home/john/.borg-documents.gpg"
+borg create "::{now}" /home/john/./Documents
+```
+
+Where that file holds nothing but the one repo's passphrase, encrypted:
+
+```console
+printf '%s' 'the passphrase' | gpg --encrypt --recipient you@example.com \
+    --output ~/.borg-documents.gpg
+chmod 600 ~/.borg-documents.gpg
+```
+
+One file per repo, rather than one file holding them all.
+That is more files but a smaller blast radius, and it removes the parsing step entirely.
+Note the two rules the script enforces and you now have to keep yourself: the file must be readable by you alone, and the path in `BORG_PASSCOMMAND` must have no spaces, quotes or backslashes, because borg splits that string without a shell.
+
+**Never do this instead.**
+
+```console
+export BORG_PASSPHRASE='the passphrase'
+```
+
+It reaches borg, and it also reaches your shell history, anything that dumps your environment, and every process running as you through `/proc`.
+`BORG_PASSCOMMAND` exists so you do not have to.
+
+**Rotate a passphrase by hand.**
+
+```console
+BORG_REPO=/media/john/d1/documents borg key change-passphrase
+BORG_REPO=/media/john/d2/documents borg key change-passphrase
+```
+
+One call per drive, because every copy has its own key file, and then re-encrypt whatever file holds it.
+A rotation that reaches three drives out of four leaves the fourth on the old passphrase with nothing to tell you.
+
+**Re-encrypt the combined file after an edit.**
+
+```console
+gpg --decrypt ~/.borg-pass > /dev/shm/pass.tmp
+# edit /dev/shm/pass.tmp
+gpg --encrypt --recipient you@example.com --output ~/.borg-pass.new /dev/shm/pass.tmp
+gpg --decrypt ~/.borg-pass.new                 # confirm it opens before you swap
+mv ~/.borg-pass.new ~/.borg-pass
+shred -u /dev/shm/pass.tmp
+```
+
+Decrypt to `/dev/shm`, which is memory rather than disk, and check the new file decrypts before replacing the old one.
+Those two habits are what the script's rotation does for you, and they are the two that people skip.
+
 ## When something looks wrong
 
 `could not read passphrases from <file> (for a .gpg: can gpg decrypt it now ...)`
@@ -229,4 +301,10 @@ This is expected, not a bug.
 
 ## Where to go next
 
-[Manual borg and gpg use](./manual-borg-and-gpg.md) shows you the main commands underneath the script, including the GPG ones from this part.Don't trust, verify.
+[Manual borg and gpg use](./manual-borg-and-gpg.md) drops the script entirely and shows you every command underneath, borg and GPG alike, in more depth than the section above.
+
+`borg-super-simple` is a much shorter script that reads the same config and the same passphrase file, GPG or plain, and decides which from the file's own bytes rather than its name.
+It backs up every repo and extracts one repo from one drive, and nothing else.
+Keep it for the day the main script will not run.
+
+The [reference](./borg-reference.md) covers the borg versions the tool accepts, how a passphrase reaches borg without touching a command line, and the parts these three guides do not need.

@@ -1,12 +1,14 @@
 # Summary
 
-# Introduction
+# Intro
 
-- [About](./about.md)
+- [Welcome](./welcome.md)
 
-- [Usage](./usage-docwright.md)
+- [Site usage-guide](./usage-docwright.md)
 
 # Backup
+
+- [Overview](./backup-overview.md)
 
 - [Whys of backup](./backup-whys.md)
 
@@ -16,9 +18,9 @@
 
 - [Leveling up: Part 2](./leveling-up-2.md)
 
-- [Script: Borg simple](./borg-simple.md)
+- [Borg-simple script](./borg-simple.md)
 
-- [Script: Borg super-simple](./borg-super-simple.md)
+- [Borg-simple core](./borg-simple-core.md)
 
 - [Manual Borg and GPG](./manual-borg-gpg.md)
 

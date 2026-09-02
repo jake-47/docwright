@@ -168,7 +168,7 @@ pre > code.hljs{background-color:var(--code-bg);}
 .sidebar-scrollbox.mdb-scrolled::before{border-block-end-color:var(--table-border-color);}
 .menu-title{transition:opacity .3s;}
 html.sidebar-visible .menu-title{opacity:0;}
-.sidebar-scrollbox::before{content:"docwright";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);font-size:2.7rem;font-weight:200;line-height:calc(var(--menu-bar-height) - 4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-scrollbox::before{content:"Docwright";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);font-size:2.7rem;font-weight:200;line-height:calc(var(--menu-bar-height) - 4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 pre:has(> .mdb-gutter){display:flex;align-items:stretch;}
 pre > .mdb-gutter{flex:0 0 auto;-webkit-user-select:none;user-select:none;white-space:pre;text-align:right;font-family:var(--mono-font);font-size:var(--code-font-size);padding:1rem .8em 1rem 1rem;background-color:var(--code-bg,transparent);color:var(--muted,#999);border-right:1px solid var(--rule,rgba(128,128,128,.25));}
 pre > .mdb-gutter + code.hljs{flex:1 1 auto;min-width:0;padding-left:1em;}

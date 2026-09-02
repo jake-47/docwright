@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <style>
+    text{font-family:"Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;font-weight:700;fill:#111}
+    @media (prefers-color-scheme: dark){text{fill:#e8e6da}}
+  </style>
+  <text x="50" y="68" text-anchor="middle" font-size="50">Dw</text>
+</svg>

@@ -1,34 +1,53 @@
 # About
+<p class="mdb-subtitle">Equipping students and writers with tools of power and productivity</p>
 
 ## Docwright
+
 I am a technical writer, a documentation engineer if you will, an aspiring docwright.
-Here's where I try to make invaluable but often needlessly complicated concepts I've learnt along the way "as simple as possible," as someone famous once said, "but not simpler."
-You'll find topics directly or indirectly related to writing, but mostly the latter, things I wish I knew before I started my career.
-These are things I now believe is the bare-minimum that very knowledge-worker, writer, or student in the 21st centry must know.
+I have 10+ years of experience in the fast-paced environment of the tech-startup industry. 
+I enjoy distilling poorly written, complex topics into simple, easy-to-read, memorable bites for laymen.
+Docwright is where I try to make complicated but invaluable concepts I've learnt along the way "as simple as possible, but not simpler" (Albert Einstein).
+You'll find in here topics directly or indirectly related to writing, mostly the latter, things I wish I knew before I started my career.
 
-## Technical writing
-A lot of times, all that is needed is for things to be brought to light.
-Simply making knowledge public could save a life.
-A lot of times, all that is needed is for things to be said more clearly. 
-As someone said, “anything that can be said can be said clearly.”
-A lot of times, all that is needed is a clear, direct, and of course, correct answer to a question.
-As someone else once said, "An honest answer given is like a kiss on the lips."
-A lot of times, all that is needed is for information to be arranged in order of importance; for often there's not a lot one needs to know to complete a task or achieve a goal.
-That's essentially what technical writing, or writing in general, concerns itself with: help yourself and others get shit done, and make the world a better place.
+## Motivation
 
-## Plea to the experts
-I'm not a dev, at least not yet; and all the code here is vibecoded with Opus or Fable.
-It was fun, but now these platforms that've gathered knowledge are now attempting to pull the ladder up behind them; as a dude once said, "ai-fed, human-finished."
+I hope to equip students and writers with tools that increase their productivity and privacy.
+Solutions to common problems of productivity and privacy are available, but what is often lacking is someone to bridge the gap between the subject-matter experts and the laymen.
+Most documentation sites are written by developers for developers.
+<aside>
+There are times when all that is needed is for information to be brought to light.
+Simply making knowledge public could even save a life.
+Then there are times when all that is needed is for things to be said more clearly; “anything that can be said can be said clearly” (Ludwig Wittgenstein).
+Then there are times when, more often than not, all that is needed is for information to be arranged in the order of importance.
+As finite creatures, there's only so much time we have. 
+And when you get down to it, there's really not a lot one needs to know to complete a task, achieve a goal, or attain significant success.
+Ordering is crucial.
+“Put first things first and second things are thrown in. Put second things first and you lose both first and second things” (C. S. Lewis).
+In short, many problems can be solved by simply bringing the truth to light, expressing it more clearly, and ordering it more rightly.
+</aside>
+
+Bridging the gap between the SMEs and plebs, is essentially what technical writing, or writing in general, concerns itself with: craft sentences and present them rightly and tastefully, to help yourself and others get shit done and make the world a better place.
+
+## A request
+
+I'm not a dev, at least not yet; and all the code here is vibe-coded with Opus or Fable.
+It was fun initially, but these models seem to have devolved into 
+These platforms have gathered knowledge from the Internet are now attempting to pull the ladder up behind them; when "ai-fed, human-finished" (Jack Dorsey).
 I can't wait for local LLMs to become a viable alternative.
 But until then, dear devs and security experts, could you please help us laymen out.
-Let us know when its time to jump ships.
-Let's stop the Fabians from taking over everything.
+If we can't stop the Fabians from taking over everything, let us know when its time to jump ships.
 
-> We reject: kings, presidents, and voting.
-We believe in: rough consensus and running code.
->
-> —some genius, 1992
+>"We reject: kings, presidents, and voting. We believe in: rough consensus and running code." — David Clark, 1992
+
+
+
+
+i want to help empower everyone to write and publish more, with a strong note about your desire to publish should be non-existent in comparison to your desire to understand.
+
+if you're building your reputation 
+'ll be another voice if you tell me 
 
 ## Contact
-You can reach me via email at jake.s47 at atomicmail dot io or at npub1f8fqjcdw2gck5l7akqucpt7gtp6sz8dt0dktgd3jefcf2p5y9rrseqln89 at uid dot ovh
+
+You can write to me at ijake-47@proton.me
 

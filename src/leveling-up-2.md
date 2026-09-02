@@ -1,4 +1,4 @@
-# Leveling up: Part 2, v5
+# Leveling up: Part 2
 
 *[Part 1](./leveling-up-1.md) left you with working backups and one weak point: the passphrases to every repo are sitting in a readable file in your home directory.*
 *This part encrypts that file with GPG.*

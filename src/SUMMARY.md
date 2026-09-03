@@ -69,3 +69,9 @@
 - [Ollama guide: set up a local LLM](./ollama-guide.md)
 
 - [Ollama install script](./ollama-install-script.md)
+
+# Outro
+
+- [Contribute](./contribute.md)
+
+- [About](./about.md)

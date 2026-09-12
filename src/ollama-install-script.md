@@ -1,3 +1,5 @@
+<div class="mdb-wide"></div>
+
 # Ollama install script
 
 ```bash

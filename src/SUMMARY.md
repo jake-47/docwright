@@ -14,6 +14,8 @@
 
 - [Getting started with Borg](./getting-started-with-borg.md)
 
+- [Planning](./backup-planning.md)
+
 - [Leveling up: Part 1](./leveling-up-1.md)
 
 - [Leveling up: Part 2](./leveling-up-2.md)
@@ -70,8 +72,24 @@
 
 - [Ollama install script](./ollama-install-script.md)
 
+# Publish
+
+- [Amy Eskridge investigation](./amyeskridge-investigation.md)
+
+- [Publish a book or knowledge base](./publish-book.md)
+
+- [Bootstrap mdbook script](./boostrap-mdbook.md)
+
+- [Publish a blog](./publish-blog.md)
+
+- [Bootstrap zola blog script](./boostrap-zola.md)
+
+- [Static-site generators](.static-sites.md)
+
 # Outro
 
 - [Contribute](./contribute.md)
 
 - [About](./about.md)
+
+- [Borg airgapped](./unlisted/borg-airgap.md)

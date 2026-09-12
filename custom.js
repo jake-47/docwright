@@ -51,6 +51,21 @@ var MDB_SHA = "__MDB_BUILD_SHA__";
     }
   });
 
+  // Drop the prev/next links that point INTO the reserved src/unlisted/ directory,
+  // so the chapter arrows and the Left/Right keys skip those chapters the way the
+  // sidebar rule already hides their rows. Remove, not hide: book.js reads
+  // .nav-chapters.next straight out of the DOM and follows its href, so CSS alone
+  // leaves the key walking in. Links OUT of an unlisted chapter are left alone —
+  // its own back arrow still works. Same two href alternatives as the CSS rule (the
+  // root form and the rewritten ../ form), and the class test is a substring because
+  // mdBook emits the desktop pair and the mobile pair under different class names.
+  ready(function () {
+    var sel = 'a[class*="nav-chapters"][href^="unlisted/"],' +
+              'a[class*="nav-chapters"][href*="/unlisted/"]';
+    var links = document.querySelectorAll(sel);
+    for (var i = 0; i < links.length; i++) links[i].remove();
+  });
+
   // The masthead is sticky at the top of the sidebar (CSS), and grows a hairline
   // once the TOC scrolls under it — the same thing book.js does to the menu bar
   // opposite it, whose 'bordered' class it adds the moment the bar leaves the top

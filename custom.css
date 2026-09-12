@@ -1,6 +1,7 @@
-/* Fixed theme: hide the picker so the OS preference drives light/dark. A saved
-   theme would otherwise pin the book with no control to change it — theme/head.hbs
-   clears it. */
+/* Fixed theme: hide the picker, so the theme is not the reader's to choose in the
+   page. With LIGHT_THEME=true their browser's light/dark preference drives it;
+   otherwise the book is dark throughout. A saved theme would pin the book with no
+   control left to change it — theme/head.hbs clears it. */
 #mdbook-theme-toggle { display: none; }
 
 /* Self-hosted Charter (free, ~28KB/weight). custom.css is served from the book
@@ -56,6 +57,20 @@ html{font-family:var(--serif);}
    mdBook does not parse markdown inside it; write emphasis or links as HTML. */
 .content aside{font-size:.82em;color:var(--muted);border-inline-start:2px solid var(--rule);padding-inline-start:1em;margin:1.15rem 0;}
 
+/* Footnotes, matched to the aside: they are the same kind of thing, a digression,
+   and every other subordinate voice here (blockquote, aside, .mdb-subtitle) is
+   already --muted. mdBook's general.css sets only font-size:0.9em, which against
+   this book's 1.9rem content is 17.1px — a 1.9px step Charter's x-height does not
+   read as deliberate. .content .footnote-definition is (0,2,0) over mdBook's
+   (0,1,0), and custom.css is its last stylesheet either way. The separator is
+   already there: mdBook emits a bare <hr> before the <ol>. */
+.content .footnote-definition{font-size:.82em;color:var(--muted);}
+/* --links equals --fg in both palettes, so a citation link or a ↩ backref inside a
+   muted note would be the brightest thing in it and invert the hierarchy. Muting is
+   safe because the affordance here is the underline (.content a above), not colour.
+   a:link/a:visited is (0,3,1) over mdBook's .content a:link (0,2,1). */
+.content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
+
 /* mdBook's own .content a is text-decoration:none, and --links carries the colour.
    Only the underline is added here; the colour comes from the palette. Search
    results use --links too, so without an underline they render as plain body text
@@ -71,36 +86,61 @@ html{font-family:var(--serif);}
 /* Palette. mdBook defines ~43 colour variables per theme; overriding only the page
    and sidebar leaves blockquotes, tables, the search UI, icons and separators in the
    stock blues, which show the moment a page has a table or quote — so this covers
-   every one that paints. html.<theme> (0,1,1) beats mdBook's .<theme> (0,1,0). Two
-   rule weights: --rule-strong for H1/H2 hairlines and separators, --rule for the rest.
-   The five --blockquote-*-color admonition accents are deliberately NOT overridden —
-   they're semantic, and standing out is the point.
+   every one that paints. Two rule weights: --rule-strong for H1/H2 hairlines and
+   separators, --rule for the rest. The five --blockquote-*-color admonition accents
+   are deliberately NOT overridden — they're semantic, and standing out is the point.
+
+   STRUCTURE. mdBook resolves the theme in JavaScript, not CSS: it bakes default-theme
+   into the served markup as <html class="light"> and an inline script in <body> swaps
+   the class after the stylesheets have already resolved. So on a dark-mode reader's
+   machine every navigation paints a full light frame first. That frame is what a
+   force-dark browser extension reads, and it then holds its inversion of THIS palette
+   over the dark one the swap installs — the page ends up part inverted-cream, part
+   extension grey.
+
+   That is a LIGHT_THEME=true problem only. Dark-only, book.toml pins default-theme
+   and preferred-dark-theme both to PREFERRED_DARK, so the served class is already
+   the dark one, nothing swaps, and the selector below collapses to that single
+   class with no media query under it at all.
+
+   With both palettes live, the dark block carries BOTH class names and comes first,
+   and the light block is gated behind the light media query and comes second:
+
+     html.<light>,html.<dark> { dark }      matches the served class too — the pre-swap
+                                            frame is already dark under a dark OS
+     @media (prefers-color-scheme: light)
+       html.<light> { light }               same specificity, later in the file, so it
+                                            wins wherever the query matches
+
+   Four states, all measured: OS dark before the swap -> dark; OS dark after -> dark;
+   OS light before -> light; OS light after -> light. No light frame ever paints under
+   a dark OS, and each palette is written once.
+
+   Both selectors are (0,1,1), which is what beats mdBook's own .<theme> at (0,1,0). A
+   bare html{...} would be (0,0,1) and lose to it, so the class must stay in both
+   selectors even though the media query alone would read as sufficient. The print
+   block at the bottom of this file has to clear the same (0,1,1) bar for the same
+   reason.
+
+   --sidebar-bg sits close to --bg deliberately: about 2 points of CIELAB lightness in
+   both modes, enough for the column to read as its own surface and little enough that
+   the page reads as one tone. It does NOT match the quote/code ground, which is a
+   heavier tint doing a different job. Nor can it go to zero: mdBook draws no border on
+   .sidebar, so this tint is the only boundary the column has, and .mobile-nav-chapters
+   takes its whole fill from the same variable.
 
    --code-bg and --inline-bg are not mdBook variables: mdBook paints code backgrounds
    from the highlight.js stylesheet, not a theme variable, so the palette can't reach
-   them. Both are repainted below. In light the code ground is the same raised tint the
-   sidebar and blockquotes use; in dark it sits a step above that tint (#242420 over the
-   #1b1b18 sidebar/quote) because at #1b1b18 the block barely parted from the #111 page.
+   them. Both are repainted below. In light the code ground is the blockquote tint
+   (#f4f2e8); in dark it sits a step above it (#242420 over the #1b1b18 quote) because
+   at #1b1b18 the block barely parted from the #111 page.
    Only the ground moves; the syntax token colours are left as the highlight theme sets
    them. --inline-bg is a separate, slightly stronger tint so a short inline pill reads
    against both the page and the running text around it. */
-html.light{
-  --bg:#fffff8;--fg:#111;--links:#111;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
-  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
-  --sidebar-bg:#f4f2e8;--sidebar-fg:#3a3a34;--sidebar-active:#b5540a;
-  --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
-  --icons:#7d7a6e;--icons-hover:#111;
-  --copy-button-filter:opacity(.55);--copy-button-filter-hover:opacity(1);
-  --quote-bg:#f4f2e8;--quote-border:#e5e3d7;--warning-border:#b5540a;--code-bg:#f4f2e8;
-  --table-border-color:#e5e3d7;--table-header-bg:#e0dccb;--table-alternate-bg:#faf8ee;
-  --searchbar-bg:#fffff8;--searchbar-fg:#111;--searchbar-border-color:#c2bda4;--searchbar-shadow-color:#c2bda4;
-  --searchresults-border-color:#e5e3d7;--searchresults-header-fg:#57564e;--searchresults-li-bg:#f9f7ec;
-  --search-mark-bg:#f2d9a8;--footnote-highlight:#f2d9a8;--overlay-bg:rgba(20,19,15,.6);
-}
 html.ayu{
   --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
-  --sidebar-bg:#1b1b18;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
+  --sidebar-bg:#161613;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
   --icons:#7a786e;--icons-hover:#e8e6da;
   --copy-button-filter:invert(1) opacity(.55);--copy-button-filter-hover:invert(1) opacity(1);
@@ -132,11 +172,29 @@ pre > code.hljs{background-color:var(--code-bg);}
    (0,1,3), over mdBook's own (0,1,2) and the bare .hljs (0,1,0); custom.css is last. */
 :not(pre):not(a) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);}
 
+/* mdBook fills the mobile chapter buttons from --sidebar-bg. Those buttons sit on the
+   page ground, not in the sidebar, so a tint tuned to draw a column edge leaves them
+   nearly invisible at the widths where they appear (<=1080px, and <=1380px with the
+   sidebar open). Give them the blockquote ground instead — same specificity as
+   mdBook's own rule, and custom.css is last, so this wins. */
+.mobile-nav-chapters{background-color:var(--quote-bg);}
+
 /* print.css resets layout but not colour, and the UA drops backgrounds when
    printing — so a reader whose OS is dark prints near-white ink onto white paper.
-   Force ink-on-paper for the print media regardless of the theme in force. */
+   Force ink-on-paper for the print media regardless of the theme in force.
+
+   The selector must name the theme class(es) — the same set the palette named, so it
+   is written from the same variable. A media query does not raise specificity, so a
+   bare html{...} here is (0,0,1) and loses outright to the palette's (0,1,1) — the
+   override silently never applied, which is exactly the failure it exists to prevent.
+   Matching the palette's selector ties the specificity; being last in the file wins it.
+
+   Ink stays #111 here even though the screen palette softened its --fg. Butterick's
+   case for grey over black is about an emissive screen; paper reflects, and the
+   contrast it needs is the other way. */
 @media print{
-  html{--bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
+  html.ayu{
+       --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
@@ -149,6 +207,7 @@ pre > code.hljs{background-color:var(--code-bg);}
 .chapter > li.chapter-item:empty:first-child + li{margin-block-start:0;}
 .chapter li.chapter-item:empty{margin-block:0;}
 .chapter li.part-title{line-height:1.5em;margin-block:1.7em .55em;padding-block-end:.3em;border-block-end:1px solid var(--rule-strong,var(--table-border-color));}
+.chapter li.chapter-item:has(a[href^="unlisted/"],a[href*="/unlisted/"]){display:none;}
 
 .content hr{border:0;height:1px;background-color:var(--rule-strong,var(--table-border-color));margin:3.2rem 0;}
 .chapter .spacer{height:1px;margin-block:1.6em;}

@@ -1,8 +1,13 @@
+<div class="mdb-wide"></div>
+
 # Git history delete
+<p class="mdb-subtitle">Script to permanently purge files from a git repo</p>
 
-To permanently purge files from a git repo, review and run:
+1. Verify script
+2. Copy and save script.
+3. Run `bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt`
 
-```
+```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -10,8 +15,8 @@ set -euo pipefail
 
 ## ─── Usage ────────────────────────────────────────────────────────────────────
 ## To permanently purge files from a git repo in say ~/projects/myrepo, run in terminal:
-##   bash gitdel_v4.sh <repo-path> [file-list.txt] [--dry-run] [--save-list <file>] [--yes]
-##   example: bash gitdel_v4.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt
+##   bash gitdel.sh <repo-path> [file-list.txt] [--dry-run] [--save-list <file>] [--yes]
+##   example: bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt
 ##
 ## Without a file list: auto-detects all deleted files in history (all refs).
 ## With a file list:    purges exactly those files (same validation rules apply).

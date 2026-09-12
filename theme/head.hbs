@@ -4,6 +4,6 @@
      would pin this book with no control left to change it. localStorage is scoped
      to the origin, and every GitHub project site under one user shares one origin.
      Clearing the key here, ahead of mdBook's own theme script, lets that script
-     resolve the theme from the OS preference and pick the matching highlight
-     stylesheet with it. --}}
+     resolve the theme from book.toml — and pick the matching highlight.js
+     stylesheet with it, which a later custom.js fix could not. --}}
 <script>try{localStorage.removeItem('mdbook-theme');}catch(e){}</script>

@@ -1,4 +1,4 @@
-# Choosing Communication Tools, v9
+# Choosing Communication Tools
 
 How to choose a messenger or email setup when the goal isn't "what does my contact use" but "what threat model does the tool actually defend against." Covers centrally-coordinated messengers, federated networks, decentralized cryptography, P2P and offline-capable messengers, Nostr-rooted messaging, radio-grade off-grid messaging, and (in a dedicated second half) the email landscape: encrypted-mailbox providers, privacy-respecting standard providers, self-hosted mail, encryption layers, clients, and aliasing.
 

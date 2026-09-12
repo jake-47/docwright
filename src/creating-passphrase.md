@@ -1,7 +1,7 @@
 # Creating passphrases
 
-A few passphrases in your life must not reside in a password manager: the passphrase that unlocks your GPG key and with it your password store, and the passphrase on a backup repository, the passphrase that decrypts your disk at boot.
-Each must exist before the tooling that depends on it, each must be reproducible by you from paper or memory, and each is unrecoverable by design if lost.
+A few passphrases in your life must be treated with utmost care; they must not even be entered into a password manager: the passphrase that unlocks your GPG key and with it your password store, and the passphrase on a backup repository, the passphrase that decrypts your disk at boot.
+For these passwords must be available outside the tools that depends on it, so each must be reproducible by you from paper or memory, and each must be unrecoverable by design if lost.
 Every other password you ever need should come from a generator inside your manager; this document is only for the few that cannot.
 This is the home for creating such a passphrase and keeping it; the tools that consume them live in their own documents, `using-pass.md` for the password store, `choosing-backup-tools.md` for backups, `devuan-secure-workstation.md` for the disk.
 
@@ -99,3 +99,15 @@ You can add a word or two of your own that you never type anywhere and that exis
 Even someone who obtained the generated words would still be missing the ones only you know.
 Then write the whole phrase on paper, as above.
 
+## Inheritance planning
+
+Consider who else could access your backups if you were incapacitated. If you are the only person who knows your backup exists, where it is, and how to decrypt it, then a medical emergency or sudden death makes your data effectively inaccessible to the people who may need it most: family, collaborators, executors. A trusted person should know that your backup exists, where the physical drives are, and where to find the written password. You do not need to hand them the password today; you need to ensure there is a path to it that does not depend entirely on you being available.
+
+## The next step: a password manager
+
+Paper works and it is where you should start, but it does not scale.
+The right tool for managing all your other credentials is KeePassXC, an open-source manager that stores everything in a single encrypted file on your own machine, no cloud account, no subscription, and independently audited in January 2023 by Zaur Molotnikov, a security consultant, against version 2.7.4, who found no major problems in its core cryptography.
+When you are ready, install it with `sudo apt install keepassxc` and use it to generate unique passwords for every site you use.
+Your diceware passphrase becomes the one thing you memorise: the master key that unlocks everything else.
+For people who live in the terminal, `pass` by Jason Donenfeld is where this road eventually leads; it uses GPG to encrypt credentials individually and has no graphical interface.
+But KeePassXC is the starting point.

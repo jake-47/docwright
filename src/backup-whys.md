@@ -49,7 +49,7 @@ An offline drive has no remote attack surface, no account to phish, no client to
 ### Tradeoffs and solution
 
 Offline drives protects you from data loss only as long as you can reach it. If a fire, a flood, or tyrannical government means fleeing with what's in your hands or with nothing at all, the offline drives are useless unless you kept some in a different locations or jurisdictions.
-The drawback here though is these drives are not synced to your latest state. And when the offline drawer of drives isn't enough, and you want a copy that lives somewhere remote, the solution is still hardware you own: a home server such as [StartOS](https://start9.com/) hosted on a machine you control in a different city or country, rather than a company's cloud. Walk out with the passphrase in your head and the data is still yours.
+The drawback here though is these drives are not synced to your latest state. And when the offline drawer of drives isn't enough, and you want a copy that lives somewhere remote, the solution is still hardware you own: a home server hosted on a machine you control in a different city or country, rather than a company's cloud. Walk out with the passphrase in your head and the data is still yours.
 
 ## Why Borg?
 

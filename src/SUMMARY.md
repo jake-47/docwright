@@ -76,6 +76,8 @@
 
 - [Amy Eskridge investigation](./amyeskridge-investigation.md)
 
+- [Static-site generators](./static-sites.md)
+
 - [Publish a book or knowledge base](./publish-book.md)
 
 - [Bootstrap mdbook script](./boostrap-mdbook.md)
@@ -83,8 +85,6 @@
 - [Publish a blog](./publish-blog.md)
 
 - [Bootstrap zola blog script](./boostrap-zola.md)
-
-- [Static-site generators](.static-sites.md)
 
 # Outro
 

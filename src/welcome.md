@@ -9,4 +9,4 @@ After that comes [security](./system-security-overview.md) and moving over to Li
 
 Then it moves to [running AI models](./ollama-guide.md) on your own machine, what you write doesn't get sent off to someone else's servers and be in the position of, say, NYU mathematician Tristan Buckmaster (with Anthropic’s Levent Alpoge) accused OpenAI of racing to finish a Navier-Stokes proof after learning of their unpublished related work, possibly via Codex usage, and of pressuring over credit. 
 
-And finally, Docwright ends with how you can put your writing online on a blog or a [website](./publish-book.md) like this one. And none of these require you to know how to code.
+And finally, Docwright ends with how you can put your writing online on a [blog](./publish-blog.md) or a [website](./publish-book.md) like this one. And none of these require you to know how to code.

@@ -7,7 +7,7 @@ The script below scaffolds a Zola blog, installs and version-pins the Zola binar
 
 ````bash
 #!/usr/bin/env bash
-# zola-blog-setup, v31
+# zola-blog-setup, v101
 #
 # Bootstraps a Zola 0.23 blog for GitHub Pages at PROJECT_DIR/BLOG_NAME, and
 # keeps it in step with the configuration block below. Re-running is the update
@@ -58,6 +58,27 @@ if [ ! -f "${BASH_SOURCE[0]}" ] || [ ! -r "${BASH_SOURCE[0]}" ]; then
     die "run zola-blog-setup from its saved file, not piped from curl."
 fi
 
+# Guard: the settings below are checked as text before bash runs them. In a
+# value, a " or ` without a backslash before it misleads bash: a " ends the
+# quotes early, so it vanishes, the value stops at the next space, or the run
+# fails at some line below; a ` runs the text up to the next one as a command.
+# None of that names the setting; this does.
+check_setting_quotes() {
+    local line name value n=0 inside=false
+    local setting='^[[:space:]]*(readonly[[:space:]]+)?([A-Z_][A-Z0-9_]*)="(.*)$'
+    local quoted='^(\\.|[^\\"`])*"([[:space:]]+#.*)?[[:space:]]*$'
+    while IFS= read -r line; do
+        n=$((n + 1))
+        if [[ $line == "## ─── user configuration"* ]]; then inside=true; continue; fi
+        [ "$inside" = true ] || continue
+        [[ $line == "## ───"* ]] && return 0
+        [[ $line =~ $setting ]] || continue
+        name=${BASH_REMATCH[2]} value=${BASH_REMATCH[3]}
+        [[ $value =~ $quoted ]] || die "line $n: $name isn't quoted as the script needs: the value goes between two \", with a backslash before any \" or \` inside it, as in \"say \\\"hi\\\"\". nothing has been changed."
+    done < "${BASH_SOURCE[0]}"
+}
+check_setting_quotes
+
 ## ─── user configuration ───────────────────────────────────────────────
 # The script's only input: it takes no arguments, and a re-run applies whatever
 # has changed here. Each setting: zola-blog-guide.md, "Settings, one by one".
@@ -88,9 +109,10 @@ readonly DARK_CODE_THEME="github-dark"
 readonly GENERATE_FEEDS=true      # atom.xml, and one per tag
 readonly SHOW_RSS_LINK=true       # the menu link only; the feed stays
 readonly ENABLE_TAGS=true
-readonly ENABLE_SEARCH=true       # the site's only JavaScript
+readonly ENABLE_SEARCH=true       # the only script on the pages
 
 readonly SHOW_TOC=true
+readonly SHOW_BREADCRUMBS=true    # Home and a page's folders, over its title
 readonly SHOW_READING_TIME=true   # "N min read" on the date line
 readonly DATE_FORMAT="%Y-%m-%d"   # "%-d %B %Y" gives 21 September 2026
 readonly SHOW_HISTORY_LINK=false  # needs GIT_REPO_URL
@@ -99,7 +121,7 @@ readonly SHOW_SUGGEST_EDIT=false  # needs GIT_REPO_URL
 # The footer: links as Label=address pairs, space-separated, one-word labels
 # (delete a pair to drop that link), then a line of small print under them.
 # "" for none.
-readonly FOOTER_LINKS="X=https://x.com/yourhandle Nostr=https://nostr.com/npub1yourkeyhere"
+readonly FOOTER_LINKS="X=https://x.com/yourhandle Nostr=https://nostr.com/npub1yourkeyhere GitHub=https://github.com/yourhandle/yourrepo"
 readonly FOOTER_TEXT=""           # such as "© 2026 Your Name"
 
 ## ─── derived from the block above (do not edit) ───────────────────────
@@ -117,7 +139,6 @@ if [ "$FAVICON_TEXT" = "auto" ]; then
     _favicon_mark="${SITE_TITLE//[^A-Za-z0-9]/}"
     _favicon_mark="${_favicon_mark:0:1}"
     _favicon_mark=$(printf '%s' "$_favicon_mark" | tr '[:lower:]' '[:upper:]')
-    [ -n "$_favicon_mark" ] || warn "FAVICON_TEXT is \"auto\" but SITE_TITLE has no alphanumeric character to take a mark from; no favicon is written"
 elif [ -n "$FAVICON_TEXT" ]; then
     _favicon_mark="${FAVICON_TEXT:0:3}"
     if [ "${#FAVICON_TEXT}" -gt 3 ]; then
@@ -177,7 +198,7 @@ main() {
         "")              cmd_setup ;;
         help|-h|--help)  cmd_help ;;
         update-zola)     cmd_update_zola ;;
-        *)               die_usage "this script takes no arguments; got: $* (everything is configured in the block at the top; try: zola-blog-setup help)" ;;
+        *)               die_usage "unknown command: $*. the script takes help or update-zola, or nothing; everything else is a setting in the block at the top (bash zola-blog-setup.sh help)" ;;
     esac
 }
 
@@ -398,14 +419,19 @@ write_owned_files() {
     chmod +x serve build new attach
     # Owned in both directions: clearing the variable that produced a file removes
     # the file, but only if the manifest says these are the bytes this script wrote.
-    if [ -n "$FAVICON_MARK" ]; then
-        :
-    elif [ -f static/favicon.svg ]; then
-        if remove_if_ours static/favicon.svg; then
-            say "removed static/favicon.svg (FAVICON_TEXT is empty)"
+    if [ -z "$FAVICON_MARK" ]; then
+        local why="FAVICON_TEXT is empty" fix="add static/favicon.svg yourself"
+        if [ "$FAVICON_TEXT" = "auto" ]; then
+            why="SITE_TITLE has no letter A-Z or digit 0-9 for FAVICON_TEXT=\"auto\" to draw"
+            fix="set FAVICON_TEXT to up to 3 characters, or add static/favicon.svg yourself"
         fi
-    elif [ "$IS_UPDATE" != 1 ]; then
-        warn "FAVICON_TEXT is empty; no favicon written. add static/favicon.svg yourself, or the browser falls back to /favicon.ico"
+        if [ -f static/favicon.svg ]; then
+            if remove_if_ours static/favicon.svg; then
+                say "removed static/favicon.svg ($why)"
+            fi
+        elif [ "$IS_UPDATE" != 1 ]; then
+            warn "$why, so no favicon was written: $fix."
+        fi
     fi
     if [ "$ENABLE_SEARCH" != true ] && [ -f static/search.js ] && remove_if_ours static/search.js; then
         say "removed static/search.js (ENABLE_SEARCH is false)"
@@ -428,8 +454,6 @@ validate_config() {
         none|text|image) ;;
         *) die "MASTHEAD must be none, text or image, got: $MASTHEAD" ;;
     esac
-
-    [ -n "$PROJECT_DIR" ] || die "PROJECT_DIR must not be empty"
 
     # BLOG_NAME becomes a directory under PROJECT_DIR, so it is a single
     # segment: no slashes, no leading dash or dot, no '..', no whitespace.
@@ -469,6 +493,7 @@ validate_config() {
     validate_bool SHOW_RSS_LINK       "$SHOW_RSS_LINK"
     validate_bool LIGHT_THEME         "$LIGHT_THEME"
     validate_bool SHOW_TOC            "$SHOW_TOC"
+    validate_bool SHOW_BREADCRUMBS    "$SHOW_BREADCRUMBS"
     validate_bool SHOW_READING_TIME   "$SHOW_READING_TIME"
     validate_bool SHOW_HISTORY_LINK   "$SHOW_HISTORY_LINK"
     validate_bool SHOW_SUGGEST_EDIT   "$SHOW_SUGGEST_EDIT"
@@ -578,7 +603,7 @@ warn_placeholders() {
     [ "$SITE_TITLE" != "Myblog" ] || left+=("SITE_TITLE")
     [ "$SITE_DESCRIPTION" != "one-line description" ] || left+=("SITE_DESCRIPTION")
     [ "$SITE_AUTHOR" != "your name" ] || left+=("SITE_AUTHOR")
-    case "$FOOTER_LINKS" in *yourhandle*|*npub1yourkeyhere*) left+=("FOOTER_LINKS") ;; esac
+    case "$FOOTER_LINKS" in *yourhandle*|*npub1yourkeyhere*|*yourrepo*) left+=("FOOTER_LINKS") ;; esac
     if [ -f content/about.md ] \
        && grep -q -e 'you@yourdomain.com' -e 'Your name. One or two sentences' content/about.md; then
         left+=("content/about.md")
@@ -595,7 +620,9 @@ update_git_remote() {
         say "git not installed; remote not updated"
         return
     fi
-    if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    # The blog folder's own repository: rev-parse also finds a repository the folder
+    # sits inside, and would repoint that one's origin.
+    if [ ! -e .git ]; then
         say "not a git repo; remote not updated"
         return
     fi
@@ -697,7 +724,7 @@ resolve_zola_release() {
         die "zola ${tag#v} is the latest release, but this script supports >= ${ZOLA_MIN_VERSION} and < ${ZOLA_MAX_VERSION}.
 the templates it writes are written for one template-language generation, and a newer
 zola may not run them. nothing has been changed. either update this script, or pin a
-tested release for this run:
+tested release for this run, with the newest v${ZOLA_MIN_VERSION} release's last number in place of x:
     ZOLA_VERSION_OVERRIDE=v${ZOLA_MIN_VERSION}.x bash zola-blog-setup.sh
 releases: https://github.com/getzola/zola/releases"
     fi
@@ -733,9 +760,18 @@ ensure_zola_installed() {
     fi
     resolve_zola_release
     if [ -n "$current" ] && version_ge "$current" "$ZOLA_MAX_VERSION"; then
-        warn "zola $current is newer than this script supports (< $ZOLA_MAX_VERSION)."
-        warn "installing ${ZOLA_VERSION#v} over it at \$HOME/.local/bin/zola — any other zola site on"
-        warn "this machine will build with ${ZOLA_VERSION#v} until you reinstall."
+        # Replaced only if it lives where install_zola puts one; else it stays beside it.
+        local where dest="$HOME/.local/bin/zola"
+        [ "$OS" = windows ] && dest="$HOME/bin/zola.exe"
+        where=$(command -v zola)
+        warn "zola $current, at $where, is newer than this script supports (< $ZOLA_MAX_VERSION)."
+        if [ "${where%/*}" = "${dest%/*}" ]; then
+            warn "replacing it with ${ZOLA_VERSION#v}: any other zola site on this machine will build"
+            warn "with ${ZOLA_VERSION#v} until you reinstall."
+        else
+            warn "installing ${ZOLA_VERSION#v} as $dest, beside it. a terminal runs whichever comes"
+            warn "first in its PATH (guide: \"Two Zolas\")."
+        fi
     elif [ -n "$current" ]; then
         say "zola $current is below the $ZOLA_MIN_VERSION floor; installing ${ZOLA_VERSION#v}..."
     else
@@ -766,7 +802,8 @@ install_zola() {
     local archive="$TMP_ZOLA/zola.$ext"
 
     say "downloading zola $version..."
-    http_download "$url" "$archive"
+    http_download "$url" "$archive" \
+        || die "could not download zola $version from $url. check the network, and that $version is a release listed at https://github.com/getzola/zola/releases."
 
     [ -s "$archive" ] || die "download produced an empty file"
 
@@ -865,7 +902,7 @@ resolve_host_config() {
         rest="${rest%.git}"
         local user="${rest%%/*}"
         local repo="${rest##*/}"
-        if [ -z "$user" ] || [ -z "$repo" ] || [ "$user" = "$repo" ]; then
+        if [ -z "$user" ] || [ -z "$repo" ]; then
             die "GIT_REPO_URL does not name a user and a repo: $GIT_REPO_URL"
         fi
         GITHUB_REPO="${user}/${repo}"
@@ -928,7 +965,9 @@ init_git_repo() {
     if git init -b main >/dev/null 2>&1; then
         say "initialised git repo on branch: main"
     else
+        # Stop: add and commit would reach a repository the blog folder sits inside.
         say "git init failed - run manually later"
+        return
     fi
     local name email
     name=$(git config --get user.name  2>/dev/null || true)
@@ -1039,13 +1078,15 @@ resolve_zola_version_for_workflow() {
         say "pinning zola ${local_ver} into the workflow (same build as this machine)"
         return 0
     fi
+    # ensure_zola_installed left the local version in ZOLA_VERSION; cleared, or
+    # resolve_zola_release returns it and the version just rejected gets pinned.
+    ZOLA_VERSION=""
     resolve_zola_release
     CI_ZOLA_VERSION="$ZOLA_VERSION"
     if [ -n "$local_ver" ]; then
-        # Outside the band, not a release, or no network: the message names all three.
-        say "local zola ${local_ver} was not usable as the CI pin — outside the supported band"
-        say "(>= ${ZOLA_MIN_VERSION}, < ${ZOLA_MAX_VERSION}), not a published release tag, or the release could not be"
-        say "reached just now. pinning ${CI_ZOLA_VERSION#v} into the workflow instead."
+        # ensure_zola_installed has replaced an out-of-band zola, so two causes remain.
+        say "local zola ${local_ver} isn't a published release, or GitHub couldn't be reached"
+        say "to check; pinning ${CI_ZOLA_VERSION#v} into the workflow instead."
     else
         say "pinning zola ${CI_ZOLA_VERSION#v} into the workflow"
     fi
@@ -1173,7 +1214,8 @@ EOF
 }
 
 # ./new: a post file with its front matter filled in, as a draft at the end of
-# the list. Weights are read from the top of content/ only (posts, not children).
+# the list. Weights are read from the top of content/ only: posts and folders,
+# which share one numbering, not children.
 # The title is made from the name, so it needs no escaping; the author edits it.
 render_new() {
     cat << 'EOF'
@@ -1195,8 +1237,8 @@ for taken in "content/$name.md" "content/$name"; do
         exit 1
     fi
 done
-# The next free weight: 10 past the heaviest post at the top of content/.
-max=$(cat content/*.md content/*/index.md 2>/dev/null \
+# The next free weight: 10 past the heaviest post or folder at the top of content/.
+max=$(cat content/*.md content/*/index.md content/*/_index.md 2>/dev/null \
     | sed -n 's/^weight *[=:] *\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n 1 || true)
 weight=$(( ${max:-0} + 10 ))
 # The title: the name with spaces for dashes and a capital first letter.
@@ -1236,6 +1278,7 @@ esac
 ext="$(printf '%s' "${src##*.}" | tr '[:upper:]' '[:lower:]')"
 case "$ext" in
     heic|heif) echo "most browsers can't show HEIC pictures; export it as a JPEG first" >&2; exit 2 ;;
+    svg) echo "exiftool can't clean SVG drawings: save it as a plain SVG (in Inkscape, File, Save As, Plain SVG), then copy it into content/attachments/ yourself" >&2; exit 2 ;;
 esac
 name="${name%."$ext"}"
 case "$name" in
@@ -1313,9 +1356,10 @@ EOF
 ## Made with zola-blog-setup
 
 These files are script-owned, rewritten on every run of the setup script:
-`config.toml`, `templates/`, `serve`, `build`, `new`, `attach`, this README,
-`.gitignore`, `static/favicon.svg`, `static/search.js` and
-`.github/workflows/deploy.yml`.
+`config.toml`, `templates/`, `serve`, `build`, `new`, `attach`, this README and
+`.gitignore`; also `static/favicon.svg` while FAVICON_TEXT draws it,
+`static/search.js` while search is on, and `.github/workflows/deploy.yml` while
+GIT_REPO_URL is set.
 Change them through the script's settings or its `render_` functions, not here.
 `content/` and the rest of `static/` are yours: the script never touches them
 after the first run.
@@ -1403,6 +1447,7 @@ favicon_drawn = ${favicon_drawn}
 light_theme = ${LIGHT_THEME}
 
 show_toc = ${SHOW_TOC}
+show_breadcrumbs = ${SHOW_BREADCRUMBS}
 show_reading_time = ${SHOW_READING_TIME}
 date_format = "${datef}"
 enable_tags = ${ENABLE_TAGS}
@@ -1414,9 +1459,10 @@ source_url = "${surl}"
 history_url = "${hurl}"
 history_hint = "${hhint}"
 
-# The menu: these pages, by their paths from content/, labelled with their titles,
-# then Tags, RSS and Search as the settings allow (base.html), and Home first when
-# masthead is "none". A path ending _index.md is a folder's page.
+# The menu: Search, then these pages, by their paths from content/, labelled with
+# their titles, then Tags and RSS; Search, Tags and RSS as the settings allow
+# (base.html), and Home first when masthead is "none". A path ending _index.md is
+# a folder's page.
 menu_pages = [${menu}]
 show_rss_link = ${SHOW_RSS_LINK}
 
@@ -1558,7 +1604,7 @@ Unordered with nesting:
     - Deeper nested item
 - Sed do eiusmod tempor
 
-Ordered with nesting. Write every level as \`1.\`, indented four spaces under the item above, and the stylesheet numbers the nested ones 2.1, 2.2:
+Ordered with nesting. Number each level the ordinary way, \`1.\`, \`2.\`, \`3.\`, indented four spaces under the item above, and the stylesheet numbers the nested ones 2.1, 2.2:
 
 1. First item
 2. Second item
@@ -1810,7 +1856,11 @@ render_base_html() {
     {%- if config.build_search_index %}
     <script src="{{ get_url(path='search.js', cachebust=true) }}" defer></script>
     {%- endif %}
-    {% block head_extra %}{% endblock %}
+    {#- Previous and Next (post_nav, components.html), worked out once: the
+        <link>s here, for readers and extensions; the bar at the foot of
+        page.html and section.html. -#}
+    {%- set_global reading %}{% if page is defined %}{{<post_nav node={page} extra={config.extra} />}}{% elif section is defined %}{{<post_nav node={section} extra={config.extra} />}}{% endif %}{% endset %}
+    {{- reading | split(pat="<!--bar-->") | first | safe }}
     <style>
     /* ===================================================================
        YOUR DESIGN: the tokens and element styles to change (guide: "Colours,
@@ -1832,7 +1882,7 @@ render_base_html() {
         --bg: #111;
         --fg: #e8e6da;
         --muted: #aaa8a0;
-        --link: #8ab4f8;               /* links in your text; lists, menu and footer keep their own */
+        --link: #94b9dc;               /* followed links in your text; lists, menu and footer keep their own */
         --accent: #ffb454;             /* inline code, the draft label, the focus ring */
         --surface: #242420;            /* table headers; code blocks keep their theme's ground */
         --inline-bg: #2b281f;          /* inline code: needs to read against the page and the line */
@@ -1840,7 +1890,6 @@ render_base_html() {
         --border: #2c2c28;             /* hairline: boxes, tables, small separators */
         --border-strong: #42423c;      /* the weight that carries a heading rule */
         --control-border: #6e6c64;     /* the search box: 3:1 against the page */
-        --mark-bg: rgba(255, 255, 255, 0.09);
         --measure: 42rem;              /* line length: about 79 characters of Charter, 66 of code */
         --wide: 62rem;                 /* ceiling for .wide pages and .bleed elements */
         --body-size: 1.2rem;
@@ -1857,7 +1906,7 @@ render_base_html() {
             --bg: #fffff8;
             --fg: #111;
             --muted: #57564e;
-            --link: #0645ad;
+            --link: #295a8e;
             --accent: #9d4909;
             --surface: #f4f2e8;
             --inline-bg: #ece3cd;
@@ -1865,7 +1914,6 @@ render_base_html() {
             --border: #e5e3d7;
             --border-strong: #c2bda4;
             --control-border: #8a8676;
-            --mark-bg: rgba(0, 0, 0, 0.06);
         }
     }
 {%- else %}
@@ -1904,9 +1952,16 @@ render_base_html() {
         box-sizing: border-box; max-width: var(--measure); margin-inline: auto;
     }
     main > .bleed { margin-inline: 0; }   /* UA stylesheets give <figure> 40px side margins */
+    /* Grid items with auto margins shrink to their content: the masthead would bunch up. */
+    body:has(.bleed) > header, body:has(.bleed) > footer { width: 100%; }
 
-    a, a:visited { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
-    /* Lists of links keep the text colour: every item in them is a link anyway. */
+    /* A link takes the colour of the text around it, underlined, and turns blue
+       once followed (:visited can change colours only). Footnote numbers are
+       blue either way. */
+    a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+    a:visited { color: var(--link); }
+    /* Lists of links keep the text colour, followed or not: every item in them
+       is a link anyway. */
     .post-list li > a, .tag-list a, .search-results a { color: var(--fg); }
 
     main h1, main h2, main h3, main h4, main h5, main h6 { font-weight: bold; line-height: 1.18; }
@@ -1954,8 +2009,10 @@ render_base_html() {
     /* Brand left, nav right; each falls flush left when they wrap. Centred, not on
        a shared baseline, which at different sizes offsets the caps by ~8px. */
     .masthead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.4rem 1.4rem; }
-    /* The description: home page only, set tight under the name. */
-    .tagline { color: var(--muted); font-style: italic; font-size: 0.9em; line-height: 1.35; margin: 0.45rem 0 0; }
+    /* The description: home page only, a row of its own under the name and menu.
+       On a phone, where the menu wraps under the name, it stays next to the name. */
+    .tagline { flex-basis: 100%; order: 1; color: var(--muted); font-style: italic; font-size: 0.9em; line-height: 1.35; margin: 0; }
+    @media (max-width: 36rem) { .masthead:has(.brand) .tagline { order: 0; } }
     /* The wordmark is text: an SVG loaded as an image can't use the webfont. */
     /* Size set here, so the name and the image-mode logo share one value. */
     .brand, .brand:visited { display: inline-flex; align-items: center; gap: 0.45rem; text-decoration: none; color: var(--fg); font-size: var(--wordmark-size); }
@@ -1980,6 +2037,14 @@ render_base_html() {
     .search-open { font: inherit; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-underline-offset: 2px; }
     .masthead nav a:hover, .search-open:hover { text-decoration: underline; }
 
+    /* Breadcrumbs, over the title of a page in a folder: quiet, like the menu. The
+       -0.55rem keeps that title level with the title on a page without them. */
+    .crumbs ol { display: flex; flex-wrap: wrap; list-style: none; margin: -0.55rem 0 0; padding: 0; color: var(--muted); font-size: 0.9em; }
+    .crumbs li + li::before { content: "›"; content: "›" / ""; margin: 0 0.5em; }
+    .crumbs a, .crumbs a:visited { color: var(--muted); text-decoration: none; }
+    .crumbs a:hover { text-decoration: underline; }
+    main .crumbs + h1 { margin-top: 0.2em; }
+
     /* A deck under the title, not a caption: full body size. */
     .subtitle { color: var(--muted); font-style: italic; line-height: 1.35; margin: 0.2rem 0 2rem 0; }
     h1 + .subtitle { margin-top: 0; }
@@ -1992,13 +2057,19 @@ render_base_html() {
 
     /* One rule, closing the title-and-dates block. */
     main h1.post-title { margin-bottom: 0.25em; }
-    .post-meta { display: flex; flex-wrap: wrap; align-items: baseline; color: var(--muted); font-style: italic; font-size: 0.9em; padding-bottom: 0.8rem; margin-bottom: 1.5rem; border-bottom: var(--hairline); }
+    .post-meta { display: flex; flex-wrap: wrap; column-gap: 1.6em; align-items: baseline; color: var(--muted); font-style: italic; font-size: 0.9em; padding-bottom: 0.8rem; margin-bottom: 1.5rem; border-bottom: var(--hairline); overflow: clip; overflow-clip-margin: 4px; }
     .post-meta > * { white-space: nowrap; }   /* wraps between items, never inside one */
-    .post-meta a, .post-meta a:visited, .subtitle a, .subtitle a:visited { color: var(--muted); text-decoration: underline dotted; text-underline-offset: 3px; }
-    .post-meta .sep, .subtitle .sep { margin: 0 0.7em; }
+    /* Each · sits in the gap before its item; one that would start a wrapped line
+       lands past the left edge and is clipped. The clip margin keeps focus rings. */
+    .post-meta > * + * { margin-inline-start: -1.6em; }
+    .post-meta .sep { display: inline-block; width: 1.6em; text-align: center; }
+    .post-meta a, .post-meta a:visited, .subtitle a, .subtitle a:visited { color: var(--muted); text-decoration: none; }
+    .post-meta a:hover, .subtitle a:hover { text-decoration: underline; }
+    .subtitle .sep { margin: 0 0.7em; }
 
     sup.footnote-reference { font-size: 0.75em; }
-    sup.footnote-reference a, sup.footnote-reference a:visited { text-decoration: none; }
+    /* Blue before it's followed too: a footnote number has no underline to mark it. */
+    sup.footnote-reference a, sup.footnote-reference a:visited { color: var(--link); text-decoration: none; }
     /* Zola's bottom footnotes: <section class="footnotes"><ol>. A selector that
        stops matching fails silently: the build passes either way. */
     main .footnotes { margin-top: 3rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.8em; color: var(--muted); }
@@ -2008,13 +2079,12 @@ render_base_html() {
     main .footnotes li:first-child > p:first-child { margin-block-start: 0; }
     /* A post ending in --- would put an <hr> just above the notes' own rule. */
     main hr:has(+ .footnotes) { display: none; }
-    /* The arrow back to the text stays quiet; a link in a note is blue like any
-       other. Zola's back-links go to #fr-<note>-<use>. */
+    /* The arrow back to the text stays quiet, followed or not; a link in a note
+       is like any other. Zola's back-links go to #fr-<note>-<use>. */
     main .footnotes a[href*="#fr-"] { color: var(--muted); }
 
     .giallo-l { display: inline-block; min-height: 1lh; width: 100%; }
     .giallo-ln { display: inline-block; user-select: none; margin-right: 0.4em; padding: 0.4em; min-width: 3ch; text-align: right; opacity: 0.8; }
-    pre mark { background: var(--mark-bg); color: inherit; padding: 0.05em 0.2em; border-radius: 2px; }
 
     main table { border-collapse: collapse; margin: 1rem 0; width: 100%; }
     main th, main td { border: 1px solid var(--border); padding: 0.4rem 0.6rem; text-align: left; }
@@ -2047,7 +2117,7 @@ render_base_html() {
     main ol { counter-reset: outline; }
     main ol > li { counter-increment: outline; }
     main ol ol > li { list-style: none; position: relative; }
-    main ol ol > li::before { content: counters(outline, "."); position: absolute; inset-inline-end: 100%; padding-inline-end: 0.5em; }
+    main ol ol > li::before { content: counters(outline, "."); position: absolute; inset-inline-end: 100%; padding-inline-end: 0.25em; }
     main ol[start] ol > li, main ol ol[start] > li { list-style: revert; }
     main ol[start] ol > li::before, main ol ol[start] > li::before { content: none; }
 
@@ -2060,15 +2130,15 @@ render_base_html() {
     .post-list .desc { display: block; color: var(--muted); font-style: italic; font-size: 0.9em; line-height: 1.35; }
     .post-list .tags { display: block; color: var(--muted); font-size: 0.8em; font-style: italic; }
     .post-list .tags a, .post-list .tags a:visited { color: var(--muted); text-decoration: none; }
+    .post-list .tags a:hover { text-decoration: underline; }
 
-    /* Dotted underline at rest (touch screens have no hover), solid on hover. */
+    /* Quiet links, like the menu's and the date line's: underlined on hover. */
     .post-tags { margin-top: 2.75rem; color: var(--muted); font-size: 0.9em; }
-    .post-tags a, .post-tags a:visited { color: var(--muted); text-decoration: underline dotted; text-underline-offset: 3px; }
+    .post-tags a, .post-tags a:visited { color: var(--muted); text-decoration: none; }
     .post-tags a:hover { text-decoration: underline; }
 
     .tag-list { list-style: none; padding-inline-start: 0; }
     .tag-list li { margin-bottom: 0.4rem; }
-    .tag-list a, .tag-list a:visited { text-decoration: none; }
     .tag-list .count { color: var(--muted); font-size: 0.85em; }
 
     .section-title { padding-bottom: 0.9rem; margin-bottom: 1.4rem; border-bottom: var(--hairline); }
@@ -2079,11 +2149,14 @@ render_base_html() {
     /* One disclosure style for the contents box and any <details> in a post. */
     details > summary { cursor: pointer; color: var(--muted); font-style: italic; list-style: none; }
     details > summary::-webkit-details-marker { display: none; }
-    details > summary::before { content: "\25B8\A0"; }
-    details[open] > summary::before { content: "\25BE\A0"; }
+    details > summary::before { content: "\25B8"; display: inline-block; width: 1em; }
+    details[open] > summary::before { content: "\25BE"; }
     main > details:not(.toc) { margin-block: 1.5rem; }
+    /* Open, its text hangs under the summary's words, so it ends visibly. */
+    main > details:not(.toc) > :not(summary) { margin-inline-start: 1em; }
 
-    .toc { margin: 1.5rem 0 2.2rem; padding: 0; font-size: 0.85em; }
+    /* The date line's rule under the box, folded or open, so its list ends before the text. */
+    .toc { margin: 1.5rem 0; padding: 0 0 1.3rem; border-bottom: var(--hairline); font-size: 0.85em; }
     .toc nav { margin-top: 0.6rem; }
     .toc ul { list-style: none; margin: 0; padding: 0; }
     .toc nav > ul > li { margin: 0.25rem 0; }
@@ -2104,11 +2177,14 @@ render_base_html() {
     .post-nav .label { color: var(--muted); font-style: italic; font-size: 0.9em; margin-right: 0.5em; }
     .post-nav-prev { text-align: left; }
     .post-nav-next { text-align: right; }
-    /* All posts: always rendered, in the middle; on a phone, on a row of its own. */
+    /* All posts: in the middle, or on a phone on a row of its own. Empty on the
+       first entry, whose Previous is the home page already. */
     .post-nav-home { text-align: center; }
     @media (max-width: 36rem) {
         .post-nav { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
         .post-nav-home { grid-row: 2; grid-column: 1 / -1; }
+        .post-nav-home:empty { display: none; }
+        .post-nav .label { display: block; margin-right: 0; }
     }
 
     /* A margin on both sides of each link keeps the row centred. */
@@ -2135,7 +2211,7 @@ render_base_html() {
         pre, pre span { background: #fff !important; color: #000 !important; }
         .masthead nav, .post-nav, .search, body > footer, .toc { display: none; }
         main h2, main h3, main h4, main h5, main h6 { break-after: avoid; }
-        details[open] > summary::before, details > summary::before { content: ""; }
+        details > summary::before { content: none; }
         main > details:not(.toc) > :not(summary) { display: block; }
     }
     </style>
@@ -2149,6 +2225,7 @@ render_base_html() {
             <span class="brand-name">{{ config.title }}</span>
         </a>
         {%- endif %}
+        {% block masthead_extra %}{% endblock %}
         {#- Each menu_pages entry, labelled with its title: a page (about.md) or a
             folder's page (projects/_index.md). A missing one stops the build; the
             setup script checks for that first. -#}
@@ -2156,8 +2233,11 @@ render_base_html() {
             {%- if config.extra.masthead == "none" %}
             <a href="{{ get_url(path='/', trailing_slash=true) }}"{% if current_path == "/" %} class="current" aria-current="page"{% endif %}>Home</a>
             {%- endif %}
+            {%- if config.build_search_index %}
+            <button type="button" class="search-open" aria-haspopup="dialog" hidden>Search</button>
+            {%- endif %}
             {%- for path in config.extra.menu_pages %}
-            {%- if path is ending_with(pat="_index.md") %}{% set menu_item = get_section(path=path, metadata_only=true) %}{% else %}{% set menu_item = get_page(path=path) %}{% endif %}
+            {%- if path is ending_with(pat="_index.md") %}{% set menu_item = get_section(path=path) %}{% else %}{% set menu_item = get_page(path=path) %}{% endif %}
             <a href="{{ menu_item.permalink }}"{% if current_path == menu_item.path %} class="current" aria-current="page"{% endif %}>{{ menu_item.title }}</a>
             {%- endfor %}
             {%- if config.extra.enable_tags %}
@@ -2166,15 +2246,24 @@ render_base_html() {
             {%- if config.generate_feeds and config.extra.show_rss_link %}
             <a href="{{ get_url(path='atom.xml') }}">RSS</a>
             {%- endif %}
-            {%- if config.build_search_index %}
-            <button type="button" class="search-open" aria-haspopup="dialog" hidden>Search</button>
-            {%- endif %}
         </nav>
         </div>
-        {% block masthead_extra %}{% endblock %}
     </header>
 
     <main>
+        {#- Breadcrumbs: Home, then the folders above this page, top one first, so even
+            one folder reads as a trail; the title follows, so it isn't repeated. A page
+            with no folder above it has none, and so does a page in a transparent
+            folder: Zola leaves that folder out of its ancestors. -#}
+        {%- set trail = page?.ancestors or section?.ancestors or [] %}
+        {%- if config.extra.show_breadcrumbs and trail | length > 1 %}
+        <nav class="crumbs" aria-label="Breadcrumb"><ol>
+            <li><a href="{{ get_url(path='/', trailing_slash=true) }}">Home</a></li>
+            {%- for path in trail[1:] %}{% set crumb = get_section(path=path) %}
+            <li><a href="{{ crumb.permalink }}">{{ crumb.title }}</a></li>
+            {%- endfor %}
+        </ol></nav>
+        {%- endif %}
         {% block content %}{% endblock %}
     </main>
 
@@ -2191,7 +2280,7 @@ render_base_html() {
         data-home is the home section's permalink, the exact string the index holds;
         get_url(path='/') drops the trailing slash. Tera v2 can't read a field off a
         function call, hence the set. -#}
-    {%- set search_home = get_section(path='_index.md', metadata_only=true) %}
+    {%- set search_home = get_section(path='_index.md') %}
     <dialog class="search" aria-label="Search">
         <div class="search-box" data-index="{{ get_url(path='search_index.' ~ lang ~ '.json') }}" data-home="{{ search_home.permalink }}">
             <input type="search" aria-label="Search this site" placeholder="Search" autocomplete="off">
@@ -2205,20 +2294,45 @@ render_base_html() {
 EOF
 }
 
-# post_list: one list for home, sections and tag pages. An <ol>, so the browser
-# numbers it; no {% if %} in the loop, or a hidden row would skip a number.
-# Components can't see config, hence the extra argument.
+# The numbered lists (post_list), the contents box, videos, bare addresses as
+# links, and Previous and Next along the lists (post_nav, beside). Zola gives
+# templates no weights, so front_value reads them from the files.
 render_components() {
     cat << 'EOF'
-{#- Tera v2 component, not a macro: macros were removed in Zola 0.23. Components
-    are registered globally from any template file, so nothing imports this. -#}
-{% component post_list(pages, extra) %}
+{#- Tera v2 components, not macros (Zola 0.23 removed those), registered
+    globally, so nothing imports this file. They can't see config, hence the
+    extra argument. -#}
+
+{#- The numbered list on the home page, a folder's page and a tag page.
+    folders: the subsections, in weight order; left out are attachments/,
+    folders in the menu, and transparent folders, whose pages are listed
+    already (Zola drops hidden folders, and drafts outside the preview).
+    section: the list's own _index.md. Sorted by weight, a folder goes before
+    the first page not lighter than it; otherwise the folders come first. -#}
+{% component post_list(pages, extra, folders=[], section="") %}
+{%- set skip = ["attachments/_index.md", ...extra.menu_pages] %}
+{%- set listed = [f for f in [get_section(path=p) for p in folders] if not f.transparent and f.relative_path not in skip] %}
+{%- set sort_by %}{% if section and listed %}{{<front_value path={section} key="sort_by" />}}{% endif %}{% endset %}
+{%- if sort_by == "weight" %}
+{%- set_global entries = [] %}
+{%- set_global taken = 0 %}
+{%- for f in listed %}
+{%- set w %}{{<front_value path={f.relative_path} key="weight" default="-1" />}}{% endset %}
+{%- set n %}{{<lighter pages={pages} weight={w | int} />}}{% endset %}
+{%- set n = n | int %}
+{%- if n > taken %}{% set_global entries = [...entries, ...pages[taken:n]] %}{% set_global taken = n %}{% endif %}
+{%- set_global entries = [...entries, f] %}
+{%- endfor %}
+{%- set entries = [...entries, ...pages[taken:]] %}
+{%- else %}
+{%- set entries = [...listed, ...pages] %}
+{%- endif %}
 <ol class="post-list">
-{% for page in pages %}
+{% for e in entries %}
 <li>
-    <a href="{{ page.permalink }}">{{ page.title }}</a>{% if page.draft %} <span class="draft">(draft)</span>{% endif %}
-    {% if page.description %}<span class="desc">{{ page.description }}</span>{% endif %}
-    {% if extra.enable_tags and page.taxonomies.tags %}<span class="tags">{% for tag in page.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
+    <a href="{{ e.permalink }}">{{ e.title }}</a>{% if e.draft %} <span class="draft">(draft)</span>{% endif %}
+    {% if e.description %}<span class="desc">{{ e.description }}</span>{% endif %}
+    {% if extra.enable_tags and e.taxonomies?.tags %}<span class="tags">{% for tag in e.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}
 </li>
 {% endfor %}
 </ol>
@@ -2249,10 +2363,150 @@ render_components() {
 {%- set url = get_url(path="@/" ~ src) -%}
 {% if loop == "yes" %}<video src="{{ url }}" autoplay loop muted playsinline controls></video>{% else %}<video src="{{ url }}" controls preload="metadata"></video>{% endif %}
 {% endcomponent video %}
+
+{#- An address pasted as it is becomes a link, like one written <https://...>:
+    Markdown links only the second. The first step matches tags, links and code
+    whole, so they pass through untouched, and marks each bare address; the second
+    drops the empty marks the tags leave; the third turns the rest into links with
+    the attributes Zola gives other outside links. A full stop, comma or bracket
+    after an address stays outside it. atom.xml uses it too. -#}
+{% component linkify(html) %}{{ html | regex_replace(pattern=`(?s)(<a\\b[^>]*>.*?</a>|<pre\\b.*?</pre>|<code\\b.*?</code>|<script\\b.*?</script>|<style\\b.*?</style>|<[^>]*>)|(https?://(?:[^\\s<>"()&]|&amp;|\\([^\\s<>"()]*\\))*(?:[^\\s<>"().,;:!?'*_~&]|&amp;|\\([^\\s<>"()]*\\)))`, rep=`${1}<!--L-->${2}<!--/L-->`) | replace(from="<!--L--><!--/L-->", to="") | regex_replace(pattern=`<!--L-->(.*?)<!--/L-->`, rep=`<a rel="noopener nofollow noreferrer external" href="$1" target="_blank">$1</a>`) | safe }}{% endcomponent linkify %}
+
+{#- Previous and Next: down the home page's list, and into each folder's own
+    list straight after the folder, at any depth, as post_list shows them. The
+    home page, a folder in the menu, and a folder inside a transparent one
+    (which no list above it shows) each start an order; a page no list shows
+    gets no links. Worked out once per page, into <head>: the <link>s, then
+    <!--bar-->, then the bar for the foot. -#}
+{% component post_nav(node, extra) %}
+{%- set skip = ["attachments/_index.md", ...extra.menu_pages] %}
+{%- set here = node.relative_path %}
+{%- set up = node.ancestors | last %}
+{%- set is_folder = here is ending_with(pat="_index.md") %}
+{%- set_global start = is_folder and (not up or here in skip) %}
+{%- if is_folder and not start %}{% set parent = get_section(path=up) %}{% if parent.transparent %}{% set_global start = not node.transparent %}{% endif %}{% endif %}
+{%- set around %}{% if start %}//{% elif up %}{{<beside section={up} item={here} extra={extra} />}}{% endif %}{% endset %}
+{%- set placed = around != "" %}
+{%- set_global prev = around | split(pat="//") | first %}
+{%- set_global next = around | split(pat="//") | last %}
+{#- Previous: for the first entry in a list, its folder; when it's a folder,
+    that folder's last entry, and on down. -#}
+{%- if placed and not start and not prev %}{% set_global prev = up %}
+{%- else %}{% for step in range(end=100) %}{% if prev is not ending_with(pat="_index.md") %}{% break %}{% endif %}{% set last %}{{<beside section={prev} item="" extra={extra} />}}{% endset %}{% set last = last | split(pat="//") | first %}{% if not last %}{% break %}{% endif %}{% set_global prev = last %}{% endfor %}{% endif %}
+{#- Next: a folder's own first entry; at the end of a list, what follows its
+    folder in the list above, and on up to the order's start. -#}
+{%- if placed and is_folder %}{% set first %}{{<beside section={here} item="" extra={extra} />}}{% endset %}{% set first = first | split(pat="//") | last %}{% if first %}{% set_global next = first %}{% endif %}{% endif %}
+{%- if placed and not start and not next %}
+{%- set_global c = up %}
+{%- for step in range(end=100) %}
+{%- set cs = get_section(path=c) %}
+{%- if c == "_index.md" or c in skip or not cs.ancestors %}{% break %}{% endif %}
+{%- set g = cs.ancestors | last %}
+{%- set gs = get_section(path=g) %}
+{%- if gs.transparent %}{% break %}{% endif %}
+{%- set after %}{{<beside section={g} item={c} extra={extra} />}}{% endset %}
+{%- if not after %}{% break %}{% endif %}
+{%- set after = after | split(pat="//") | last %}
+{%- if after %}{% set_global next = after %}{% break %}{% endif %}
+{%- set_global c = g %}
+{%- endfor %}
+{%- endif %}
+{%- if prev %}{% if prev is ending_with(pat="_index.md") %}{% set_global prev = get_section(path=prev) %}{% else %}{% set_global prev = get_page(path=prev) %}{% endif %}{% endif %}
+{%- if next %}{% if next is ending_with(pat="_index.md") %}{% set_global next = get_section(path=next) %}{% else %}{% set_global next = get_page(path=next) %}{% endif %}{% endif %}
+{#- A list page that starts an order shows no bar: its list is right there.
+    The first entry's Previous is the home page, so All posts would repeat it. -#}
+{%- if next %}<link rel="next" href="{{ next.permalink | safe }}">{% endif %}
+{%- if prev %}<link rel="prev" href="{{ prev.permalink | safe }}">{% endif %}
+<!--bar-->
+{%- if placed and not start %}
+<nav class="post-nav" aria-label="Previous and next">
+<div class="post-nav-prev">{% if prev %}<a href="{{ prev.permalink }}"><span class="label">&larr;&nbsp;Previous</span>{{ prev.title }}</a>{% endif %}</div>
+<div class="post-nav-home">{% if prev.relative_path != "_index.md" %}<a href="{{ get_url(path='/', trailing_slash=true) }}">All posts</a>{% endif %}</div>
+<div class="post-nav-next">{% if next %}<a href="{{ next.permalink }}"><span class="label">Next</span>{{ next.title }}&nbsp;&rarr;</a>{% endif %}</div>
+</nav>
+{%- endif %}
+{% endcomponent post_nav %}
+
+{#- The entries just before and after item in section's list, the list
+    post_list shows, as "before//after" paths ("//" can't occur in a path), one
+    of them empty at an end of the list; item "" gives the list's
+    "last//first". Nothing at all when the list doesn't show item. -#}
+{% component beside(section, item, extra) -%}
+{%- set s = get_section(path=section) %}
+{%- set skip = ["attachments/_index.md", ...extra.menu_pages] %}
+{%- set fs = [f for f in [get_section(path=p) for p in s.subsections] if not f.transparent and f.relative_path not in skip] %}
+{%- set ps = s.pages %}
+{%- set weighted %}{% if fs and ps %}{{<front_value path={section} key="sort_by" />}}{% endif %}{% endset %}
+{%- set weighted = weighted == "weight" %}
+{%- set_global f0 = fs | last %}{% set_global f1 = fs | first %}{% set_global p0 = ps | last %}{% set_global p1 = ps | first %}
+{%- set_global found = item == "" %}
+{%- set_global seen = none %}
+{%- if item is ending_with(pat="_index.md") %}
+{#- A folder: the folders either side of it, and the pages either side of its weight. -#}
+{%- for f in fs %}{% if f.relative_path == item %}{% set_global found = true %}{% set_global f1 = fs | nth(n=loop.index) %}{% break %}{% endif %}{% set_global seen = f %}{% endfor %}
+{%- set_global f0 = seen %}
+{%- set w %}{% if found and weighted %}{{<front_value path={item} key="weight" default="-1" />}}{% endif %}{% endset %}
+{%- set n %}{% if found and weighted %}{{<lighter pages={ps} weight={w | int} />}}{% else %}0{% endif %}{% endset %}
+{%- set n = n | int %}
+{%- set_global p0 = none %}{% if n > 0 %}{% set_global p0 = ps | nth(n=n - 1) %}{% endif %}
+{%- set_global p1 = ps | nth(n=n) %}
+{%- elif item %}
+{#- A page: its neighbours, from Zola, or found in a list without sort_by; and
+    the folders either side of its weight. -#}
+{%- set pg = get_page(path=item) %}
+{%- set_global p0 = pg.lower %}{% set_global p1 = pg.higher %}
+{%- if p0 or p1 %}{% set_global found = true %}
+{%- else %}{% for p in ps %}{% if p.relative_path == item %}{% set_global found = true %}{% set_global p0 = seen %}{% set_global p1 = ps | nth(n=loop.index) %}{% break %}{% endif %}{% set_global seen = p %}{% endfor %}{% endif %}
+{%- set w %}{% if found and weighted %}{{<front_value path={item} key="weight" default="-1" />}}{% endif %}{% endset %}
+{%- set m %}{% if found and weighted %}{{<lighter pages={fs} weight={(w | int) + 1} />}}{% else %}{{ fs | length }}{% endif %}{% endset %}
+{%- set m = m | int %}
+{%- set_global f0 = none %}{% if m > 0 %}{% set_global f0 = fs | nth(n=m - 1) %}{% endif %}
+{%- set_global f1 = fs | nth(n=m) %}
+{%- endif %}
+{%- if found %}
+{#- Before it, the later of the two; after it, the earlier. A folder comes
+    first on an equal weight, and in a list not sorted by weight. -#}
+{%- if f0 and p0 %}{% set a %}{{<front_value path={f0.relative_path} key="weight" default="-1" />}}{% endset %}{% set b %}{{<front_value path={p0.relative_path} key="weight" default="-1" />}}{% endset %}{% if not weighted or (a | int) <= (b | int) %}{% set_global f0 = none %}{% else %}{% set_global p0 = none %}{% endif %}{% endif %}
+{%- if f1 and p1 %}{% set a %}{{<front_value path={f1.relative_path} key="weight" default="-1" />}}{% endset %}{% set b %}{{<front_value path={p1.relative_path} key="weight" default="-1" />}}{% endset %}{% if not weighted or (a | int) <= (b | int) %}{% set_global p1 = none %}{% else %}{% set_global f1 = none %}{% endif %}{% endif %}
+{%- set before = f0 or p0 %}{% set after = f1 or p1 %}
+{%- if before %}{{ before.relative_path | safe }}{% endif %}//{% if after %}{{ after.relative_path | safe }}{% endif %}
+{%- endif %}
+{%- endcomponent beside %}
+
+{#- One front matter value of a file in content/, as text, or default: a
+    weight or a sort_by, which Zola reads but doesn't give templates. The two
+    patterns are Zola's own (front_matter/split.rs), so the front matter ends
+    where Zola's does, and a +++ inside a title doesn't end it early. -#}
+{% component front_value(path, key, default="") -%}
+{%- set raw = load_data(path="@/" ~ path, format="plain") %}
+{%- set toml = `^[[:space:]]*\\+\\+\\+[[:space:]]*(\\r?\\n(?s).*?(?-s))\\+\\+\\+[[:space:]]*(?:$|(?:\\r?\\n((?s).*(?-s))$))` %}
+{%- set yaml = `^[[:space:]]*---[[:space:]]*(\\r?\\n(?s).*?(?-s))---[[:space:]]*(?:$|(?:\\r?\\n((?s).*(?-s))$))` %}
+{%- if raw is matching(pat=toml) %}{% set fm = load_data(literal=raw | regex_replace(pattern=toml, rep="$1"), format="toml") %}
+{%- elif raw is matching(pat=yaml) %}{% set fm = load_data(literal=raw | regex_replace(pattern=yaml, rep="$1"), format="yaml") %}
+{%- else %}{% set fm = {} %}{% endif %}
+{{- fm | get(key=key, default=default) }}
+{%- endcomponent front_value %}
+
+{#- How many of these pages or folders, in weight order, are lighter than
+    weight: where something of that weight goes among them. Halves the list
+    each step, so a list of 2,000 takes 11 reads. -#}
+{% component lighter(pages, weight) -%}
+{%- set_global lo = 0 %}
+{%- set_global hi = pages | length %}
+{%- for step in range(end=64) %}
+{%- if lo >= hi %}{% break %}{% endif %}
+{%- set mid = (lo + hi) // 2 %}
+{%- set pm = pages[mid] %}
+{%- set wm %}{{<front_value path={pm.relative_path} key="weight" default="-1" />}}{% endset %}
+{%- if (wm | int) < weight %}{% set_global lo = mid + 1 %}{% else %}{% set_global hi = mid %}{% endif %}
+{%- endfor %}
+{{- lo }}
+{%- endcomponent lighter %}
 EOF
 }
 
-# Home: the numbered post list, in the order the weights give.
+# Home: the numbered list, posts and folders in the order their weights give.
+# It starts the reading order, so it has a <link rel="next"> and no bar.
 render_index_html() {
     cat << 'EOF'
 {% extends "base.html" %}
@@ -2267,28 +2521,20 @@ render_index_html() {
 <h1 class="visually-hidden">{{ config.title }}</h1>
 
 {#- Whatever is written below the front matter of content/_index.md. -#}
-{{ section.content | safe }}
+{{<linkify html={section.content} />}}
 
-{{<post_list pages={section.pages} extra={config.extra} />}}
+{{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}
 {% endblock %}
 EOF
 }
 
-# page.lower and page.higher come from the same sorted array as section.pages,
-# so the links match the home page's order. Under weight, lower is the entry
-# above (previous) and higher the one below (next), whatever older docs say.
+# A post, or any other page: title, date line, text, tags, then the Previous and
+# Next bar, worked out in base.html.
 render_page_html() {
     cat << 'EOF'
 {% extends "base.html" %}
 
 {% block title %}{{ page.title }} | {{ config.title }}{% endblock %}
-
-{#- The neighbours, for readers and extensions: the no-script stand-in for
-    next and previous keys. -#}
-{% block head_extra %}
-{% if page.higher %}<link rel="next" href="{{ page.higher.permalink | safe }}">{% endif %}
-{% if page.lower %}<link rel="prev" href="{{ page.lower.permalink | safe }}">{% endif %}
-{% endblock %}
 
 {% block content %}
 {#- A page without a date, such as About, is titled like a section: the rule
@@ -2302,10 +2548,10 @@ render_page_html() {
 {#- One span per item after the date, so the line wraps between items. -#}
 <div class="post-meta">
 <time datetime="{{ pub_date }}">{{ page.date | date(format=config.extra.date_format) }}</time>
-{% if rev_date and rev_date != pub_date %}<span><span class="sep">·</span>updated <time datetime="{{ rev_date }}">{{ page.updated | date(format=config.extra.date_format) }}</time></span>{% endif %}
+{% if rev_date and rev_date != pub_date %}<span><span class="sep">·</span>Updated <time datetime="{{ rev_date }}">{{ page.updated | date(format=config.extra.date_format) }}</time></span>{% endif %}
 {% if config.extra.show_reading_time %}<span><span class="sep">·</span>{{ page.reading_time }} min read</span>{% endif %}
-{% if config.extra.show_history_link and config.extra.history_url and page.relative_path %}<span><span class="sep">·</span><a class="history" href="{{ config.extra.history_url }}/{{ page.relative_path }}"{% if config.extra.history_hint %} title="{{ config.extra.history_hint }}"{% endif %}>view history</a></span>{% endif %}
-{% if config.extra.show_suggest_edit and config.extra.source_url and page.relative_path %}<span><span class="sep">·</span><a class="source" href="{{ config.extra.source_url }}/{{ page.relative_path }}">suggest an edit</a></span>{% endif %}
+{% if config.extra.show_history_link and config.extra.history_url and page.relative_path %}<span><span class="sep">·</span><a class="history" href="{{ config.extra.history_url }}/{{ page.relative_path }}"{% if config.extra.history_hint %} title="{{ config.extra.history_hint }}"{% endif %}>View history</a></span>{% endif %}
+{% if config.extra.show_suggest_edit and config.extra.source_url and page.relative_path %}<span><span class="sep">·</span><a class="source" href="{{ config.extra.source_url }}/{{ page.relative_path }}">Suggest an edit</a></span>{% endif %}
 </div>
 {% endif %}
 
@@ -2321,25 +2567,23 @@ render_page_html() {
 {{<toc items={page.toc} />}}
 {% endif %}
 
-{{ page.content | safe }}
+{{<linkify html={page.content} />}}
 
 {% if config.extra.enable_tags and page.taxonomies.tags %}
-<div class="post-tags">tags: {% for tag in page.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
+<div class="post-tags">Tags: {% for tag in page.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
 {% endif %}
 
-<nav class="post-nav" aria-label="Previous and next">
-<div class="post-nav-prev">{% if page.lower %}<a href="{{ page.lower.permalink }}"><span class="label">&larr; Previous</span>{{ page.lower.title }}</a>{% endif %}</div>
-<div class="post-nav-home"><a href="{{ get_url(path='/', trailing_slash=true) }}">All posts</a></div>
-<div class="post-nav-next">{% if page.higher %}<a href="{{ page.higher.permalink }}"><span class="label">Next</span>{{ page.higher.title }} &rarr;</a>{% endif %}</div>
-</nav>
+{#- The bar: not on a page no list shows, such as About; the masthead already
+    leads home. -#}
+{{ reading | split(pat="<!--bar-->") | last | safe }}
 {% endblock %}
 EOF
 }
 
 # A section's page: any folder with an _index.md, such as the parent of child
 # pages. Its title, subtitle (description), the contents box if it sets
-# toc = true under [extra], its text, then its child pages, in the same
-# numbered list the home page uses.
+# toc = true under [extra], its text, then its folders and child pages, in the
+# same numbered list the home page uses, then the Previous and Next bar.
 render_section_html() {
     cat << 'EOF'
 {% extends "base.html" %}
@@ -2352,8 +2596,9 @@ render_section_html() {
 {% if config.extra.show_toc and section.extra?.toc and section.toc and (section.toc | length > 1 or section.toc[0].children) %}
 {{<toc items={section.toc} />}}
 {% endif %}
-{% if section.content %}{{ section.content | safe }}{% endif %}
-{% if section.pages %}{{<post_list pages={section.pages} extra={config.extra} />}}{% endif %}
+{% if section.content %}{{<linkify html={section.content} />}}{% endif %}
+{% if section.pages or section.subsections %}{{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}{% endif %}
+{{ reading | split(pat="<!--bar-->") | last | safe }}
 {% endblock %}
 EOF
 }
@@ -2518,8 +2763,9 @@ render_search_js() {
     }
 
     button.addEventListener("click", function () {
-        // Just under the navigation: see --search-top in templates/base.html.
-        var top = Math.max(0, Math.round(button.getBoundingClientRect().bottom)) + 16;
+        // Just under the navigation, below its last line when it wraps (the button
+        // comes first): see --search-top in templates/base.html.
+        var top = Math.max(0, Math.round(button.parentNode.getBoundingClientRect().bottom)) + 16;
         dialog.style.setProperty("--search-top", top + "px");
         dialog.showModal();
         input.focus();
@@ -2619,10 +2865,13 @@ render_atom_xml() {
         {%- endfor %}
         <link rel="alternate" href="{{ page.permalink | safe }}" type="text/html"/>
         <id>{{ page.permalink | safe }}</id>
+        {#- Bare addresses become links, as on the pages. A component's output is
+            marked safe, so it's escaped here by hand. -#}
+        {%- set body %}{{<linkify html={page.summary or page.content} />}}{% endset %}
         {%- if page.summary %}
-        <summary type="html">{{ page.summary }}</summary>
+        <summary type="html">{{ body | escape_html | safe }}</summary>
         {%- else %}
-        <content type="html">{{ page.content }}</content>
+        <content type="html">{{ body | escape_html | safe }}</content>
         {%- endif %}
     </entry>
     {%- endif %}
@@ -2702,4 +2951,5 @@ EOF
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
+
 ````

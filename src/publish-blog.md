@@ -1,13 +1,13 @@
-# Minimal Zola Blog on GitHub Pages
+# Minimal Zola Blog on GitHub Pages, v35
 
-The [zola-blog-setup.sh](./boostrap-zola.md) script makes a small, fast blog on your computer and sets it up so GitHub publishes it for free. You write each post as a plain text file. A program called Zola turns those files into web pages, and GitHub puts the pages online each time you send in your changes.
+The [zola-blog-setup.sh](bootstrap-zola.md) script makes a small, fast blog on your computer and sets it up so GitHub publishes it for free. You write each post as a plain text file. A program called Zola turns those files into web pages, and GitHub puts the pages online each time you send in your changes.
 
 ## What you get
 
 - A home page that lists your posts, numbered, in the order you choose, or newest first (see "Ordering posts"). Also an About page, tags, an RSS feed, and search.
 - A plain, readable design. It is dark by default, and you can add a light version for readers whose computer is set to light mode.
 - Nothing loaded from other websites: no tracking, no adverts, and no fonts or scripts from other companies. Every page carries a security policy that makes the reader's browser enforce this.
-- One small script, for the search box. Search is on by default, so by default the site does run JavaScript: this one file, loaded from your own site and nowhere else. Turn search off (`ENABLE_SEARCH=false`) and the published site runs no JavaScript at all.
+- One small script, for the search box. Search is on by default, so by default the site does run JavaScript: this one file, loaded from your own site and nowhere else. Turn search off (`ENABLE_SEARCH=false`) and the blog's pages run no JavaScript at all. The one exception is the address `/attachments/`, which Zola publishes as a redirect to the home page: one line of Zola's own script, on a page without the security policy.
 - Automatic publishing. Each time you push your changes to GitHub, it rebuilds the site and puts it online, usually within a couple of minutes.
 - Optional email updates for readers, through a newsletter service that sends them each new post from your feed (see "Email subscription").
 
@@ -29,7 +29,7 @@ The script runs on Linux, macOS, and Windows (in Git Bash). It uses Zola 0.23, a
 - **Front matter**: the block of settings at the top of each post, between two lines of `+++`.
 - **Attachments**: the folder `content/attachments/`, where pictures, GIFs and videos go, for any post or page.
 - **Draft**: a post with `draft = true` in its front matter. The preview shows it; the published site doesn't.
-- **Post**: an entry in the list on the home page. A **hidden page**, such as the About page, is published but kept out of every list; see "Pages that aren't posts". A **section** is a folder with an `_index.md` file in it, and a **child page** is a page inside a section's folder, listed on that section's page; see "Child pages".
+- **Post**: a page in the list on the home page. A **hidden page**, such as the About page, is published but kept out of every list; see "Pages that aren't posts". A **section** is a folder with an `_index.md` file in it. It's listed like a post, and its page lists the pages inside it, its **child pages**; see "Child pages".
 - **Preview**: a private copy of the site on your computer, at `http://127.0.0.1:1111`, that updates each time you save a file. Only you can see it.
 - **Build**: making the finished site files, which go into a folder called `public/`.
 - **The configuration block**: the list of settings at the top of the script.
@@ -77,7 +77,7 @@ Put your own name and the address you copied in place of `Your Name` and `Your E
 
 ### Step 2: save the script and read it
 
-Open the page for [zola-blog-setup.sh](./boostrap-zola.md) and copy the whole script (on a code block, the copy button at its top right copies all of it). Paste it into a new file in your text editor, and save that file as `zola-blog-setup.sh` in your Downloads folder. Any other folder works too, but this guide assumes Downloads. Where you keep the script doesn't decide where the blog goes: the settings do, and by default it's a folder called `myblog` on your Desktop.
+Open the page for [zola-blog-setup.sh](bootstrap-zola.md) and copy the whole script (on a code block, the copy button at its top right copies all of it). Paste it into a new file in your text editor, and save that file as `zola-blog-setup.sh` in your Downloads folder. Any other folder works too, but this guide assumes Downloads. Where you keep the script doesn't decide where the blog goes: the settings do, and by default it's a folder called `myblog` on your Desktop.
 
 Read the script before you run it, or have someone you trust read it: it downloads a program and connects your blog to GitHub. If you don't read shell scripts, paste it into an AI model you trust and ask what it does. About half of the script is the text of the files it writes. It downloads only from GitHub, installs nothing outside your home folder, and never asks for your password.
 
@@ -95,10 +95,10 @@ The name in capitals is the setting; what follows the `=` is its value. Everythi
 
 Rules for changing a value:
 
-- Change the setting's own line; don't add a second line for the same setting. A second line stops the script with an error such as `line 61: GIT_REPO_URL: readonly variable`.
+- Change the setting's own line; don't add a second line for the same setting. A second line stops the script with an error such as `line 82: GIT_REPO_URL: readonly variable`.
 - Change only what comes after the `=`. Leave everything before it alone, and don't put spaces around the `=`.
 - Text goes inside double quotes: `readonly SITE_TITLE="John's Notes"`. An apostrophe inside double quotes is fine.
-- Inside the quotes, put a backslash before any `$`, `"` or `` ` ``: `readonly SITE_DESCRIPTION="Notes on \$5 gadgets"`. Without it the script stops with an error such as `line 68: $5: unbound variable`. The one exception is `$HOME` in `PROJECT_DIR`'s default, which is meant to be read as your home folder.
+- Inside the quotes, put a backslash before any `$`, `"` or `` ` ``: `readonly SITE_DESCRIPTION="Notes on \$5 gadgets"`, or `readonly FOOTER_TEXT="Motto: \"ora et labora\""`. Without it the script stops with an error such as `line 89: $5: unbound variable`, or, for a `"` or `` ` ``, `line 117: FOOTER_TEXT isn't quoted as the script needs`. The one exception is `$HOME` in `PROJECT_DIR`'s default, which is meant to be read as your home folder.
 - `true` and `false` have no quotes. If one is wrong, the script stops with a message such as `SHOW_TOC must be true or false (unquoted), got: 'yes'`.
 - An empty value is two quotes with nothing between them: `readonly SITE_DESCRIPTION=""`.
 
@@ -167,7 +167,7 @@ Some lines look alarming but are normal:
 
 - `sha256 of the downloaded archive` is the fingerprint of the Zola download, printed for your records. See "What the checksum proves".
 - If `~/.local/bin`, where Zola goes, isn't yet among the folders your terminal looks in for programs (your `PATH`), a note after `installed: zola 0.23.6` says so. The preview this run starts works anyway; the note is about the next terminal you open. Log out and back in, and see "Zola not found after installing" if that isn't enough.
-- If git didn't know your name and email yet, you see `(git user.name/user.email not configured - initial commit skipped)` instead of `made initial commit`. The blog is fine. Do step 1 above, then make the first commit yourself from inside the blog folder, with `git add -A` and then `git commit -m "First commit"`.
+- If git didn't know your name and email yet, you see `(git user.name/user.email not configured - initial commit skipped)` instead of `made initial commit`. The blog is fine. Do step 1 above, then make the first commit yourself. In a second terminal window (the preview is using this one), go into the blog folder, the one named after `blog created in`, with a command such as `cd ~/Desktop/myblog`. Then run `git add -A`, which prints nothing, and `git commit -m "First commit"`, which prints a line starting `[main (root-commit)`.
 - If you set `GIT_REPO_URL`, you also see three lines about pinning Zola into the workflow, which means recording the exact Zola version GitHub will use, and `added remote 'origin': git@github.com:you/yourrepo.git`. That's the link to GitHub being set up.
 - If you set `GIT_REPO_URL` and some settings still have the values the script came with, a line starting `still the examples the script came with` names them. It's a reminder, not an error; see "Before you publish".
 
@@ -204,7 +204,7 @@ Replace the example posts with your own when you're ready. Delete both together,
 Whatever is in the blog when you push goes online, so replace the placeholders first:
 
 - `SITE_TITLE` ("Myblog"), `SITE_DESCRIPTION` ("one-line description") and `SITE_AUTHOR` ("your name").
-- `FOOTER_LINKS`. It starts with example addresses for X and Nostr that lead nowhere. Put in your own, delete the ones you don't want, or set it to `""` for none; see "Footer text and links".
+- `FOOTER_LINKS`. It starts with example addresses for X, Nostr and GitHub that lead nowhere. Put in your own, delete the ones you don't want, or set it to `""` for none; see "Footer text and links".
 - The About page, `content/about.md`, which starts with placeholder text and the address `you@yourdomain.com`.
 - The two example posts, unless you want them published. "Step 5: find your way around" says which to delete first.
 
@@ -367,7 +367,7 @@ git push
 
 There are three kinds of change, and each has its own place:
 
-1. **Your writing and pictures**, in `content/` and `static/`. Edit these files directly, whenever you like. The script writes them once, when it creates the blog, and never touches them again.
+1. **Your writing and pictures**, in `content/` and `static/`, except `static/favicon.svg` and `static/search.js`, which are script-owned (see below). Edit these files directly, whenever you like. The script writes them once, when it creates the blog, and never touches them again.
 2. **Settings**, in the configuration block at the top of the script. Change a value, then run the script again with `START_PREVIEW=false bash zola-blog-setup.sh`. The run rewrites the generated files to match.
 3. **The design and the page layouts**, which also live in the script: each generated file is written by one `render_` function. `render_base_html` writes `templates/base.html`, which holds the whole stylesheet; `render_site_config` writes `config.toml`; `render_page_html` writes the layout of a post. Change the text inside the function, then run the script again. A function starts with a line such as `render_page_html() {`, and the file's text runs from the line after the one ending `<< 'EOF'` (in some functions, `<< EOF`) to the next line that is just `EOF`. You rarely need to find one by name, though: the sections below each give a piece of text to search for, which takes you to the line to change.
 
@@ -393,7 +393,7 @@ The script finds your blog by these two settings. If you change either one after
 
 #### Publishing
 
-**`GIT_REPO_URL`**: your GitHub repository's address, such as `"https://github.com/John/notes"`. Default: `""`, empty, which gives a blog that lives only on your computer. Setting it does four things: it sets the site's address (here `https://John.github.io/notes`), writes the workflow that publishes the site, connects git to the repository, and fills in the optional "view history" and "suggest an edit" links on each post. It must be the `https://github.com/` address of the repository's main page, as described in "Putting it online"; a `/` or `.git` on the end is fine, and anything else after the repository's name stops the run. Clearing it again removes the workflow; see "Turning something off removes its file".
+**`GIT_REPO_URL`**: your GitHub repository's address, such as `"https://github.com/John/notes"`. Default: `""`, empty, which gives a blog that lives only on your computer. Setting it does four things: it sets the site's address (here `https://John.github.io/notes`), writes the workflow that publishes the site, connects git to the repository, and fills in the optional "View history" and "Suggest an edit" links on each post. It must be the `https://github.com/` address of the repository's main page, as described in "Putting it online"; a `/` or `.git` on the end is fine, and anything else after the repository's name stops the run. Clearing it again removes the workflow; see "Turning something off removes its file".
 
 **`CUSTOM_DOMAIN`**: your own domain, once you have one pointed at GitHub Pages, such as `"https://blog.example.com"`. Default: `""`. It changes the site's address and nothing else, and it must start with `https://`. See "Custom domain".
 
@@ -429,7 +429,9 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 #### What's on the pages
 
-**`SHOW_TOC`**: `true` (the default) puts a Contents box at the top of every post that has a date and at least two headings (or one heading with sub-headings under it), listing the headings as links. It starts folded, as one line, "▸ Contents", and opens when the reader clicks it. A page without a date, such as About, gets one only if it asks for it with `toc = true`; see "Adding a page to the menu". `false` leaves them all out.
+**`SHOW_TOC`**: `true` (the default) puts a Contents box at the top of every post that has a date and at least two headings (or one heading with sub-headings under it), listing the headings as links. It starts folded, as one line, "▸ Contents", with a thin line under it, and opens when the reader clicks it. A page without a date, such as About, gets one only if it asks for it with `toc = true`; see "Adding a page to the menu". `false` leaves them all out.
+
+**`SHOW_BREADCRUMBS`**: `true` (the default) puts a line above the title of a page in a folder: Home, then each folder above the page, all of them links, so a page in `content/projects/suite/` shows Home › Projects › Suite, and that folder's own page shows Home › Projects. Posts and other pages at the top of `content/` show nothing, and so do the pages of folders at the top, such as `content/projects/_index.md`, and pages in a folder with `transparent = true`, which are listed as posts. `false` leaves them all out. See "Child pages".
 
 **`SHOW_READING_TIME`**: `true` (the default) shows an estimated reading time, such as "3 min read", on each post's date line. Zola works it out from the number of words. `false` leaves it out.
 
@@ -437,23 +439,23 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 **`ENABLE_TAGS`**: `true` (the default) turns on tags. Tags show on posts and in lists, the menu gets a Tags link, and each tag gets a page listing its posts. `false` turns all of that off. Posts that still have tags in their front matter keep working; the tags are ignored.
 
-**`ENABLE_SEARCH`**: `true` (the default) puts a Search button at the end of the menu, which opens a search box over the page. This is the site's only JavaScript. `false` removes the button, the script and the search index, and the site then runs no JavaScript at all. See "Search".
+**`ENABLE_SEARCH`**: `true` (the default) puts a Search button at the start of the menu, which opens a search box over the page. This is the only script on the blog's pages. `false` removes the button, the script and the search index, and the pages then run no JavaScript at all. See "Search".
 
 **`GENERATE_FEEDS`**: `true` (the default) publishes your feed at `/atom.xml`, a list of your posts that feed reader apps and email services check for new ones. While tags are on, each tag also gets a feed of its own. `false` publishes no feeds and removes the RSS link. Email updates need the feed; see "Email subscription".
 
 **`SHOW_RSS_LINK`**: `true` (the default) puts an RSS link in the menu. `false` removes just the link. The feed is still published, and feed readers still find it, because every page names it in its HTML head, the part of the page that browsers read but readers don't see. It has no effect when `GENERATE_FEEDS` is `false`.
 
-**`SHOW_HISTORY_LINK`**: `false` (the default). `true` adds a "view history" link to each post's date line, leading to the list of commits that changed that post on GitHub. It needs `GIT_REPO_URL`. That list shows the name and email on each commit, which is one more reason to choose them with care (see "Your first blog", step 1).
+**`SHOW_HISTORY_LINK`**: `false` (the default). `true` adds a "View history" link to each post's date line, leading to the list of commits that changed that post on GitHub. It needs `GIT_REPO_URL`. That list shows the name and email on each commit, which is one more reason to choose them with care (see "Your first blog", step 1).
 
-**`SHOW_SUGGEST_EDIT`**: `false` (the default). `true` adds a "suggest an edit" link to each post's date line, leading to the post's file on GitHub, where a reader with a GitHub account can propose a change. It needs `GIT_REPO_URL`.
+**`SHOW_SUGGEST_EDIT`**: `false` (the default). `true` adds a "Suggest an edit" link to each post's date line, leading to the post's file on GitHub, where a reader with a GitHub account can propose a change. It needs `GIT_REPO_URL`.
 
 #### The menu
 
-**`MENU_PAGES`**: the pages in the menu at the top of every page, by their file names in `content/` without `.md`, separated by spaces, in the order the menu shows them. Default: `"about"`. Each link is labelled with that page's title. Tags, RSS and Search come after them, as their settings allow. See "Adding a page to the menu".
+**`MENU_PAGES`**: the pages in the menu at the top of every page, by their file names in `content/` without `.md`, separated by spaces, in the order the menu shows them. Default: `"about"`. Each link is labelled with that page's title. Search comes before them, and Tags and RSS after them, as their settings allow. See "Adding a page to the menu".
 
 #### The footer
 
-**`FOOTER_LINKS`**: the links at the bottom of every page, each written as a label, `=`, and an address, with a space between one link and the next. Default: `"X=https://x.com/yourhandle Nostr=https://nostr.com/npub1yourkeyhere"`, example addresses that lead nowhere. Put in the addresses of your own profiles, delete the pairs you don't want, or set it to `""` for none. See "Footer text and links".
+**`FOOTER_LINKS`**: the links at the bottom of every page, each written as a label, `=`, and an address, with a space between one link and the next. Default: `"X=https://x.com/yourhandle Nostr=https://nostr.com/npub1yourkeyhere GitHub=https://github.com/yourhandle/yourrepo"`, example addresses that lead nowhere. Put in your own addresses (for GitHub, the blog's repository), delete the pairs you don't want, or set it to `""` for none. See "Footer text and links".
 
 **`FOOTER_TEXT`**: one line of plain text under the links, in smaller, fainter type, such as `"© 2026 John"`. Default: `""`, none.
 
@@ -479,7 +481,7 @@ Further down the script, below the configuration block, `ZOLA_MIN_VERSION` and `
 
 ### Adding a page to the menu
 
-The menu at the top of each page shows the pages named in `MENU_PAGES`, then Tags, RSS and Search, depending on your settings. `MENU_PAGES` starts as `"about"`. To add a page of your own, such as a "Now" page:
+The menu at the top of each page shows Search, then the pages named in `MENU_PAGES`, then Tags and RSS, depending on your settings. `MENU_PAGES` starts as `"about"`. To add a page of your own, such as a "Now" page:
 
 1. **Make the page.** In the blog folder, save a new file in `content/` called `now.md`, containing:
 
@@ -508,7 +510,7 @@ The menu at the top of each page shows the pages named in `MENU_PAGES`, then Tag
    START_PREVIEW=false bash zola-blog-setup.sh
    ```
 
-   It prints `updated.`, then a note that it skipped the preview. If the preview is already running, its page reloads by itself, and with the default settings the menu then reads About, Now, Tags, RSS, Search. If the preview isn't running, start it with `~/Desktop/myblog/serve`.
+   It prints `updated.`, then a note that it skipped the preview. If the preview is already running, its page reloads by itself, and with the default settings the menu then reads Search, About, Now, Tags, RSS. If the preview isn't running, start it with `~/Desktop/myblog/serve`.
 
 If the page isn't there, because step 1 was skipped or the name is misspelt, the run stops before changing anything:
 
@@ -520,9 +522,9 @@ It stops the same way, naming the page, if the page doesn't say `hidden = true`.
 
 On a new blog, the first run makes a starter page for each name in `MENU_PAGES` other than `about`: with `MENU_PAGES="about now"` set before the first run, you get `content/now.md`, titled "Now", ready to fill in.
 
-To take a page out of the menu, delete its name from `MENU_PAGES` and run the script again. The page itself stays, at its address. `MENU_PAGES=""` leaves only Tags, RSS and Search.
+To take a page out of the menu, delete its name from `MENU_PAGES` and run the script again. The page itself stays, at its address. `MENU_PAGES=""` leaves only Search, Tags and RSS.
 
-The menu shows only the blog's own pages. A link to another site goes in the footer instead; see "Footer text and links". A menu page with pages of its own under it is a folder instead, `content/projects/_index.md`, without `hidden = true`, and `MENU_PAGES` takes it by the same name, `projects`; "Child pages" says how to make one, or turn a menu page into one. Don't keep both `projects.md` and `projects/_index.md`: Zola won't build two pages at one address, and the run stops and says so.
+The menu shows only the blog's own pages. A link to another site goes in the footer instead; see "Footer text and links". A menu page with pages of its own under it is a folder instead, `content/projects/_index.md`, without `hidden = true`, and `MENU_PAGES` takes it by the same name, `projects`; "Child pages" says how to make one, or turn a menu page into one. A folder in the menu isn't also listed on the home page. Don't keep both `projects.md` and `projects/_index.md`: Zola won't build two pages at one address, and the run stops and says so.
 
 **A subtitle and a Contents box.** A menu page can have both, as a post can. For a subtitle under the title, add a `description` line to its front matter. For a Contents box listing the page's headings, add `toc = true` under an `[extra]` line. Keep `[extra]` below `title`, `description` and `hidden`, because everything written after it counts as part of it:
 
@@ -536,19 +538,19 @@ toc = true
 +++
 ```
 
-If the front matter already has an `[extra]` line, as the About page's does, put `toc = true` under that one instead: a second `[extra]` line stops the build with `duplicate key`. The box appears only while `SHOW_TOC` is on, and only if the page has at least two headings, or one with sub-headings under it. The subtitle is also what search engines and link previews show for the page.
+If the front matter already has an `[extra]` line, as the About page's does, put `toc = true` under that one instead: a second `[extra]` line stops the build with `Error when parsing front matter of page`. The box appears only while `SHOW_TOC` is on, and only if the page has at least two headings, or one with sub-headings under it. The subtitle is also what search engines and link previews show for the page.
 
 ### Footer text and links
 
 The footer shows links, from `FOOTER_LINKS`, and under them a line of small print, from `FOOTER_TEXT`. Either can be empty; with both empty, there's no footer.
 
-Each link is a label, an `=`, and an address, and a space separates one link from the next. The script starts you with example links for X and Nostr. To drop a link, delete its pair. This keeps X and drops Nostr:
+Each link is a label, an `=`, and an address, and a space separates one link from the next. The script starts you with example links for X, Nostr and GitHub, the GitHub one for the blog's repository. To drop a link, delete its pair. This keeps X and GitHub and drops Nostr:
 
 ```bash
-readonly FOOTER_LINKS="X=https://x.com/John"
+readonly FOOTER_LINKS="X=https://x.com/John GitHub=https://github.com/John/notes"
 ```
 
-To add a link, add a pair where you want it to appear. This adds Mastodon, and a link to the blog's repository on GitHub, after X:
+To add a link, add a pair where you want it to appear. This adds Mastodon after X:
 
 ```bash
 readonly FOOTER_LINKS="X=https://x.com/John Mastodon=https://mastodon.social/@John GitHub=https://github.com/John/notes"
@@ -563,6 +565,14 @@ readonly FOOTER_TEXT="© 2026 John"
 ```
 
 It's shown as plain text: HTML in it appears as those characters, so type a sign such as © itself, not `&copy;`. The year doesn't change by itself.
+
+To show a straight quote, `"`, put a backslash before it, as anywhere in the configuration block. Doubling it, `""`, doesn't work:
+
+```bash
+readonly FOOTER_TEXT="© 2026 John · \"Soli Deo Gloria\""
+```
+
+Curly quotes, “ and ”, need no backslash.
 
 ### Your photo
 
@@ -622,6 +632,8 @@ Paste the second line into the post, and replace "what it shows" with a descript
 ```
 
 The helper removes the photo's hidden data (see "Your photo", step 1), keeps the tag that says which way up it goes, and leaves your original as it was. The file keeps its own extension, in lower case. Every file shares this one folder, so two files can't have the same name: `IMG_0001.jpg` from two phones would clash, which is why you give each a new name, after its post, in lowercase with dashes. The helper refuses a name that's taken, and refuses HEIC pictures, which most browsers can't show; export those as JPEG first. It needs exiftool; if it isn't installed, `./attach` says how to install it. To do it without the helper, use the exiftool command at the end of "Your photo", with the picture's path and its new name.
+
+An SVG drawing is the one kind of picture that neither `./attach` nor exiftool can clean, so `./attach` says so and copies nothing. Save the drawing as a plain SVG instead (in Inkscape, File, then Save As, with Plain SVG as the type), which leaves out Inkscape's own notes, such as the file's name and a folder on your computer. Then copy it into `content/attachments/` yourself, under a new name, and link to it as above.
 
 The words in square brackets describe the picture for readers who can't see it, including blind readers using screen readers, so always fill them in. `@/` means "starting from the `content` folder". Zola turns the path into the picture's full address, so it works at any site address and in feed readers, and if the name is wrong, the build stops with `Broken relative link` instead of publishing a missing picture. A picture never shows wider than the text column, or taller than 85% of the window; a big photo is shrunk to fit.
 
@@ -689,12 +701,12 @@ The settings are called custom properties, lines like `--accent: #ffb454;`. Colo
 | `--bg` | Page background | `#111` | `#fffff8` |
 | `--fg` | Text | `#e8e6da` | `#111` |
 | `--muted` | Quieter text: dates, menu, footer, notes | `#aaa8a0` | `#57564e` |
-| `--link` | Links in your text, which are also underlined. The links the site adds by itself, such as its lists of posts, child pages, tags and search results, the menu, Previous and Next, and the footer, keep their own colours | `#8ab4f8` | `#0645ad` |
+| `--link` | Links in your text, once the reader has followed them. Until then a link takes the colour of the text around it; either way it's underlined. Footnote numbers, which have no underline, have this colour whether followed or not. The links the site adds by itself, such as its lists of posts, child pages, tags and search results, the menu, Previous and Next, and the footer, keep their own colours, followed or not | `#94b9dc` | `#295a8e` |
 | `--accent` | Code words in sentences, the outline around the search box while you type in it, and the "(draft)" label | `#ffb454` | `#9d4909` |
 | `--surface` | Table header rows | `#242420` | `#f4f2e8` |
 | `--inline-bg`, `--inline-border` | Background and border of code words in sentences | `#2b281f`, `#3a382f` | `#ece3cd`, `#e0d8c2` |
 | `--border` | Thin lines around tables, quotes, code examples and boxes | `#2c2c28` | `#e5e3d7` |
-| `--border-strong` | The lines under titles, and dividers | `#42423c` | `#c2bda4` |
+| `--border-strong` | The lines under titles and under the Contents box, and dividers | `#42423c` | `#c2bda4` |
 | `--control-border` | The search box's border, dark enough to see (3:1 against the page, as accessibility guidelines ask) | `#6e6c64` | `#8a8676` |
 | `--hairline` | The style of those lines; `none` removes them all | `1px solid var(--border-strong)` | |
 | `--measure` | Width of the text column | `42rem` | |
@@ -743,18 +755,18 @@ The words the site shows by itself, such as "All posts" or "min read", are writt
 | Words on the site | Search the script for |
 |---|---|
 | The names of your pages in the menu | Each page's `title`, in its file in `content/` |
-| Tags, RSS (the menu), and Home (its first link with `MASTHEAD="none"`) | `>Tags</a>`, `>RSS</a>`, `>Home</a>`, which finds two lines: the menu's, and the one on the "page not found" page |
+| Tags, RSS (the menu), and Home (the menu's first link with `MASTHEAD="none"`, and the first link above the title of a page in a folder) | `>Tags</a>`, `>RSS</a>`, `>Home</a>`, which finds three lines: the menu's, the one above the title, and the one on the "page not found" page |
 | The footer's link labels and small print | The `FOOTER_LINKS` and `FOOTER_TEXT` settings |
 | Search (the button), and the empty search box's grey hint | `>Search</button>` and `placeholder="Search"` |
 | nothing matches, search is unavailable | The words themselves |
 | 1 result, results (read out to screen readers as you search) | `1 result`, the line with both |
-| Contents, updated, min read, view history, suggest an edit | `>Contents<`, `updated <time`, `min read<`, `>view history<`, `>suggest an edit<` |
-| (draft) | `>(draft)<`, which finds two lines: the list's and the post's |
-| tags:, Previous, All posts, Next (at the bottom of a post) | `>tags:`, `Previous<`, `>All posts<`, `>Next<` |
-| Tags (the heading of the tags page) | `>Tags</h1>` |
+| Contents, Updated, min read, View history, Suggest an edit | `>Contents<`, `Updated <time`, `min read<`, `>View history<`, `>Suggest an edit<` |
+| (draft) | `>(draft)<`, which finds two lines: a row in a list, and a post's own title |
+| Tags:, Previous, All posts, Next (at the bottom of a post; the last three also under a folder's list) | `>Tags:`, `Previous<`, `>All posts<`, `>Next<` |
+| Tags (the heading of the tags page, and its name in the browser tab) | `>Tags</h1>` and `title %}Tags` |
 | Posts tagged:, post, posts, All tags | `Posts tagged:`, which finds two lines (change both), `post{% if`, `All tags` |
 | The "page not found" page | `Page not found` for its title, `This page isn't here` for its text |
-| Site, Previous and next (the names screen readers give the two menus) | `aria-label="Site"`, `aria-label="Previous and next"` |
+| Site, Previous and next, Breadcrumb, contents, Search (the names screen readers give the three menus, the Contents box and the search box) | `aria-label="Site"`, `aria-label="Previous and next"`, `aria-label="Breadcrumb"`, `aria-label="contents"`, `aria-label="Search"` |
 
 Change only the words, not the `{{ }}` or `{% %}` parts around them, and keep any quotes in place. For example, to change the grey hint in the search box, search for `placeholder="Search"`, which finds this line:
 
@@ -829,17 +841,17 @@ On a new blog, where the two example posts have the weights 10 and 20, it prints
 made content/tea-in-the-hills.md, a draft at weight 30: ./serve shows it, and deleting its draft line publishes it.
 ```
 
-The file has a title made from the name, "Tea in the hills", the next free weight, which puts the post at the end of the list, today's date, and `draft = true`. Change the title as you like, add a `description` or tags if you want them, and write the post below the block. When it's ready, delete the `draft = true` line. The name takes lowercase letters, digits and dashes, and the helper refuses one that's already taken.
+The file has a title made from the name, "Tea in the hills", the next free weight, which puts the post at the end of the list, today's date, and `draft = true`. Change the title as you like, add a `description` or tags if you want them, and write the post below the block. When it's ready, delete the `draft = true` line and change `date` to that day. Until you do, the date is the day you started the post, and an email service can skip a post whose date is more than a day old; see "How a new post reaches subscribers". The name takes lowercase letters, digits and dashes, and the helper refuses one that's already taken.
 
 ### Ordering posts
 
-The home page lists posts by `weight`, lightest first, and numbers them 1, 2, 3 in that order. Nothing else changes the order: editing a post, or adding an `updated` date, doesn't move it.
+The home page lists posts by `weight`, lightest first, and numbers them 1, 2, 3 in that order. Nothing else changes the order: editing a post, or adding an `updated` date, doesn't move it. A folder with child pages is numbered among the posts by the `weight` in its `_index.md`, the same way; see "Child pages".
 
-Number the weights 10, 20, 30 rather than 1, 2, 3. Then a post that belongs between two others can have 15, and no other file needs changing. Readers never see the weights, only the position in the list, so gaps don't show, and deleting a post renumbers the rest. Addresses come from file names, so reordering never changes them. `./new` works this way too: it gives a new post a weight 10 more than the heaviest, so the post goes at the end of the list.
+Number the weights 10, 20, 30 rather than 1, 2, 3. Then a post that belongs between two others can have 15, and no other file needs changing. Readers never see the weights, only the position in the list, so gaps don't show, and deleting a post renumbers the rest. Addresses come from file names, so reordering never changes them. `./new` works this way too: it gives a new post a weight 10 more than the heaviest post or folder, so the post goes at the end of the list.
 
-The Previous and Next links at the bottom of each post follow the same order: Previous is the post above it in the list, Next the one below. Every post also has an All posts link back to the home page.
+The Previous and Next links at the bottom of each post follow the same order, and go through folders too: Next from the entry above a folder leads to the folder's page, then down the folder's own list, into any folders inside it, and from the end of that list on to the entry after the folder. Previous goes back the same way. So from the first entry, Next after Next reads everything in the order the lists show it, to the end. The first entry's Previous is the home page, and every other post, child page and folder's page has an All posts link back to it.
 
-To list posts by date instead, newest first, open `content/_index.md` (it's yours, so edit it directly) and change `sort_by = "weight"` to `sort_by = "date"`. Every post then needs a `date`, and weights are ignored. `sort_by = "update_date"` does the same but uses `updated` when a post has one, so a post you give a newer `updated` date moves back to the top. Posts stay numbered; to show bullets instead, change `<ol class="post-list">` and its closing `</ol>` to `<ul class="post-list">` and `</ul>` in `render_components` in the script, and run it again.
+To list posts by date instead, newest first, open `content/_index.md` (it's yours, so edit it directly) and change `sort_by = "weight"` to `sort_by = "date"`. Every post then needs a `date`, and weights are ignored, except a folder's: a folder has no date, so the folders come first, in the order of their weights. `sort_by = "update_date"` does the same but uses `updated` when a post has one, so a post you give a newer `updated` date moves back to the top. Posts stay numbered; to show bullets instead, change `<ol class="post-list">` and its closing `</ol>` to `<ul class="post-list">` and `</ul>` in `render_components` in the script, and run it again.
 
 ### Markdown in brief
 
@@ -850,7 +862,7 @@ The most common things you'll write:
 | `## Heading` | A heading. Use `##` and `###`; the post's title is already the top heading. |
 | `**bold**`, `*italic*` | **bold**, *italic* |
 | `[link text](https://example.com)` | A link |
-| `<https://example.com>` | A link that shows the address itself. An address without the angle brackets stays plain text |
+| `https://example.com`, or `<https://example.com>` | A link that shows the address itself |
 | `- item` | A bulleted list |
 | `1. item` | A numbered list |
 | `> quoted text` | A quotation |
@@ -865,6 +877,8 @@ The example post, `content/hello-world.md`, shows all of these and more: tables,
 
 **Not like this:** `[the second post](second-post.md)` or `[the second post](./second-post.md)`. Zola doesn't turn a path to a `.md` file into the address of its page, so the link points at a file that isn't published, and readers get a "page not found". It isn't checked when the site is built either. Links to your own pages start with `@/`, Zola's own sign for "find this file and link to its page", and the path after it starts from the `content` folder, wherever the page with the link is.
 
+**To a folder's page**, name its `_index.md`: `[the projects](@/projects/_index.md)`.
+
 **To a heading.** Every heading gets an id made from its text, so `## Ingredients and tools` gets `#ingredients-and-tools`. Link to it in the same post with `[the ingredients](#ingredients-and-tools)`, or in another post with `[the method](@/recipes/sourdough.md#method)`. The build also stops if a heading named in an `@/` link doesn't exist. If you might reword a heading later, give it a fixed id so links to it keep working:
 
 ```markdown
@@ -873,7 +887,7 @@ The example post, `content/hello-world.md`, shows all of these and more: tables,
 
 **To other websites**, write ordinary links. They open in a new tab, and Zola adds `rel="noopener nofollow noreferrer external"` to each one. That stops the other site learning which of your pages the reader came from, and tells search engines the link isn't an endorsement.
 
-**An address on its own isn't a link.** `https://example.com` typed into a sentence stays plain text: no underline, and clicking it does nothing. Put it in angle brackets, `<https://example.com>`, to make the address itself the link, or give it words, as in `[the dictionary entry](https://example.com)`. Both open in a new tab.
+**An address on its own is a link too.** `https://example.com`, pasted into a sentence as it is, becomes a link that shows the address, the same as `<https://example.com>`, and opens in a new tab like other links to other sites. A full stop, comma or closing bracket straight after it stays outside the link, unless the bracket belongs to the address, as in some Wikipedia addresses. It needs the `https://` or `http://` at the front: for `example.com` alone, write `<https://example.com>`, or give it words, as in `[the dictionary entry](https://example.com)`. An address in code, between backticks or in a code example, stays plain text.
 
 Headings don't have link symbols beside them. To get a link to a section, open the post's Contents box, right-click the heading there, and copy the link.
 
@@ -952,7 +966,7 @@ If a post uses both, `bleed` wins and the text stays at its normal width. The te
 
 ### Numbered outlines
 
-To number a list as 1, 1.1, 1.2, 1.2.1, 2 and so on, write every level as `1.` and indent each level under the one above:
+To number a list as 1, 1.1, 1.2, 1.2.1, 2 and so on, number each level the ordinary way, `1.`, `2.`, `3.`, and indent each level under the one above:
 
 ```markdown
 1. First
@@ -1028,16 +1042,15 @@ To make that Projects page:
 
    Saved as `content/projects/tool-a.md`, it's published at `/projects/tool-a/`. Save `tool-b.md` beside it the same way, with `weight = 20`. Lighter weights come first, as on the home page; see "Ordering posts". `./new` makes only posts, so write a child's file yourself.
 
-3. **Look at it.** With the preview running, open `http://127.0.0.1:1111/projects/`. It shows the title and your text, then a numbered list: Tool A first, Tool B second. Each title opens its page. At the bottom of each child are Previous and Next links to its neighbours in the list, and the All posts link, which goes to the home page.
+3. **Look at it.** With the preview running, open `http://127.0.0.1:1111/projects/`. It shows the title and your text, then a numbered list: Tool A first, Tool B second. Each title opens its page. Above each child's title is Home › Projects, links to the home page and back to this page. At the bottom of each child are Previous and Next links, and the All posts link, which goes to the home page. The Projects page has Previous and Next links too, under its list. They read the list in order: Projects, Tool A, Tool B, then on to whatever follows Projects on the home page.
 
-Readers reach the parent from a link, or from the menu if you add `projects` to `MENU_PAGES`; see "Adding a page to the menu". Child pages aren't in the home page's list, and neither is their parent.
+The home page lists the parent by itself, with no link to write, numbered among your posts by the `weight` in its `_index.md`: with `weight = 25`, Projects comes between the posts weighing 20 and 30. On an equal weight the folder comes first, and a folder without a weight comes before every post. Child pages aren't in the home page's list; their parent's page lists them. To keep a parent off the home page, put it in the menu instead, by adding `projects` to `MENU_PAGES`: a folder in the menu isn't in the list, and the Previous and Next links of its pages stay within its own list. See "Adding a page to the menu".
 
-**What the list shows.** Every page in the parent's folder, except:
+**What the list shows.** Every page in the parent's folder, with any folders inside it numbered among them by weight, as on the home page, except:
 
 - a page with `hidden = true`, which is published but listed nowhere; see "Pages that aren't posts";
 - a draft, which only the preview lists, marked "(draft)";
-- a page without a `weight`, while the parent sorts by weight: Zola leaves it out of the site, and `./build` stops with a message naming it;
-- a folder with its own `_index.md`, which is a parent in its own right; see "Children of a child" below.
+- a page without a `weight`, while the parent sorts by weight: Zola leaves it out of the site, and `./build` stops with a message naming it.
 
 **When the list doesn't appear.** One of three slips:
 
@@ -1052,16 +1065,16 @@ Readers reach the parent from a link, or from the menu if you add `projects` to 
 3. **Apply it.** From the folder where the script is saved, run it again with `START_PREVIEW=false bash zola-blog-setup.sh`. It prints `updated.`, then a note that it skipped the preview. `MENU_PAGES` keeps the name `projects`, and the run points the menu at the folder. Until it does, the preview and `./build` fail with ``Page `projects.md` not found``.
 4. **Add the children**, as in step 2 above.
 
-**Order.** `sort_by` goes in the parent's `_index.md` only; in a child it does nothing. Without it, children need no weight, but Zola doesn't promise any order for the list, and the children get no Previous or Next links. The parent takes no `date`: a section's front matter doesn't have one, and a `date` line in an `_index.md` stops the build with `` unknown field `date` ``.
+**Order.** `sort_by` goes in the parent's `_index.md` only; in a child it does nothing. Without it, children need no weight, but Zola doesn't promise any order for the list, and before Zola 0.23.4 the order can change from one build to the next. Any folders come first, and Previous and Next follow the list as it comes out. The parent takes no `date`: a section's front matter doesn't have one, and a `date` line in an `_index.md` stops the build with `` unknown field `date` ``.
 
-**Links to children.** Don't type a list of the children into the parent's text. The parent's own list is already there, and a typed one repeats it, in blue: links you write are blue, and the lists the site makes keep the text colour. To link to one child from the parent's text or anywhere else, use its path from `content/`: `[tool A](@/projects/tool-a.md)`. A link written as `(tool-a.md)` or `(./tool-a.md)` leads to "page not found"; see "Links".
+**Links to children.** Don't type a list of the children into the parent's text. The parent's own list is already there, and a typed one only repeats it. To link to one child from the parent's text or anywhere else, use its path from `content/`: `[tool A](@/projects/tool-a.md)`. A link written as `(tool-a.md)` or `(./tool-a.md)` leads to "page not found"; see "Links".
 
 In every other way a child is like a post: tags and search work the same, and a child with a `date` gets the date line, the Contents box if it has two or more headings, and a place in your feed, so feed readers and email subscribers get it. Leave the date off a child page you don't want sent out.
 
 Two variations:
 
-- **Children of a child.** Make the child a folder with an `_index.md` too, such as `content/projects/suite/_index.md`, and put its own children in that folder. A section's list shows only the pages in it, not the sections, so link to the new section from its parent's text: `[the suite](@/projects/suite/_index.md)`.
-- **A folder of posts.** To show a folder's pages in the home page's list as well, as posts, add `transparent = true` to the folder's `_index.md`. They're then numbered among the posts by their weights, their Previous and Next links follow the home page's order, and the folder's own page still lists them.
+- **Children of a child.** Make the child a folder with an `_index.md` too, such as `content/projects/suite/_index.md`, and put its own children in that folder. The parent's list numbers it among the parent's own child pages by the `weight` in its `_index.md`, as the home page does, and Previous and Next go through its children before going on. Its children show both folders above their titles, after Home: Home › Projects › Suite.
+- **A folder of posts.** To show a folder's pages in the home page's list as well, as posts, add `transparent = true` to the folder's `_index.md`. They're then numbered among the posts by their weights, their Previous and Next links follow the home page's order, and the folder's own page still lists them. The folder itself isn't in the home page's list then, since its pages are. Nor is a folder inside it; that inner folder's pages get Previous and Next links within its own list only. Like posts, its pages show nothing above their titles, not even Home.
 
 ### Pages that aren't posts
 
@@ -1074,7 +1087,7 @@ hidden = true
 +++
 ```
 
-Saved as `content/colophon.md`, it's published at `/colophon/`. It needs no weight or date. It gets no Previous or Next links, but it does have the All posts link at the bottom. Without a date, its title is set like a section's, with a line under it, and it gets a Contents box only if it asks with `toc = true` under `[extra]`, as a menu page does. Link to it from anywhere with `[colophon](@/colophon.md)`. The About page is a hidden page too.
+Saved as `content/colophon.md`, it's published at `/colophon/`. It needs no weight or date. It gets no Previous, Next or All posts links at the bottom. Without a date, its title is set like a section's, with a line under it, and it gets a Contents box only if it asks with `toc = true` under `[extra]`, as a menu page does. Link to it from anywhere with `[colophon](@/colophon.md)`. The About page is a hidden page too.
 
 Hidden doesn't mean private. Anyone who has the page's address can read it, and the file is in your public repository. Only `draft = true` keeps a page off the site, and even then the file is in your repository.
 
@@ -1123,14 +1136,13 @@ Notes written in another app can become posts, but each needs a few changes firs
    | `[Other note](other-note.md)` or `(./other-note.md)` | `[Other note](@/other-note.md)`: without `@/` the link leads to "page not found" |
    | `![[photo.jpg]]` | `![What the photo shows](@/attachments/photo.jpg)`, with the file added by `./attach` |
    | `![photo](https://...)`, a picture from another site | The same, after downloading the picture and adding it with `./attach`: the security policy blocks pictures from other sites |
-   | An address typed on its own, `https://...`, which the note app shows as a link | `<https://...>`: Zola leaves a bare address as plain text |
    | `> [!note]` and the lines under it | An `<aside>`, as in "Notes, fold-away sections, and wide items" |
 
 4. **Save it in `content/`** with a lowercase, dashed file name, which becomes its address, add its pictures with `./attach`, and run `./build`. If the build stops with `Error when parsing front matter`, see Troubleshooting.
 
 ## Search
 
-The Search button at the end of the menu opens a search box over the page you're on. Type one or more words, and the pages that contain all of them are listed under the box, with pages whose titles match first. Under each title is a short piece of the page's text around the first match, with your words in bold. Click a result to go to that page. Esc, or a click on the darkened page around the box, closes it and leaves you where you were.
+The Search button at the start of the menu opens a search box over the page you're on. Type one or more words, and the pages that contain all of them are listed under the box, with pages whose titles match first. Under each title is a short piece of the page's text around the first match, with your words in bold. Click a result to go to that page. Esc, or a click on the darkened page around the box, closes it and leaves you where you were.
 
 How words are matched:
 
@@ -1152,7 +1164,7 @@ Posts and any sections are in the index. Hidden pages, the About page and other 
 
 The index holds the full text of every post, and a reader's browser downloads all of it the first time they search, so it grows with the blog. If it ever gets too big, search the script for `index_format = "fuse_json"`, add `truncate_content_length = 500` on a new line below it, and run the script again. That keeps only the first 500 characters of each page, so words further in can't be found.
 
-Search is the site's only JavaScript. While it's on, every page's security policy allows scripts from your own site (`script-src 'self'`), because the box can open on any page. On a `yourname.github.io/notes` address, "your own site" means everything at `yourname.github.io`, which includes any other GitHub Pages sites you have; with a custom domain it means just this blog. With `ENABLE_SEARCH=false`, the next run deletes `static/search.js`, the site is built without the index or the button, and every page's policy goes back to `script-src 'none'`, which blocks all scripts.
+Search is the only script on the blog's pages. While it's on, every page's security policy allows scripts from your own site (`script-src 'self'`), because the box can open on any page. On a `yourname.github.io/notes` address, "your own site" means everything at `yourname.github.io`, which includes any other GitHub Pages sites you have; with a custom domain it means just this blog. With `ENABLE_SEARCH=false`, the next run deletes `static/search.js`, the site is built without the index or the button, and every page's policy goes back to `script-src 'none'`, which blocks all scripts.
 
 ## Email subscription
 
@@ -1178,7 +1190,7 @@ Buttondown is one service that does this. According to its documentation, as of 
 
 - It checks your feed every thirty minutes, so emails aren't instant.
 - It can email each new post as it appears, or collect posts into a weekly or monthly email, or make each new post a draft that goes out only when you press send. Use drafts if you want to choose which posts are emailed.
-- When you first connect a feed that already has posts in it, turn on its "skip old items" setting. It then skips items dated more than a day before it found them, so subscribers don't get your whole back catalogue at once.
+- When you first connect a feed that already has posts in it, turn on its "skip old items" setting. It then skips items dated more than a day before it found them, so subscribers don't get your whole back catalogue at once. It goes on doing that for every new post, and a post's date counts from midnight UTC, so give each post the day you publish it as its date: a post still carrying the day `./new` started it can be skipped.
 - RSS-to-email is listed as a feature of its Basic plan, so check that your plan includes it.
 
 Buttondown's sign-up page is `https://buttondown.com/yourusername`, with your Buttondown username in place of `yourusername`, so the footer link is `Newsletter=https://buttondown.com/yourusername`. After setting it up, subscribe with an address of your own, to see what your readers will see.
@@ -1197,7 +1209,7 @@ Optional, and the only part that costs money: a domain name costs roughly 10 to 
 
 Step 3 is needed. Links, the stylesheet's fonts, the favicon and the feed all use the site's address, so without it your site loads at the new domain but still points readers back at `github.io` for all of those.
 
-Set it in the script, not in `config.toml`, which is rewritten on every run. `CUSTOM_DOMAIN` changes the site's address and nothing else; the "view history" and "suggest an edit" links still point at the repository, where the files are.
+Set it in the script, not in `config.toml`, which is rewritten on every run. `CUSTOM_DOMAIN` changes the site's address and nothing else; the "View history" and "Suggest an edit" links still point at the repository, where the files are.
 
 You don't need a `CNAME` file in the repository. GitHub's documentation says that when a site is published by an Actions workflow, as this one is, a `CNAME` file isn't created, and one that exists is ignored. The domain is kept in the repository's Pages settings.
 
@@ -1251,20 +1263,15 @@ Your settings live in the script, so a new copy of the script starts with the de
 
 Then run the new script against the blog's folder, with the same `PROJECT_DIR` and `BLOG_NAME`. It rewrites the script-owned files, and stops first if you edited one of them by hand; see "The hand-edit check".
 
-This guide covers upgrading a blog made with v28 or later; nothing those versions rely on has been removed, and a blog made with v30 needs only the run. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
+This guide covers upgrading a blog made with v99 or v100. A blog made with v28 to v35, or with v96 to v98, upgrades the same way, since nothing those versions rely on has been removed, but what the versions since then changed is listed in the guides that came with them. The numbers jump from v35 to v96 because they now also count the versions from before the script's numbering was restarted: v96 is the version that came after v35. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
 
-What changes for a blog made with v29:
+A blog made with v100 comes out the same: v101 makes the same pages from shorter templates. What changes for a blog made with v99:
 
-- The footer's small print, `FOOTER_TEXT`, moves under the links, in smaller, fainter type.
-- Links inside footnotes are blue, like the other links in your text; the ↩ arrows back to the text stay grey.
-
-What changes for a blog made with v28:
-
-- The footer no longer adds a GitHub link by itself. To keep it, add `GitHub=https://github.com/you/repo` to `FOOTER_LINKS`. `FOOTER_TEXT`, a line of small print under the links, is new; see "Footer text and links".
-- The email form is gone, and with it `ENABLE_SUBSCRIBE`, `SUBSCRIBE_ACTION`, `SUBSCRIBE_FIELD` and `SUBSCRIBE_BLURB`. If you used it, link to your newsletter's own sign-up page from `FOOTER_LINKS` instead; see "Email subscription".
-- `ABOUT_INTRO` and `ABOUT_EMAIL` are gone too, and so is `ZOLA_SHA256_OVERRIDE` for single runs. Nothing reads the settings that are gone, so leave them out when you copy yours across.
-- `./new` takes only the post's name, and makes the title from it; change the title in the file.
-- What readers notice: links in your text are blue, footnotes included. To have them match the text again, give `--link` the same value as `--fg`, in both colour lists; see "Colours, sizes and typefaces".
+- **Folders take their places among the posts.** A folder with child pages is numbered among the posts by the `weight` in its `_index.md`, on the home page and in every folder's list that sorts by weight. Before, every folder came first. Check your folders' weights before you publish: a folder with `weight = 30` now comes after the posts lighter than 30. To keep a folder at the top, give it a weight lighter than your first post's, or none. See "Ordering posts".
+- **Previous and Next go through folders.** They now run from the first entry on the home page to the last, going into each folder's page and through its children, at any depth, on the way. A folder's page has the links too, under its list, and so do the child pages of a folder without `sort_by`. The first entry's Previous goes to the home page, and it has no All posts link, which would go to the same place.
+- **`./new` counts folders.** A new post gets a weight 10 more than the heaviest post or folder at the top of `content/`, so it still goes at the end of the list.
+- A hidden page with a date, or a page in a folder without an `_index.md`, no longer has a bar with only All posts in it. Like any other page no list shows, it has none.
+- Builds take a little longer, about a third of a millisecond more per page: a blog of 500 pages builds in about 0.15 seconds more.
 
 #### Looking at one generated file
 
@@ -1311,7 +1318,7 @@ The workflow runs on every push to `main` (or `master`), and when you start it b
 
 Everything the workflow depends on is fixed: the three GitHub actions it uses (by their commit code, a string of 40 letters and digits), the kind of machine it runs on (`ubuntu-24.04`, rather than whichever Ubuntu GitHub currently calls the latest), Zola's version, and Zola's checksum. That makes it much less likely that a change somewhere else breaks a build that worked before. The actions are `actions/checkout` v7.0.1, `actions/upload-pages-artifact` v5.0.0 and `actions/deploy-pages` v5.0.1, which run on Node 24. GitHub set 23 September 2026 as the date its build machines drop the older Node 20.
 
-To add a licence to the repository, do it after the first push, so that it arrives as an ordinary commit.
+To add a licence to the repository, do it after the first push, so that it arrives as an ordinary commit. Then, before you next push, bring that commit to your computer: from inside the blog folder, run `git pull --rebase`. It prints `Fast-forward` and the licence's file name, or, if you've committed since, `Successfully rebased and updated refs/heads/main.` Plain `git pull` refuses in that second case, with `You have divergent branches`.
 
 ### The security policy
 
@@ -1337,7 +1344,7 @@ Embedding a YouTube video, a picture from another site, or a comments service me
 
 The preview gets the same policy, with one difference: it also allows scripts written into the page, because Zola's preview adds two scripts of its own, which reload the page when you save. So a picture or video from another site fails in the preview, just as it will on the published site, instead of only after you publish. The template tells the two apart by the address: the preview's starts with `http://`, and a published site's always starts with `https://`, because the script only accepts `https://` addresses for `GIT_REPO_URL` and `CUSTOM_DOMAIN`. Open the preview at the address `zola serve` prints; at any other address, the policy counts the preview's own fonts and pictures as coming from somewhere else and blocks them.
 
-To see the policy at work, open your browser's developer tools (F12), then the Console tab. The policy reports there anything it blocks, and a site you haven't changed should show nothing. Serving `public/` from your own computer doesn't work as a test: every link in it points at your real address, so the policy blocks the fonts, the favicon and the search script, and the page looks broken.
+To see the policy at work, open your browser's developer tools (F12), then the Console tab. The policy reports there anything it blocks, and a site you haven't changed should show nothing from it. Until you add Charter (see "Fonts"), the console also lists the font files as not found (404), which is expected. Serving `public/` from your own computer doesn't work as a test: every link in it points at your real address, so the policy blocks the fonts, the favicon and the search script, and the page looks broken.
 
 ### What's private, and what isn't
 
@@ -1354,15 +1361,17 @@ To see the policy at work, open your browser's developer tools (F12), then the C
 
 #### Running the script
 
-**`this script takes no arguments; got: ...`** Everything is set in the configuration block at the top of the script. The only words the script accepts after its name are `help` and `update-zola`.
+**`unknown command: ...`** Everything is set in the configuration block at the top of the script. The only words the script accepts after its name are `help` and `update-zola`.
 
 **`run this script with bash: bash zola-blog-setup.sh`.** You ran it with `sh` (or with `zsh`), which can't run it. Type `bash` in front, as in `bash zola-blog-setup.sh`.
 
 **`bash: zola-blog-setup.sh: No such file or directory`.** You're not in the folder where you saved the script. Run `cd ~/Downloads` (or wherever it is) first, or give its full path: `bash ~/Downloads/zola-blog-setup.sh`.
 
-**`line 61: GIT_REPO_URL: readonly variable`, or the same about another setting.** The configuration block has two lines for that setting, because a line was added instead of the existing one being changed. Delete one of them.
+**`line 82: GIT_REPO_URL: readonly variable`, or the same about another setting.** The configuration block has two lines for that setting, because a line was added instead of the existing one being changed. Delete one of them.
 
-**`line 68: $5: unbound variable`, or another line number and name.** A setting contains a `$` without a backslash in front of it. Write `\$`, and likewise `\"` and `` \` ``.
+**`line 89: $5: unbound variable`, or another line number and name.** A setting contains a `$` without a backslash in front of it. Write `\$`, and likewise `\"` and `` \` ``.
+
+**`line 117: FOOTER_TEXT isn't quoted as the script needs`, or the same about another setting.** A `"` or `` ` `` inside the value has no backslash before it, or the value's closing `"` is missing. Put a backslash before each `"` or `` ` `` that should be shown, as in `readonly FOOTER_TEXT="Motto: \"ora et labora\""`; a doubled `""` doesn't work. Nothing was changed.
 
 **`SHOW_TOC must be true or false (unquoted), got: 'yes'`, or a similar message about another setting.** `true` and `false` go without quotes. Messages about `MASTHEAD`, `BLOG_NAME`, `GIT_REPO_URL`, `CUSTOM_DOMAIN`, `MENU_PAGES`, `FOOTER_LINKS` or `DATE_FORMAT` say what's allowed.
 
@@ -1376,6 +1385,8 @@ To see the policy at work, open your browser's developer tools (F12), then the C
 
 **`missing required tools:`** followed by a list. Install what it names. On Debian, Devuan or Ubuntu, `sudo apt install curl tar` covers both of the usual ones.
 
+**`not a git repo; remote not updated`, or `git init failed - run manually later`.** The blog folder has no git repository of its own, usually because git wasn't installed when the blog was made. Make one: from inside the blog folder, run `git init -b main`, which prints `Initialized empty Git repository in` and the folder's path. Then, once git knows your name and email (see "Your first blog", step 1), run `git add -A` and `git commit -m "First commit"`, and run the script again. With `GIT_REPO_URL` set, it prints `added remote 'origin':` and the repository's address.
+
 **`'...' exists but holds no config.toml; move it aside or point BLOG_NAME somewhere else.`** A folder with that name is already there, and it isn't a blog made by this script, so the script won't write into it. Rename that folder, or choose another `BLOG_NAME`.
 
 **The blog appeared somewhere unexpected, or a second blog appeared.** `PROJECT_DIR` is your Desktop unless you change it, whatever folder you run the script from. And changing `PROJECT_DIR` or `BLOG_NAME` after the blog exists makes a new blog in the new place; the old one stays where it was.
@@ -1385,6 +1396,8 @@ To see the policy at work, open your browser's developer tools (F12), then the C
 **`zola 0.24.0 is the latest release, but this script supports >= 0.23 and < 0.24.`** A newer Zola is out than the script's templates were written for. Nothing was changed. Use a newer version of the script if there is one, or name a 0.23 release for this run: find the newest release whose name starts with `v0.23.` on github.com/getzola/zola/releases, and run `ZOLA_VERSION_OVERRIDE=<that name> bash zola-blog-setup.sh`.
 
 **`could not resolve the latest zola release from GitHub (network?)`** The script couldn't reach GitHub to find the newest Zola. Check your internet connection and run it again.
+
+**`could not download zola ...`.** The download of Zola itself failed. Check your internet connection, and, if you named a release with `ZOLA_VERSION_OVERRIDE`, that the name is exactly as it appears on github.com/getzola/zola/releases, such as `v0.23.6`. Nothing was changed.
 
 **`could not hash the linux zola ... build, which the workflow pins`.** The script couldn't download the Linux copy of Zola to work out its checksum. On a first run, it's usually the network, or a release name that doesn't exist. A re-run with the same Zola version doesn't need the download at all, so seeing this on a re-run means the version changed.
 
@@ -1416,7 +1429,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **A parent page doesn't list its children.** Its `_index.md` says `hidden = true`, which the children take on: delete that line. Or the file is `index.md`, without the underscore, which makes it an ordinary page: rename it `_index.md`. If the parent's own address is "page not found" while its children's pages work, the folder has no `_index.md` at all. See "Child pages".
 
-**In the preview, the fonts, pictures or favicon are missing, and the browser's console says `Refused to load`.** The preview is open at an address other than the one `zola serve` printed, such as your computer's network address when it printed `127.0.0.1`. The security policy then counts the preview's own files as coming from elsewhere. Open the address it printed. To preview on another device, start the preview from inside the blog folder with `zola serve --drafts -i 0.0.0.0 -u` and your computer's network address, such as `zola serve --drafts -i 0.0.0.0 -u 192.168.1.5`, and open the address it prints, `http://192.168.1.5:1111`, on every device, this computer included.
+**In the preview, the fonts, pictures or favicon are missing, and the browser's console says `Refused to load`.** The preview is open at an address other than the one `zola serve` printed, such as your computer's network address when it printed `127.0.0.1`. The security policy then counts the preview's own files as coming from elsewhere. Open the address it printed. To preview on another device, start the preview from inside the blog folder with `zola serve --drafts -i 0.0.0.0 -u` and your computer's network address, such as `zola serve --drafts -i 0.0.0.0 -u 192.168.1.5`, and open the address it prints, `http://192.168.1.5:1111`, on every device, this computer included. While it runs, anyone on the same network can open it too, drafts included, so leave out `--drafts` unless you trust the network, and stop it with Ctrl+C when you're done.
 
 **`Couldn't find front matter`, naming a file.** A file in `content/` has no front matter block at its top. Give it one; see "Bringing in notes from elsewhere".
 
@@ -1426,7 +1439,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **`TOML parse error at line ...`.** A line you added in `render_site_config` in the script, such as `skip_content_templating`, has a slip: a missing quote or comma, curly quotes, or a line in the wrong place. The line number is in `config.toml`, which the script writes; fix the same line in the script and run it again.
 
-**`Error when parsing front matter of page`, naming a post.** The block between that post's `+++` lines has a slip, and Zola doesn't say which. The usual ones are quotes around a number (`weight = "30"` instead of `weight = 30`), a missing or curly quote, and a line written below `[taxonomies]` that isn't `tags`.
+**`Error when parsing front matter of page`, naming a post or page.** The block between its `+++` lines has a slip, and Zola doesn't say which. The usual ones are quotes around a number (`weight = "30"` instead of `weight = 30`), a missing or curly quote, a line written below `[taxonomies]` that isn't `tags`, and a second `[extra]` line.
 
 **A post's tags don't show, and there's no error.** Its `tags` line isn't under `[taxonomies]`. Zola ignores a `tags` line anywhere else, without a message. In a block between `---` lines, `tags:` goes indented under `taxonomies:`; see "Bringing in notes from elsewhere".
 
@@ -1434,11 +1447,13 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **Markdown inside `<aside>` or `<details>` shows up as asterisks and brackets.** It needs a blank line after the opening tag and another before the closing one; see "Notes, fold-away sections, and wide items".
 
-**Numbered sub-items come out joined onto one line, or as the next number instead of a sub-item.** Write every level as `1.`, not `1.1`, and indent each level four spaces or one tab; see "Numbered outlines".
+**Numbered sub-items come out joined onto one line, or as the next number instead of a sub-item.** Number each level the ordinary way, `1.`, `2.`, not `1.1`, and indent each level four spaces or one tab; see "Numbered outlines".
 
 **A paragraph turned into a heading.** A line of `---` directly under a line of text makes that text a heading. Leave a blank line above the `---`.
 
 #### Appearance
+
+**Some links in a post are blue, and others aren't.** The blue ones have been followed: the browser has their addresses in its history. A link that hasn't been followed takes the colour of the text around it, underlined; see `--link` in "Colours, sizes and typefaces". Chrome counts a link to another site as followed only if it was followed from your own site, so an address visited some other way stays the colour of the text.
 
 **The favicon shows the wrong letter.** With `"auto"`, it's the first letter or digit of `SITE_TITLE`, not of `BLOG_NAME`, shown as a capital.
 
@@ -1472,7 +1487,7 @@ git remote set-url origin git@github.com:yourname/notes.git
 
 **`error: src refspec main does not match any`.** There are no commits yet, usually because git didn't know your name and email during the first run. Set them (see "Your first blog", step 1), then run `git add -A` and `git commit -m "First commit"`, and push again.
 
-**The push is rejected, with a hint beginning "Updates were rejected because the remote contains work".** The repository wasn't empty: something such as a README or licence was added when it was created. If it has nothing else in it, the simplest fix is to delete the repository on GitHub (at the bottom of its Settings page), create it again with nothing added, and push again.
+**The push is rejected, with a hint beginning "Updates were rejected because the remote contains work".** On the first push, the repository wasn't empty: something such as a README or licence was added when it was created. If it has nothing else in it, the simplest fix is to delete the repository on GitHub (at the bottom of its Settings page), create it again with nothing added, and push again. On a later push, something was committed on GitHub since your last one, such as a licence: from inside the blog folder, run `git pull --rebase`, then `git push`; see "Publishing and permissions".
 
 **The workflow fails at its deploy step, with `Ensure GitHub Pages has been enabled`.** Pages isn't switched on. In Settings, then Pages, set Source to "GitHub Actions", then run the workflow again from the Actions tab.
 
@@ -1482,9 +1497,9 @@ git remote set-url origin git@github.com:yourname/notes.git
 
 **`CUSTOM_DOMAIN` had no effect.** Check that the run finished (the hand-edit check stops a run before anything is written), that you set it in the script and not in `config.toml`, and that you committed and pushed afterwards.
 
-**The build on GitHub uses a different Zola from your computer.** That's expected in the cases the setup run mentioned: your version is outside the supported range, isn't a published release, or couldn't be checked because the network was down. The version named in the workflow is the one that counts for the published site.
+**The build on GitHub uses a different Zola from your computer.** The workflow keeps the version it named when the script last ran against this blog. If you've changed Zola since, with `update-zola` or another way, run the script again, then commit and push, to move the workflow to it. It also differs when your Zola isn't a published release, which the run says, and when another Zola comes first in your `PATH` (see "Two Zolas"). The version named in the workflow is the one that counts for the published site.
 
-**The build on GitHub fails with `zola.tar.gz: FAILED` and `WARNING: 1 computed checksum did NOT match`.** The Zola file GitHub downloaded isn't the one whose checksum was recorded. That can mean the file behind that release was replaced, and that's exactly what the check is for, so don't just record a new checksum. Find out why first: look at Zola's release page and announcements. If the workflow file was edited by hand, compare it with what the script writes.
+**The build on GitHub fails with `zola.tar.gz: FAILED` and `WARNING: 1 computed checksum did NOT match`.** The Zola file GitHub downloaded isn't the one whose checksum was recorded. That can mean the file behind that release was replaced, and that's exactly what the check is for, so don't just record a new checksum. Find out why first: look at Zola's release page and announcements, and, from inside the blog folder, run `git log -p .github/workflows/deploy.yml`, which lists every change made to the workflow, the checksum line included. Once you're satisfied the new file is genuine, delete `.github/workflows/deploy.yml` and run the script again: it downloads Zola, records the checksum afresh, and writes the workflow back. Then commit and push.
 
 #### Search
 
@@ -1521,7 +1536,7 @@ Inside the blog folder:
 | `./serve` | The preview, at `http://127.0.0.1:1111`, updating as you save, with drafts marked "(draft)". Ctrl+C stops it. |
 | `./build` | Builds the finished site into `public/`, without drafts, and stops with a message if something is wrong that would also stop GitHub's build. |
 | `./new name-of-post` | Starts `content/name-of-post.md`, a draft at the end of the list, with its front matter filled in and a title made from the name. |
-| `./attach path/to/file new-name` | Copies a picture or video into `content/attachments/` without its hidden data, and prints the line to put in a post. |
+| `./attach path/to/file new-name` | Copies a picture or video into `content/attachments/` without its hidden data, and prints the line to put in a post. Not for SVG drawings; see "Pictures, GIFs and video". |
 | `git status` | Shows what has changed since your last commit. |
 | `git add -A` then `git commit -m "..."` | Saves a snapshot of every change. |
 | `git push` | Sends your commits to GitHub, which then publishes the site. |

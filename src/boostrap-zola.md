@@ -7,7 +7,7 @@ The script below scaffolds a Zola blog, installs and version-pins the Zola binar
 
 ````bash
 #!/usr/bin/env bash
-# zola-blog-setup, v101
+# zola-blog-setup, v102
 #
 # Bootstraps a Zola 0.23 blog for GitHub Pages at PROJECT_DIR/BLOG_NAME, and
 # keeps it in step with the configuration block below. Re-running is the update
@@ -176,6 +176,7 @@ REMOTE_URL=""
 TODAY=""
 YESTERDAY=""
 TWO_DAYS_AGO=""
+README_KEPT=""
 
 cleanup_tmp() { [ -n "$TMP_ZOLA" ] && rm -rf "$TMP_ZOLA"; return 0; }
 
@@ -367,6 +368,7 @@ check_owned_file_drift() {
     [ -f "$OWNED_MANIFEST" ] || no_manifest=1
     while read -r path fn; do
         [ -f "$path" ] || continue
+        [ "$path" = README.md ] && continue   # yours once edited: readme_is_yours
         if [ -n "$no_manifest" ]; then drifted+=("$path"); continue; fi
         recorded=$(manifest_sha "$path")
         if [ -z "$recorded" ]; then drifted+=("$path"); continue; fi
@@ -399,6 +401,7 @@ write_owned_manifest() {
     : > "$OWNED_MANIFEST"
     while read -r path fn; do
         [ -f "$path" ] || continue
+        if [ "$path" = README.md ] && [ -n "$README_KEPT" ]; then continue; fi
         # A file that can't be hashed is left out; dropping the whole manifest would
         # make every file look edited on the next run.
         digest=$(sha256_of "$path") || { warn "could not hash $path; leaving it out of $OWNED_MANIFEST"; continue; }
@@ -407,10 +410,29 @@ write_owned_manifest() {
     return 0
 }
 
+# README.md turns into yours once you edit it: nothing builds from it, so keeping
+# an edited one can't break the site or hold back a fix, and it's the page GitHub
+# shows for the repository, where people edit it. Yours: there, and not the bytes
+# the manifest says this script last wrote, or not in the manifest at all.
+# Deleting it, or REGENERATE_TEMPLATES=true, gets the script's back.
+readme_is_yours() {
+    [ "$REGENERATE_TEMPLATES" != true ] && [ -f README.md ] && [ -f "$OWNED_MANIFEST" ] || return 1
+    local actual
+    actual=$(sha256_of README.md) || return 1
+    [ "$actual" != "$(manifest_sha README.md)" ]
+}
+
 write_owned_files() {
     mkdir -p templates static
     local path fn
     while read -r path fn; do
+        if [ "$path" = README.md ] && readme_is_yours; then
+            README_KEPT=1
+            if [ -n "$(manifest_sha README.md)" ]; then
+                say "README.md was edited, so it's yours now: runs leave it alone (delete it to get the script's back)"
+            fi
+            continue
+        fi
         # A path with no slash is its own ${path%/*}; only make a directory when
         # the entry actually names one.
         [ "$path" = "${path%/*}" ] || mkdir -p "${path%/*}"
@@ -446,7 +468,9 @@ write_owned_files() {
     fi
     write_deploy_workflow
     write_owned_manifest
-    say "wrote the script-owned files (config.toml, templates/, serve, build, new, attach, README.md, .gitignore)"
+    local readme=" README.md,"
+    [ -z "$README_KEPT" ] || readme=""
+    say "wrote the script-owned files (config.toml, templates/, serve, build, new, attach,${readme} .gitignore)"
 }
 
 validate_config() {
@@ -1356,13 +1380,13 @@ EOF
 ## Made with zola-blog-setup
 
 These files are script-owned, rewritten on every run of the setup script:
-`config.toml`, `templates/`, `serve`, `build`, `new`, `attach`, this README and
+`config.toml`, `templates/`, `serve`, `build`, `new`, `attach` and
 `.gitignore`; also `static/favicon.svg` while FAVICON_TEXT draws it,
 `static/search.js` while search is on, and `.github/workflows/deploy.yml` while
 GIT_REPO_URL is set.
 Change them through the script's settings or its `render_` functions, not here.
 `content/` and the rest of `static/` are yours: the script never touches them
-after the first run.
+after the first run. So is this README, once you edit it.
 
 How to write posts and change the blog: the guide that comes with the setup
 script, zola-blog-guide.md.

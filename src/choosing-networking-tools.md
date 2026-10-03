@@ -1,13 +1,18 @@
 # Choosing Networking Tools
 
+> - **For:** people choosing a VPN, mesh or overlay network without reintroducing a trusted third party.
+> - **Before you start:** nothing. The encrypted DNS setup it assumes is in [Devuan secure workstation](./devuan-secure-workstation.md).
+> - **Reading time:** about 36 minutes end to end; the TL;DR gives the picks in two.
+> - **You end with:** which tool fits each of five legitimate uses, and which to avoid.
+
 How to choose a VPN, mesh, or overlay network in a way that doesn't reintroduce the central trusted third party you were trying to escape. Covers commercial VPNs, self-hosted point-to-point, mesh with central coordinator, coordinator-less mesh, Nostr-rooted mesh, anonymity overlays, censorship-evasion proxies, and off-grid radio mesh.
 
-This doc is the dedicated landscape for the cross-cutting concern that `security-overview.md` opens with its "Tor versus VPN versus self-hosted mesh" section. That section frames the choice at a high level; this doc fills in the rest of the space.
+This doc is the dedicated landscape for the cross-cutting concern that [the security overview](./system-security-overview.md) opens with its "Tor versus VPN versus self-hosted mesh" section. That section frames the choice at a high level; this doc fills in the rest of the space.
 
 
 ## TL;DR
 
-Most readers don't need a VPN at all. HTTPS-everywhere plus encrypted DNS (set up in `devuan-secure-workstation.md`) plus a hardened browser closes most of what commercial VPN marketing claims to solve. The legitimate use cases:
+Most readers don't need a VPN at all. HTTPS-everywhere plus encrypted DNS (set up in [Devuan secure workstation](./devuan-secure-workstation.md)) plus a hardened browser closes most of what commercial VPN marketing claims to solve. The legitimate use cases:
 
 1. Mesh between your own devices over hostile networks: self-hosted WireGuard or Headscale; Tailscale if convenience outweighs the corporate-coordinator capture risk.
 2. Anonymity: Tor (or I2P for app-aware use). Commercial VPN is structurally weaker than Tor and not a substitute. Against a global passive adversary (nation-state-scale traffic observation), NYM's mixnet defends where Tor's onion routing doesn't.
@@ -32,20 +37,20 @@ Every networking tool answers two architectural questions: what identifies a nod
 
 **Coordinator-less mesh** (Yggdrasil, cjdns, Nebula after PKI bootstrap, Innernet after admin signature) answers both with cryptographic identities and a routing protocol that converges without any central party. Hardest to misconfigure into a capture-risk; also hardest to set up.
 
-**Nostr-rooted mesh** (nostr-vpn on top of FIPS) answers the first with a Nostr keypair (the same secp256k1 identity used for Nostr signing and for messaging via the Nostr-rooted apps covered in `choosing-communication-tools.md`) and the second with FIPS's self-organizing mesh routing, with peer discovery and NAT traversal happening over public Nostr relays via gift-wrapped messages. Sovereignty-aligned by construction.
+**Nostr-rooted mesh** (nostr-vpn on top of FIPS) answers the first with a Nostr keypair (the same secp256k1 identity used for Nostr signing and for messaging via the Nostr-rooted apps covered in [Choosing communication tools](./choosing-communication-tools.md)) and the second with FIPS's self-organising mesh routing, with peer discovery and NAT traversal happening over public Nostr relays via gift-wrapped messages. Sovereignty-aligned by construction.
 
-**Anonymity overlays** (Tor, I2P, Lokinet) answer the first with rotating ephemeral identities and the second with volunteer-run relay networks where no single party knows both who you are and what you're doing. **Mixnets** (NYM) go further on the second question, adding cover traffic and timing-mixing so that even a global observer watching the whole network can't correlate flows: the defense onion routing doesn't provide.
+**Anonymity overlays** (Tor, I2P, Lokinet) answer the first with rotating ephemeral identities and the second with volunteer-run relay networks where no single party knows both who you are and what you're doing. **Mixnets** (NYM) go further on the second question, adding cover traffic and timing-mixing so that even a global observer watching the whole network can't correlate flows: the defence onion routing doesn't provide.
 
 **Censorship-evasion proxies** (Shadowsocks, v2ray, Trojan, Hysteria, Outline) answer neither question: they're not privacy tools; they're "make encrypted traffic look like benign TLS so the DPI box doesn't drop it" tools. They live alongside the other tiers and stack on top.
 
 
 ## Tier 1: Commercial VPNs
 
-The "trust one company instead of your ISP" tier. Tolerable for narrow use cases (bypassing geographic blocks, hostile-ISP restrictions, traveler-laptop on a hotel network); not a privacy tool.
+The "trust one company instead of your ISP" tier. Tolerable for narrow use cases (bypassing geographic blocks, hostile-ISP restrictions, traveller-laptop on a hotel network); not a privacy tool.
 
 ### Mullvad
 
-Swedish, founded 2009. The most-recommended commercial VPN in privacy circles because of three properties uncommon among peers: account identifiers are 16-digit account numbers with no associated email or phone, payment in cash by mail is supported, and the no-logs claim has held under independent audit and under a 2023 Swedish police raid that retrieved no user data[^mullvad-raid]. Mullvad Browser is the Tor-collaboration project covered in `security-overview.md`.
+Swedish, founded 2009. The most-recommended commercial VPN in privacy circles because of three properties uncommon among peers: account identifiers are 16-digit account numbers with no associated email or phone, payment in cash by mail is supported, and the no-logs claim has held under independent audit and under a 2023 Swedish police raid that retrieved no user data[^mullvad-raid]. Mullvad Browser is the Tor-collaboration project covered in [the security overview](./system-security-overview.md).
 
 What you trade: still a single trusted company. The Swedish jurisdiction provides EU data-protection benefits but does not eliminate the structural capture risk any commercial VPN carries.
 
@@ -82,7 +87,7 @@ Pick this for two specific machines you control with at least one having a routa
 
 ### OpenVPN
 
-The pre-WireGuard incumbent. Still widely deployed; still works. Slower than WireGuard, larger attack surface (TLS-based, lots of options), older crypto stack. Reasons to still use it: a corporate VPN concentrator you don't control still speaks OpenVPN, or you need TCP-mode tunneling for hostile-network reasons (some restrictive networks block UDP). Otherwise use WireGuard.
+The pre-WireGuard incumbent. Still widely deployed; still works. Slower than WireGuard, larger attack surface (TLS-based, lots of options), older crypto stack. Reasons to still use it: a corporate VPN concentrator you don't control still speaks OpenVPN, or you need TCP-mode tunnelling for hostile-network reasons (some restrictive networks block UDP). Otherwise use WireGuard.
 
 ### SSH tunnels and `sshuttle`
 
@@ -121,9 +126,9 @@ Pick this if you want a Tailscale-equivalent built from the ground up as open so
 
 ### ZeroTier
 
-Open-source clients (BSL 1.1 license), commercial coordinator service operated by ZeroTier Inc. (Irvine, California). Self-hostable controller exists (`my-zerotier-controller`) but is less polished than the hosted service. Older than Tailscale by several years; uses its own protocol rather than WireGuard.
+Open-source clients (BSL 1.1 licence), commercial coordinator service operated by ZeroTier Inc. (Irvine, California). Self-hostable controller exists (`my-zerotier-controller`) but is less polished than the hosted service. Older than Tailscale by several years; uses its own protocol rather than WireGuard.
 
-Capture-risk shape: closer to Tailscale than to NetBird because the self-hosting story is workable but not the primary path. The BSL license on clients is a yellow flag (BSL is source-available, not OSI-approved free software).
+Capture-risk shape: closer to Tailscale than to NetBird because the self-hosting story is workable but not the primary path. The BSL licence on clients is a yellow flag (BSL is source-available, not OSI-approved free software).
 
 Pick this only if you specifically need ZeroTier's older Layer-2 emulation (it can bridge Ethernet broadcast domains in a way WireGuard-based mesh can't) for a use case like running legacy multicast-dependent protocols across sites.
 
@@ -148,7 +153,7 @@ Pick this if you're operating a fleet (dozens to thousands of machines) and want
 
 ### Innernet
 
-Rust-based mesh from `tonarino`, MIT licensed. CIDR-based organization rather than flat-list-of-peers: a network is a CIDR, sub-CIDRs are sub-networks, hosts get IPs within their CIDR. Admin-signed peer invitations bootstrap new nodes; after bootstrap there's no coordinator. Quieter project than the others in this tier; not enterprise-targeted.
+Rust-based mesh from `tonarino`, MIT licensed. CIDR-based organisation rather than flat-list-of-peers: a network is a CIDR, sub-CIDRs are sub-networks, hosts get IPs within their CIDR. Admin-signed peer invitations bootstrap new nodes; after bootstrap there's no coordinator. Quieter project than the others in this tier; not enterprise-targeted.
 
 Pick this if the CIDR-based mental model fits your use case (it does for some homelab configurations) and you want a smaller, more focused codebase than Nebula.
 
@@ -175,7 +180,7 @@ The newest entry in the landscape. Two projects, two authors; this section names
 
 The underlying mesh networking protocol, built by `jcorgan` (jmcorgan on GitHub)[^fips]. Rust, MIT licensed. Uses Nostr secp256k1 keypairs as node identities (your `npub` is your network address; `node_addr` is a SHA-256 hash for routing). Designed to operate over any transport, UDP overlay on the existing internet today, with Ethernet, Bluetooth, Tor, and serial transports as design targets. Tor transport support landed in v0.2.0 (March 2026)[^fips-v020].
 
-Architecture in one sentence: a self-organizing encrypted mesh where nodes establish peer connections, authenticate each other via Nostr keys, and route traffic for each other without any central authority or global topology knowledge. End-to-end encrypted between any two nodes regardless of hop count, with re-encryption at every hop.
+Architecture in one sentence: a self-organising encrypted mesh where nodes establish peer connections, authenticate each other via Nostr keys, and route traffic for each other without any central authority or global topology knowledge. End-to-end encrypted between any two nodes regardless of hop count, with re-encryption at every hop.
 
 Status: v0.1.0 alpha as of self-description, v0.2.0 current. The author's framing is direct: "if it breaks, you get to keep both pieces." Passed simulation testing and small-scale deployments; not production-stable.
 
@@ -183,7 +188,7 @@ Note on the acronym: clashes with the well-known U.S. cryptographic-standard FIP
 
 ### nostr-vpn
 
-Tailscale-style mesh VPN application built by Martti Malmi (`mmalmi`)[^nostr-vpn], the Bitcoin developer who worked alongside Satoshi in 2009-2011 and received the first Bitcoin transaction. Uses FIPS as its data plane per the current README. Earlier releases (v0.2.x in March 2026) used WireGuard tunnels via `boringtun` with Nostr relays for signaling; the architecture migrated to FIPS-backed during the version-4 series, with v4.x current as of late May 2026 and rapid iteration ongoing (the project has been shipping multiple releases per week through the v4 series, so any specific version number in this doc should be assumed stale by the time you read it; check the GitHub releases page).
+Tailscale-style mesh VPN application built by Martti Malmi (`mmalmi`)[^nostr-vpn], the Bitcoin developer who worked alongside Satoshi in 2009-2011 and received the first Bitcoin transaction. Uses FIPS as its data plane per the current README. Earlier releases (v0.2.x in March 2026) used WireGuard tunnels via `boringtun` with Nostr relays for signalling; the architecture migrated to FIPS-backed during the version-4 series, with v4.x current as of late May 2026 and rapid iteration ongoing (the project has been shipping multiple releases per week through the v4 series, so any specific version number in this doc should be assumed stale by the time you read it; check the GitHub releases page).
 
 Authorship-split: Malmi built the user-facing nostr-vpn application. FIPS (which the secondary commentary tends to credit to "Bitcoin developer Malmi") was built by jcorgan, who is a separate person. Both are sovereignty-aligned developers; only one of them is the Satoshi-era figure.
 
@@ -195,7 +200,7 @@ Capture-risk shape: zero by construction if the implementation is correct. Your 
 
 Why it matters now even though it's not deployable yet: the design is the proof-of-concept for the sovereignty frame applied to networking infrastructure, the same way Bitcoin was the proof-of-concept for the sovereignty frame applied to money. The architecture is what to learn from. The bits work today; the polish doesn't.
 
-Adjacent sovereignty stack: the Nostr-rooted ecosystem these tools sit in extends beyond networking. White Noise (`choosing-communication-tools.md`) is the messaging-layer counterpart, using MLS encryption over Nostr signaling via the Marmot protocol. Blossom is the Nostr-native file-hosting standard that Marmot uses for media transport. The shared infrastructure (Nostr relays, secp256k1 keypairs, Bitcoin-community-funded development) is one of the project's sovereignty-frontier signals to watch.
+Adjacent sovereignty stack: the Nostr-rooted ecosystem these tools sit in extends beyond networking. White Noise ([Choosing communication tools](./choosing-communication-tools.md)) is the messaging-layer counterpart, using MLS encryption over Nostr signalling via the Marmot protocol. Blossom is the Nostr-native file-hosting standard that Marmot uses for media transport. The shared infrastructure (Nostr relays, secp256k1 keypairs, Bitcoin-community-funded development) is one of the project's sovereignty-frontier signals to watch.
 
 ### Adjacent frontier: the Holepunch/Pear stack
 
@@ -218,15 +223,15 @@ Revisit when it reaches a tagged beta and file-change sync lands.
 
 ## Tier 6: Anonymity overlays
 
-Different goal from everything above. Tier 1 through 5 are "encrypt the link"; this tier is "hide who you are." Cross-referenced from `security-overview.md`'s "Tor versus VPN versus self-hosted mesh" section.
+Different goal from everything above. Tier 1 through 5 are "encrypt the link"; this tier is "hide who you are." Cross-referenced from the "Tor versus VPN versus self-hosted mesh" section of [the security overview](./system-security-overview.md).
 
 ### Tor
 
-Three-hop volunteer-run onion network. Your guard node knows who you are but not what you do; the middle relay knows neither; the exit knows what you do but not who you are. Deanonymization requires controlling or observing both the guard and the exit, which is exponentially harder than compromising a single VPN.
+Three-hop volunteer-run onion network. Your guard node knows who you are but not what you do; the middle relay knows neither; the exit knows what you do but not who you are. Deanonymisation requires controlling or observing both the guard and the exit, which is exponentially harder than compromising a single VPN.
 
-This is the right answer for anonymity. Slow (three hops globally), incompatible with sites that block Tor exits (Cloudflare-protected sites in particular). Run it via Tor Browser for sensitive browsing or via Whonix for whole-system anonymity (see `os.md` and the Whonix VM-compartmentalization section of `devuan-secure-workstation.md`).
+This is the right answer for anonymity. Slow (three hops globally), incompatible with sites that block Tor exits (Cloudflare-protected sites in particular). Run it via Tor Browser for sensitive browsing or via Whonix for whole-system anonymity (see [Whonix](./choosing-os.md#whonix-and-the-vpn-question) and the Whonix VM-compartmentalisation section of [Devuan secure workstation](./devuan-secure-workstation.md)).
 
-Tor is not a substitute for the mesh tiers above. Tor anonymizes you from destinations; it does not connect your laptop to your home server.
+Tor is not a substitute for the mesh tiers above. Tor anonymises you from destinations; it does not connect your laptop to your home server.
 
 **Onion services as a hosting primitive.** Beyond using Tor as a client, you can publish a service on Tor that's reachable only through Tor. Onion services (v3, ed25519-based, 56-character addresses ending in `.onion`) provide end-to-end encryption to the service plus location-hiding for the host. Use cases: SSH access to a home server without exposing a public IP; private file sharing (OnionShare); whistleblowing intake (SecureDrop, GlobaLeaks). The hosting primitive is the same architecture the anonymity uses, applied in reverse.
 
@@ -246,7 +251,7 @@ Pick I2P if you specifically need to participate in I2P-internal services. For a
 
 ### Lokinet
 
-Onion-routing overlay developed by the Loki Project (now Oxen). Architecturally similar to Tor in being a hidden-service network but using its own service-node infrastructure rather than Tor's volunteer network. Used as the transport for Session messenger (see `choosing-communication-tools.md`) and as a standalone anonymity overlay.
+Onion-routing overlay developed by the Loki Project (now Oxen). Architecturally similar to Tor in being a hidden-service network but using its own service-node infrastructure rather than Tor's volunteer network. Used as the transport for Session messenger (see [Choosing communication tools](./choosing-communication-tools.md)) and as a standalone anonymity overlay.
 
 Capture-risk shape: token-economic incentive structure for service nodes (Oxen token), a flag for some sovereignty-minded operators who prefer the volunteer-funding model Tor uses. Smaller network than Tor by orders of magnitude, which has both privacy and reliability implications.
 
@@ -260,16 +265,16 @@ Built by Nym Technologies S.A. (Swiss), based on the Loopix mixnet design; Chief
 
 NymVPN (the client) offers two modes. Anonymous Mode routes through a 5-hop Sphinx-based mixnet with continuous cover traffic (the strong-anonymity, higher-latency mode), recommended for messaging, crypto transactions, and email rather than streaming. Fast Mode is a 2-hop WireGuard path (running AmneziaWG, the same DPI-obfuscated WireGuard fork covered in Tier 7) for VPN-comparable speed when you want IP-hiding without the full mixnet latency cost. Rust, open source (GPL-3), clients for Linux, macOS, Windows, iOS, Android. Anonymous onboarding via 24-word access keys; payment in BTC or XMR. v2026.4 (March 2026) added desktop ad/tracker blocking.
 
-Capture-risk shape: the mixnet itself is decentralized with no single operator that sees the whole topology. The flag worth naming is the NYM utility token, service nodes are incentivized via a token economy (bond-and-delegate-stake model), which is the same token-economic structure flagged for Lokinet and which some sovereignty-minded operators weigh against the volunteer-funded Tor model. Whether token incentives or volunteer incentives produce a more durable network is a genuinely open question; NYM is the most serious current bet on the token-incentivized side.
+Capture-risk shape: the mixnet itself is decentralised with no single operator that sees the whole topology. The flag worth naming is the NYM utility token, service nodes are incentivised via a token economy (bond-and-delegate-stake model), which is the same token-economic structure flagged for Lokinet and which some sovereignty-minded operators weigh against the volunteer-funded Tor model. Whether token incentives or volunteer incentives produce a more durable network is a genuinely open question; NYM is the most serious current bet on the token-incentivised side.
 
-Pick NYM if: your threat model includes a global passive adversary (the nation-state-scale observer that can watch traffic across the whole network), which is the specific case Tor doesn't fully defend against. Use Anonymous Mode for the high-value low-bandwidth traffic that case implies. For ordinary anonymity against a non-global adversary, Tor remains the larger, more battle-tested network; NYM's advantage is specifically the metadata-timing defense against the strongest adversary class.
+Pick NYM if: your threat model includes a global passive adversary (the nation-state-scale observer that can watch traffic across the whole network), which is the specific case Tor doesn't fully defend against. Use Anonymous Mode for the high-value low-bandwidth traffic that case implies. For ordinary anonymity against a non-global adversary, Tor remains the larger, more battle-tested network; NYM's advantage is specifically the metadata-timing defence against the strongest adversary class.
 
 
 ## Tier 7: Censorship-evasion proxies
 
 Not VPNs and not anonymity overlays, these are protocol-obfuscation tools designed to make encrypted traffic survive deep packet inspection. They stack on top of the other tiers: you might run WireGuard inside Shadowsocks inside a TLS tunnel to bypass a censor that blocks WireGuard's UDP signature.
 
-The threat model: a censor (state-level or corporate) running DPI on egress traffic to identify and block "circumvention tools." The defense: make your traffic look like ordinary HTTPS or QUIC so the DPI signature doesn't fire.
+The threat model: a censor (state-level or corporate) running DPI on egress traffic to identify and block "circumvention tools." The defence: make your traffic look like ordinary HTTPS or QUIC so the DPI signature doesn't fire.
 
 ### Shadowsocks
 
@@ -332,7 +337,7 @@ Pick this for off-grid messaging where the threat model includes "the internet i
 
 LoRa-based mesh, open source, hardware-focused. Cheaper and simpler than Reticulum; the standard answer for community LoRa mesh networks. Floods messages across the mesh rather than routing intelligently like Reticulum, fine at small scale, degrades at large scale (>100 nodes).
 
-Pick this for: a community mesh in a city neighborhood, hiking-group communication, hobbyist LoRa networking. Pair with Meshtastic-compatible hardware like the LilyGO T-Beam or the Heltec LoRa boards.
+Pick this for: a community mesh in a city neighbourhood, hiking-group communication, hobbyist LoRa networking. Pair with Meshtastic-compatible hardware like the LilyGO T-Beam or the Heltec LoRa boards.
 
 ### MeshCore
 
@@ -340,24 +345,24 @@ Newer entrant (2025) targeting embedded systems with custom routing requirements
 
 ### B.A.T.M.A.N. (batman-adv)
 
-The WiFi-mesh routing protocol that real-world community networks actually run on. Where Reticulum and Meshtastic are LoRa-and-radio mesh and bitchat/Briar are Bluetooth mesh, B.A.T.M.A.N. (Better Approach To Mobile Ad-hoc Networking) is the protocol that turns a fleet of ordinary WiFi nodes into a self-organizing mesh[^batman]. Developed by Germany's Freifunk community since 2006; the batman-adv kernel module has been part of the mainline Linux kernel since 2.6.38 (2011); current release batman-adv 2025.4 (October 2025); controlled via `batctl`; packaged in Debian and Devuan.
+The WiFi-mesh routing protocol that real-world community networks actually run on. Where Reticulum and Meshtastic are LoRa-and-radio mesh and bitchat/Briar are Bluetooth mesh, B.A.T.M.A.N. (Better Approach To Mobile Ad-hoc Networking) is the protocol that turns a fleet of ordinary WiFi nodes into a self-organising mesh[^batman]. Developed by Germany's Freifunk community since 2006; the batman-adv kernel module has been part of the mainline Linux kernel since 2.6.38 (2011); current release batman-adv 2025.4 (October 2025); controlled via `batctl`; packaged in Debian and Devuan.
 
-Architecture: batman-adv operates at Layer 2 (it routes Ethernet frames, not IP packets), which means it emulates one giant virtual network switch spanning every node in the mesh. Every node appears link-local to every other; higher-layer protocols (IPv4, IPv6, DHCP) run on top unaware of the mesh topology underneath. The routing intelligence is decentralized by design: no single node holds the full network map; each node knows only the best next-hop toward each destination, computed from link-quality metrics (the TQ, transmit-quality value). This is the distance-vector approach that scales where flat flooding (Meshtastic's model) collapses.
+Architecture: batman-adv operates at Layer 2 (it routes Ethernet frames, not IP packets), which means it emulates one giant virtual network switch spanning every node in the mesh. Every node appears link-local to every other; higher-layer protocols (IPv4, IPv6, DHCP) run on top unaware of the mesh topology underneath. The routing intelligence is decentralised by design: no single node holds the full network map; each node knows only the best next-hop toward each destination, computed from link-quality metrics (the TQ, transmit-quality value). This is the distance-vector approach that scales where flat flooding (Meshtastic's model) collapses.
 
 Capture-risk shape: none. It's a kernel routing protocol, not a service; there's no operator, no account, no coordinator. The mesh is whoever's running batman-adv on the same physical or VPN-bridged Layer-2 segment.
 
-Pick B.A.T.M.A.N. for: building a community WiFi mesh (the Freifunk model, neighborhood-scale resilient internet that survives any single ISP or node), bridging multiple physical sites into one Layer-2 network over WiFi or VPN transports, or any case where you want a kernel-native mesh protocol rather than an application-layer overlay. This is the heaviest-infrastructure entry in Tier 8 and the most production-proven at community scale; Freifunk has run city-scale deployments on it for over a decade. Pair with OpenWrt on the node hardware for the standard community-mesh stack. For single-link or small-peer-count cases, the overlay-network options in Tier 4 (Yggdrasil especially) are simpler; B.A.T.M.A.N. earns its complexity at the scale of dozens-to-thousands of WiFi nodes.
+Pick B.A.T.M.A.N. for: building a community WiFi mesh (the Freifunk model, neighbourhood-scale resilient internet that survives any single ISP or node), bridging multiple physical sites into one Layer-2 network over WiFi or VPN transports, or any case where you want a kernel-native mesh protocol rather than an application-layer overlay. This is the heaviest-infrastructure entry in Tier 8 and the most production-proven at community scale; Freifunk has run city-scale deployments on it for over a decade. Pair with OpenWrt on the node hardware for the standard community-mesh stack. For single-link or small-peer-count cases, the overlay-network options in Tier 4 (Yggdrasil especially) are simpler; B.A.T.M.A.N. earns its complexity at the scale of dozens-to-thousands of WiFi nodes.
 
 ### Briar's offline mesh
 
-Briar is a P2P messenger (covered in `choosing-communication-tools.md`) that includes Bluetooth and WiFi-direct mesh as transports alongside Tor over the internet. This puts it at the messenger / networking boundary: it's primarily a messenger, but the transport layer it ships is real mesh networking. Latest stable release 1.5.9 (January 2024), so development has slowed; the architecture remains sound but project velocity is a flag.
+Briar is a P2P messenger (covered in [Choosing communication tools](./choosing-communication-tools.md)) that includes Bluetooth and WiFi-direct mesh as transports alongside Tor over the internet. This puts it at the messenger / networking boundary: it's primarily a messenger, but the transport layer it ships is real mesh networking. Latest stable release 1.5.9 (January 2024), so development has slowed; the architecture remains sound but project velocity is a flag.
 
-For the messenger landscape including Briar's positioning, see `choosing-communication-tools.md`. For purely-networking off-grid use, prefer Reticulum or Meshtastic.
+For the messenger landscape including Briar's positioning, see [Choosing communication tools](./choosing-communication-tools.md). For purely-networking off-grid use, prefer Reticulum or Meshtastic.
 
 
 ## What to avoid
 
-**"VPN for privacy" as a frame.** It was always a marketing frame, never a privacy frame. Encrypted DNS plus HTTPS-everywhere closes most of what commercial VPNs claim to solve, without any trusted third party. Use a commercial VPN for specific narrow reasons (geographic bypass, hostile-ISP bypass, hotel-network defense); don't use one as a generic privacy upgrade.
+**"VPN for privacy" as a frame.** It was always a marketing frame, never a privacy frame. Encrypted DNS plus HTTPS-everywhere closes most of what commercial VPNs claim to solve, without any trusted third party. Use a commercial VPN for specific narrow reasons (geographic bypass, hostile-ISP bypass, hotel-network defence); don't use one as a generic privacy upgrade.
 
 **Free commercial VPNs that aren't free tiers of a paid product.** The business model is logging-and-selling or malware. There are no exceptions.
 
@@ -365,7 +370,7 @@ For the messenger landscape including Briar's positioning, see `choosing-communi
 
 **Browser-based "VPN" extensions.** Browser proxies. Useful for specific bypass cases; not a VPN in any meaningful sense. Mozilla VPN, Brave's built-in VPN, etc. are commercial VPN re-sells, not browser-side architecture.
 
-**Tailscale or any centralized-coordinator mesh as a "privacy" tool.** Convenient mesh networking, real engineering, but the coordinator sees your metadata. The privacy frame collapses when one party knows the entire topology of who-talks-to-whom.
+**Tailscale or any centralised-coordinator mesh as a "privacy" tool.** Convenient mesh networking, real engineering, but the coordinator sees your metadata. The privacy frame collapses when one party knows the entire topology of who-talks-to-whom.
 
 **Censorship-evasion proxies as anonymity tools.** Shadowsocks, v2ray, Trojan, Hysteria, Outline are great at evading DPI; they're not anonymity tools. Your traffic still terminates at your proxy server, which knows your IP and your destinations. Don't conflate these with Tor.
 
@@ -378,7 +383,7 @@ A flowchart of common cases.
 
 **"I want a few machines to all see each other."** Same answer: Headscale plus WireGuard, or NetBird if you don't already have Tailscale clients deployed. Self-host both.
 
-**"I want anonymity from my destination."** Tor (Tier 6). Use Tor Browser for browsing; use Whonix for whole-system Tor. If your adversary is nation-state-scale (can observe traffic across the whole network), NYM's Anonymous Mode (Tier 6) adds the cover-traffic mixnet defense Tor lacks, at a latency cost.
+**"I want anonymity from my destination."** Tor (Tier 6). Use Tor Browser for browsing; use Whonix for whole-system Tor. If your adversary is nation-state-scale (can observe traffic across the whole network), NYM's Anonymous Mode (Tier 6) adds the cover-traffic mixnet defence Tor lacks, at a latency cost.
 
 **"I want anonymity from my ISP."** Tor again. A commercial VPN gives you "trust one company instead of your ISP," not anonymity. If you have a specific reason a VPN works better here (Tor blocked by your ISP, sites you need block Tor exits), Mullvad in Tier 1.
 
@@ -392,7 +397,7 @@ A flowchart of common cases.
 
 **"I want communication that works when the internet doesn't."** Reticulum with RNode hardware for the serious case; Meshtastic for the community-mesh case (Tier 8).
 
-**"I want to build a neighborhood-scale resilient WiFi network."** B.A.T.M.A.N. (batman-adv) on OpenWrt node hardware (Tier 8). This is the Freifunk model, city-scale mesh that survives any single ISP or node failure, proven over a decade.
+**"I want to build a neighbourhood-scale resilient WiFi network."** B.A.T.M.A.N. (batman-adv) on OpenWrt node hardware (Tier 8). This is the Freifunk model, city-scale mesh that survives any single ISP or node failure, proven over a decade.
 
 **"I want all of the above stacked."** Reticulum can transport over Yggdrasil which can transport over Tor; the layering is the design. This is the maximalist configuration and is real ops work to operate; don't start here unless you've operated each layer individually first.
 
@@ -436,6 +441,7 @@ Read the entries above for the substance; this table is the at-a-glance map.
 | Briar mesh | 8 | Maintenance | None |
 
 
+<!-- vale off -->
 [^nostr-vpn]: Martti Malmi, *nostr-vpn*, GitHub repository: <https://github.com/mmalmi/nostr-vpn>. README description: "nostr-vpn is a Tailscale-style private mesh VPN built around a FIPS-backed data plane. It includes the nvpn CLI/daemon, a shared native app core, and native shells for desktop and mobile platforms." Malmi's release announcement on X, 19 May 2026: <https://x.com/marttimalmi/status/2056616263925854570>. Malmi's bio: "Bitcoin dev in 2009-2011." Current release v4.0.47 on the GitHub releases page as of 28 May 2026; the project ships multiple releases per week, so the live version number drifts faster than this doc updates.
 
 [^fips]: jcorgan, *FIPS: The Free Internetworking Peering System*, GitHub repository: <https://github.com/jmcorgan/fips>. Project website: <https://fips.network/>. Announcement on Nostr (jcorgan): "FIPS is a mesh networking protocol that makes a Nostr keypair your network identity. Nodes find each other and route traffic using npubs directly. No DNS registrars, no IP address allocation, no routing authorities. Just keypairs and encrypted links." Protocol design documentation: `docs/design/fips-intro.md`.

@@ -2,35 +2,38 @@
 
 */boot inside encrypted volume, single passphrase at boot*
 
-**Last updated:** 2026-04-14
-**Tested on:** Devuan Daedalus 5.0, amd64, NVMe disk
+> - **For:** someone installing Devuan with full-disk encryption, `/boot` included, by hand.
+> - **Before you start:** the non-free firmware ISO on a USB stick, a machine you can wipe, and a passphrase (see [Creating passphrases](./creating-passphrase.md)).
+> - **Reading time:** about 8 minutes; the install itself takes longer.
+> - **Tested on:** Devuan Daedalus 5.0, amd64, NVMe disk.
+> - **You end with:** a Devuan install on LUKS2 and LVM that asks for one passphrase at boot.
 
 
 ## Before you begin
 
 Download the non-free firmware ISO from:
-```
+```text
 https://www.devuan.org/get-devuan
 ```
 
 Look for:
-```
+```text
 devuan_daedalus_5.0_amd64_non-free-firmware.iso
 ```
 
-Use the non-free firmware ISO — it includes WiFi and other hardware firmware so everything works after install.
+Use the non-free firmware ISO: it includes WiFi and other hardware firmware so everything works after install.
 
 
-## Part 1 — Boot from the Devuan USB
+## Part 1: Boot from the Devuan USB
 
 Power on with the Devuan USB inserted. Select **"Install"** from the boot menu.
 
 
-## Part 2 — Drop to a shell immediately
+## Part 2: Drop to a shell immediately
 
 On the first installer screen, before selecting anything, press **Alt+F2**.
 
-We partition the disk here before the installer touches it. If the installer creates partitions first it holds the disk open and the kernel cannot re-read the partition table — partitions will disappear from `/dev` later.
+We partition the disk here before the installer touches it. If the installer creates partitions first it holds the disk open and the kernel cannot re-read the partition table: partitions will disappear from `/dev` later.
 
 ### Create partitions
 
@@ -41,13 +44,13 @@ fdisk /dev/nvme0n1
 Follow each prompt exactly. Commands are in code blocks. What you see on screen is in quotes.
 
 
-```
+```text
 g
 ```
 > "Created a new GPT disklabel"
 
 
-```
+```text
 n
 ```
 > "Partition number (1-128, default 1):" → **Enter** (default)
@@ -56,7 +59,7 @@ n
 
 > "Last sector:"
 
-```
+```text
 +1G
 ```
 
@@ -64,23 +67,23 @@ n
 
 If prompted: "Partition #1 contains a vfat signature. Do you want to remove the signature?"
 
-```
+```text
 y
 ```
 
 
-```
+```text
 t
 ```
 > "Partition type or alias (type L to list all):"
 
-```
+```text
 1
 ```
 > "Changed type of partition 'Linux filesystem' to 'EFI System'"
 
 
-```
+```text
 n
 ```
 > "Partition number (1-128, default 2):" → **Enter** (default)
@@ -91,23 +94,23 @@ n
 
 If prompted: "Partition #2 contains a signature. Do you want to remove the signature?"
 
-```
+```text
 y
 ```
 
 
-```
+```text
 p
 ```
 
 Confirm you see:
-- `nvme0n1p1` — 1 GB — EFI System
-- `nvme0n1p2` — remainder — Linux filesystem
+- `nvme0n1p1`: 1 GB, EFI System
+- `nvme0n1p2`: remainder, Linux filesystem
 
-The 1 MB free space at the top and 335 KB at the bottom are normal GPT gaps — ignore them.
+The 1 MB free space at the top and 335 KB at the bottom are normal GPT gaps: ignore them.
 
 
-```
+```text
 w
 ```
 > "The partition table has been altered. Syncing disks."
@@ -118,7 +121,7 @@ w
 mkfs.fat -F 32 /dev/nvme0n1p1
 ```
 
-Warnings about codepage 850 and ANSI conversion are harmless — ignore them.
+Warnings about codepage 850 and ANSI conversion are harmless: ignore them.
 
 ### Confirm both partitions exist
 
@@ -128,7 +131,7 @@ ls /dev/nvme0n1*
 > Expected: `nvme0n1  nvme0n1p1  nvme0n1p2`
 
 
-## Part 3 — Set up LUKS2
+## Part 3: Set up LUKS2
 
 ```bash
 cryptsetup luksFormat --type luks2 --pbkdf pbkdf2 --cipher aes-xts-plain64 --key-size 512 --hash sha256 /dev/nvme0n1p2
@@ -136,7 +139,7 @@ cryptsetup luksFormat --type luks2 --pbkdf pbkdf2 --cipher aes-xts-plain64 --key
 
 > "Are you sure? (Type 'YES' in capital letters):"
 
-```
+```text
 YES
 ```
 
@@ -144,7 +147,7 @@ Enter your LUKS passphrase twice.
 
 > **This passphrase encrypts your entire disk. There is no recovery if you forget it. You will type it once at every boot.**
 
-**Why `--pbkdf pbkdf2`?** GRUB cannot process Argon2id, which is LUKS2's default KDF. PBKDF2 allows GRUB to unlock the container at boot. The initramfs uses a keyfile for the second unlock, bypassing the KDF entirely — no security penalty. This is the unavoidable tradeoff of keeping `/boot` inside the encrypted volume.
+**Why `--pbkdf pbkdf2`?** GRUB cannot process Argon2id, which is LUKS2's default KDF. PBKDF2 allows GRUB to unlock the container at boot. The initramfs uses a keyfile for the second unlock, bypassing the KDF entirely: no security penalty. This is the unavoidable tradeoff of keeping `/boot` inside the encrypted volume.
 
 ### Open the container
 
@@ -153,7 +156,7 @@ cryptsetup luksOpen /dev/nvme0n1p2 crypt
 ```
 
 
-## Part 4 — Set up LVM
+## Part 4: Set up LVM
 
 Check your RAM if you want hibernation:
 
@@ -184,7 +187,7 @@ lvcreate -l 100%FREE -n home vg0
 | boot | 1G | Kernel and bootloader files. A few hundred MB used; 1G gives headroom for multiple kernels. |
 | swap | 4G | Virtual memory. Match your RAM if you want hibernation. |
 | root | 40G | OS, applications, libraries, package cache. Go 60–80G for heavy dev work. |
-| home | Remainder | Personal files — documents, downloads, browser profiles, etc. |
+| home | Remainder | Personal files: documents, downloads, browser profiles, etc. |
 
 ### Format the volumes
 
@@ -208,7 +211,7 @@ ls /dev/vg0/
 > Expected: `boot  home  root  swap`
 
 
-## Part 5 — Return to installer
+## Part 5: Return to installer
 
 Press **Alt+F1**.
 
@@ -219,10 +222,10 @@ Select your preferences.
 
 ### Network
 - **WiFi:** Select the wireless interface (usually `wlan0`), then WPA/WPA2 PSK, then enter your password.
-- **Ethernet:** Select the wired interface — connects automatically.
+- **Ethernet:** Select the wired interface: connects automatically.
 
 ### Hostname
-Use something generic like `host` or `workstation`. Avoid your real name or location — the hostname appears in logs and network traffic.
+Use something generic like `host` or `workstation`. Avoid your real name or location: the hostname appears in logs and network traffic.
 
 ### Domain name
 Leave blank, press Enter.
@@ -234,18 +237,18 @@ Leave the root password **empty** to lock the root account. This disables direct
 Leave blank or use a pseudonym. No functional purpose on a personal machine.
 
 ### Username
-Lowercase, no spaces. Avoid your real name — it appears in file paths and logs.
+Lowercase, no spaces. Avoid your real name: it appears in file paths and logs.
 
 ### Login password
 Used at the login screen and for `sudo`. At least 12 characters, mix of types. **Do not reuse your LUKS passphrase.**
 
 
-## Part 6 — Partition Disks screen
+## Part 6: Partition Disks screen
 
 Select **"Manual"**.
 
 You will see:
-```
+```text
 /dev/nvme0n1 512GB
   1.0MB free space
   #1  1GB   ESP
@@ -253,9 +256,9 @@ You will see:
   335KB free space
 ```
 
-- The 1.0 MB and 335 KB entries are normal GPT gaps — ignore them.
-- The unlabelled remaining space is `nvme0n1p2` (your LUKS container) — do not touch it.
-- Phantom partitions under `nvme0n1` may appear — stale cached view. Ignore everything under `nvme0n1` except `p1`.
+- The 1.0 MB and 335 KB entries are normal GPT gaps: ignore them.
+- The unlabelled remaining space is `nvme0n1p2` (your LUKS container): do not touch it.
+- Phantom partitions under `nvme0n1` may appear: stale cached view. Ignore everything under `nvme0n1` except `p1`.
 
 Select **"Configure the Logical Volume Manager"**.
 
@@ -264,7 +267,7 @@ Select **"Configure the Logical Volume Manager"**.
 You will see the LVM configuration summary. Select **"Continue"**, then **"Finish"**, then **"Finish"** again.
 
 
-## Part 7 — Assign mount points
+## Part 7: Assign mount points
 
 Volumes appear in this order: boot, home, root, swap. For each: select the **#1 entry** → set "Use as" → set mount point → select **"Done setting up the partition"**.
 
@@ -283,14 +286,14 @@ Volumes appear in this order: boot, home, root, swap. For each: select the **#1 
 **vg0 LV swap (4.3 GB)**
 - Use as: swap area
 
-**nvme0n1p1** — already set as EFI System Partition. Leave it alone.
+**nvme0n1p1**: already set as EFI System Partition. Leave it alone.
 
-**nvme0n1p2** — do not touch.
+**nvme0n1p2**: do not touch.
 
-> "Bootable flag: off" — leave it off. On GPT/EFI this flag is meaningless.
+> "Bootable flag: off"; leave it off. On GPT/EFI this flag is meaningless.
 
 Confirm your layout:
-```
+```text
 vg0-boot   1.1GB   ext4   /boot
 vg0-home   461GB   ext4   /home
 vg0-root   42.9GB  ext4   /
@@ -302,10 +305,10 @@ Select **"Finish partitioning and write changes to disk"**.
 
 If prompted: "No partition table changes... Continue?" → **Yes**
 
-If prompted: "Partition #2 has been written but we have been unable to inform the kernel of the change" → **Ignore** — normal and safe.
+If prompted: "Partition #2 has been written but we have been unable to inform the kernel of the change" → **Ignore**; normal and safe.
 
 
-## Part 8 — Remaining installer steps
+## Part 8: Remaining installer steps
 
 ### Mirror and proxy
 Select your country mirror. Leave HTTP proxy blank.
@@ -318,7 +321,7 @@ Select **No**.
 | Option | Recommendation |
 |---|---|
 | Devuan desktop environment | Select |
-| XFCE | Recommended — lightweight, stable, low resource use |
+| XFCE | Recommended: lightweight, stable, low resource use |
 | GNOME | Heavier, more modern, higher RAM use |
 | KDE Plasma | Feature-rich, highly customisable, higher RAM use |
 | Standard system utilities | Always select |
@@ -326,12 +329,12 @@ Select **No**.
 Recommended for a privacy-focused desktop: **XFCE + Standard system utilities**
 
 ### Init system
-Select **sysvinit** — Devuan's init system, avoids systemd.
+Select **sysvinit**: Devuan's init system, avoids systemd.
 
 
-## Part 9 — GRUB install
+## Part 9: GRUB install
 
-The installer will attempt to install GRUB and fail, because `GRUB_ENABLE_CRYPTODISK=y` is not set yet. You fix this mid-install from the installer's shell, then retry — and it succeeds.
+The installer will attempt to install GRUB and fail, because `GRUB_ENABLE_CRYPTODISK=y` is not set yet. You fix this mid-install from the installer's shell, then retry, and it succeeds.
 
 Your firmware may first show prompts:
 
@@ -340,7 +343,7 @@ Your firmware may first show prompts:
 **"Update NVRAM variables to automatically boot into Devuan?"** → **Yes**
 
 The installer will then show:
-> "Unable to install GRUB in dummy — this is a fatal error"
+> "Unable to install GRUB in dummy. This is a fatal error"
 
 Select **Go Back**. You will be returned to the installer menu.
 
@@ -368,12 +371,12 @@ exit
 
 Back in the installer menu, select **"Install the GRUB boot loader"** again.
 
-This time it will succeed — no fatal error. The installer writes a GRUB EFI image with cryptodisk support baked in, capable of unlocking your LUKS container at boot.
+This time it will succeed: no fatal error. The installer writes a GRUB EFI image with cryptodisk support baked in, capable of unlocking your LUKS container at boot.
 
 Let the rest of the install finish. **Do not reboot when prompted.**
 
 
-## Part 10 — Configure before first boot
+## Part 10: Configure before first boot
 
 **This is the most critical part. Do not skip or reorder any steps.**
 
@@ -421,7 +424,7 @@ If nothing is returned, install it:
 apt install cryptsetup-initramfs
 ```
 
-The Devuan installer does not set up encryption itself — you did it manually before the installer ran. It may not have pulled in this package. Without it, the initramfs has no crypto support at all: no modules, no unlock scripts. Nothing will work.
+The Devuan installer does not set up encryption itself: you did it manually before the installer ran. It may not have pulled in this package. Without it, the initramfs has no crypto support at all: no modules, no unlock scripts. Nothing will work.
 
 ### Confirm the LUKS container is mapped
 
@@ -467,7 +470,7 @@ echo 'CRYPTSETUP=y' >> /etc/cryptsetup-initramfs/conf-hook
 echo 'KEYFILE_PATTERN="/etc/luks/*.key"' >> /etc/cryptsetup-initramfs/conf-hook
 ```
 
-`CRYPTSETUP=y` forces cryptsetup into the initramfs. In a chroot, auto-detection of encrypted devices can fail — this bypasses it. `KEYFILE_PATTERN` tells the initramfs builder which keyfiles to include. By default it ignores all keyfiles listed in crypttab. Without these lines, the initramfs either lacks crypto support entirely or has no keyfile, and the system drops to an initramfs shell at boot.
+`CRYPTSETUP=y` forces cryptsetup into the initramfs. In a chroot, auto-detection of encrypted devices can fail: this bypasses it. `KEYFILE_PATTERN` tells the initramfs builder which keyfiles to include. By default it ignores all keyfiles listed in crypttab. Without these lines, the initramfs either lacks crypto support entirely or has no keyfile, and the system drops to an initramfs shell at boot.
 
 ### Restrict initramfs permissions
 
@@ -483,7 +486,7 @@ The initramfs image now contains private key material. This sets the umask so th
 update-initramfs -u -k all
 ```
 
-Devuan installs two kernels by default — you will see output for both.
+Devuan installs two kernels by default: you will see output for both.
 
 ### Verify the keyfile is in the initramfs
 
@@ -497,7 +500,7 @@ Note the kernel string, then run for each:
 lsinitramfs /boot/initrd.img-<your-kernel-string> | grep "^cryptroot/keyfiles/"
 ```
 
-Expected: `cryptroot/keyfiles/crypt.key` — the tool renames the keyfile automatically using the first field of crypttab. If nothing is returned, do not reboot — check crypttab and rebuild.
+Expected: `cryptroot/keyfiles/crypt.key`; the tool renames the keyfile automatically using the first field of crypttab. If nothing is returned, do not reboot: check crypttab and rebuild.
 
 ### Exit chroot and return to installer
 
@@ -506,21 +509,21 @@ exit
 exit
 ```
 
-This returns you to the installer menu. Let the installer finish and reboot from there — it runs cleanup tasks before rebooting.
+This returns you to the installer menu. Let the installer finish and reboot from there: it runs cleanup tasks before rebooting.
 
 
-## Part 11 — What to expect at every boot
+## Part 11: What to expect at every boot
 
 1. Firmware loads GRUB from the ESP
-2. GRUB prompts: **"Enter passphrase for /dev/nvme0n1p2"** — type your LUKS passphrase **once**
+2. GRUB prompts: **"Enter passphrase for /dev/nvme0n1p2"**; type your LUKS passphrase **once**
 3. GRUB unlocks LUKS2, activates LVM, reads kernel and initramfs from `vg0/boot`
 4. Initramfs finds the keyfile (packed inside the initramfs image) and unlocks root automatically
-5. Devuan boots to login — **no second passphrase prompt**
+5. Devuan boots to login: **no second passphrase prompt**
 
 **Why is the keyfile secure?** The keyfile is inside the initramfs, which lives on `vg0/boot`, which is inside the LUKS2 container. An attacker with physical access cannot reach the initramfs or keyfile without your passphrase first. The keyfile only becomes accessible after GRUB has already unlocked the container.
 
 
-## Part 12 — Harden /tmp after first boot
+## Part 12: Harden /tmp after first boot
 
 Open a terminal after logging in:
 
@@ -530,7 +533,7 @@ sudo nano /etc/fstab
 
 Add at the bottom:
 
-```
+```text
 tmpfs /tmp tmpfs defaults,noexec,nosuid,nodev,nosymfollow,size=2G 0 0
 ```
 
@@ -541,13 +544,13 @@ sudo mount -a
 mount | grep tmp
 ```
 
-You should see `tmpfs` mounted on `/tmp`. If you get an error, check the fstab line for typos before rebooting — a bad fstab entry can drop you into emergency mode.
+You should see `tmpfs` mounted on `/tmp`. If you get an error, check the fstab line for typos before rebooting: a bad fstab entry can drop you into emergency mode.
 
 **What each option does:**
 
 | Option | Effect |
 |---|---|
-| `noexec` | Nothing in /tmp can be executed — blocks a common malware landing spot |
+| `noexec` | Nothing in /tmp can be executed: blocks a common malware landing spot |
 | `nosuid` | Prevents privilege escalation via setuid binaries in /tmp |
 | `nodev` | Prevents device files in /tmp |
 | `nosymfollow` | Prevents symlink attacks. Linux-specific (requires kernel 5.10+, Daedalus ships 6.1) |
@@ -556,7 +559,7 @@ You should see `tmpfs` mounted on `/tmp`. If you get an error, check the fstab l
 Contents clear automatically on every reboot.
 
 
-## Appendix A — Changing the LUKS passphrase later
+## Appendix A: Changing the LUKS passphrase later
 
 If you ever need to change your passphrase (without losing the keyfile slot):
 
@@ -571,9 +574,9 @@ cryptsetup luksDump /dev/nvme0n1p2 | grep ENABLED
 ```
 
 
-## Appendix B — Notes on security tradeoffs
+## Appendix B: Notes on security tradeoffs
 
-- **PBKDF2 vs Argon2id:** GRUB cannot use Argon2id, so PBKDF2 is required for the LUKS header. This is a known limitation of GRUB-based encrypted `/boot` setups — not a flaw in this guide.
+- **PBKDF2 vs Argon2id:** GRUB cannot use Argon2id, so PBKDF2 is required for the LUKS header. This is a known limitation of GRUB-based encrypted `/boot` setups, not a flaw in this guide.
 - **Keyfile in initramfs:** The keyfile is encrypted inside the LUKS container and only accessible after your passphrase is entered. It does not weaken security.
 - **Root account locked:** No direct root login is possible. All admin actions require `sudo` and your login password.
 - **Separate /home:** Keeping `/home` on its own LV allows reinstalling root without wiping personal data (as long as you do not reformat `/home` during reinstall).

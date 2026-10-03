@@ -15,7 +15,7 @@ For someone who is not a cryptsetup expert, this whole path is intimidating and 
 
 Two requests, if they are feasible.
 
-First, could the installer offer encrypted /boot as a clearly labeled option?
+First, could the installer offer encrypted /boot as a clearly labelled option?
 Concretely: keep the container as LUKS2, use a PBKDF2 key slot only where GRUB needs it today (or Argon2id once Freia ships GRUB 2.14, which supports it natively), set GRUB_ENABLE_CRYPTODISK, and automatically place a keyfile inside the initramfs so the user enters the passphrase once rather than twice.
 The Refracta live installer already gets most of the way there when you encrypt root without a separate /boot; the missing pieces are the single-prompt keyfile step, which currently has to be done by hand, and a plainly documented choice about the key-derivation trade-off.
 

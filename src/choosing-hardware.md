@@ -1,6 +1,11 @@
 # Choosing Hardware for Linux in 2026
 
-What to put Linux on. Three sovereignty tiers — desktop you built, Linux-friendly laptop, phone with a keyboard — with a clear nudge away from Macs in any tier. Companion to the OS guide; updated as things change.
+> - **For:** people buying a machine to run Linux on. If you already own a working PC that isn't a Mac, install Linux on it and skip this.
+> - **Before you start:** [Choosing the OS](./choosing-os.md).
+> - **Reading time:** about 22 minutes.
+> - **You end with:** a tier (a desktop from parts, a laptop, or a phone with a keyboard) and specific models within it.
+
+What to put Linux on. Three sovereignty tiers (desktop you built, Linux-friendly laptop, phone with a keyboard) with a clear nudge away from Macs in any tier. Companion to the OS guide; updated as things change.
 
 ## TL;DR
 
@@ -12,31 +17,31 @@ Three tiers, ordered by sovereignty and by my recommendation strength:
 2. **Framework 13/16, current ThinkPad (X1 Carbon Gen 14, T14 Gen 7, T16 Gen 5), or a refurbished X230/T480 with Libreboot.** The practical sovereign-laptop tier. Framework for modularity (swap the mainboard to upgrade the CPU generation). Current ThinkPad T-series now matches Framework on iFixit's repairability score (10/10 at MWC 2026)[^thinkpad-mwc] while remaining the keyboard and battery-life champion. Refurbished X230/T480 if you want open boot firmware and don't mind a 2012/2018 machine.
 3. **Pixel 8 or newer plus USB-C dock plus external display, running GrapheneOS with its experimental desktop mode.** Android 16's polished Desktop Mode (shipped with the March 2026 Pixel Feature Drop as part of QPR3, built on Samsung DeX's foundations per Google's I/O 2025 announcement)[^android16-desktop] is on stock Pixel today; GrapheneOS users get experimental desktop mode usable now with the same hardware path, and the stable version is expected via Android 17 release uplift[^grapheneos-desktop]. PostmarketOS on a Pixel, plus the dedicated Linux phones (PinePhone Pro, Librem 5), are more radical paths and are not daily-driver-ready in 2026.
 
-Do not buy a MacBook to install Linux on. Asahi Linux work covers M1/M2 well, but M3 boots without a working GPU, M4 development stalled after Apple's architecture changes broke the project's reverse-engineering tooling, M5 bring-up just started, and the project founder left in early 2025 over kernel-upstreaming politics[^asahi-state][^asahi-martin]. You'd be paying Apple's hardware margin for a machine optimized for an OS you intend to replace, then chasing a target Apple's silicon team does not want you to hit.
+Do not buy a MacBook to install Linux on. Asahi Linux work covers M1/M2 well, but M3 boots without a working GPU, M4 development stalled after Apple's architecture changes broke the project's reverse-engineering tooling, M5 bring-up just started, and the project founder left in early 2025 over kernel-upstreaming politics[^asahi-state][^asahi-martin]. You'd be paying Apple's hardware margin for a machine optimised for an OS you intend to replace, then chasing a target Apple's silicon team does not want you to hit.
 
-Do not buy a Mac for general computing if sovereignty is the question this document is trying to answer. The companion piece `os.md` covers when keeping a Mac for one specialized workflow (video, audio, Adobe) is a reasonable concession; that concession does not extend to "buy a new Mac for general computing."
+Do not buy a Mac for general computing if sovereignty is the question this document is trying to answer. [Choosing the OS](./choosing-os.md) covers when keeping a Mac for one specialised workflow (video, audio, Adobe) is a reasonable concession; that concession does not extend to "buy a new Mac for general computing."
 
 
 ## How this fits with the OS guide
 
-The OS guide (`os.md`) is upstream of this one. Pick a distro first; pick hardware to match. Most readers already have a working PC and the question "what to put Linux on" is answered by "the machine you already own, unless it's a Mac." This document is for the case where you are actually buying.
+[Choosing the OS](./choosing-os.md) is upstream of this one. Pick a distro first; pick hardware to match. Most readers already have a working PC and the question "what to put Linux on" is answered by "the machine you already own, unless it's a Mac." This document is for the case where you are actually buying.
 
 The sovereignty axis used here is the same one the OS guide uses: the question is not "which vendor is best" but "which vendor is in the conversation forever, and on what terms." Apple expects to be in the conversation forever and dictates the terms. Microsoft is increasingly putting itself in the conversation through firmware (Pluton's integration into AMD Ryzen 6000+ and selected Intel chips, pushed through Windows-certified OEM hardware). Google, on Pixel hardware, sells you the device and then leaves the software conversation entirely if you install GrapheneOS. The vendors who sell explicitly for Linux (Framework, System76, Tuxedo, Star Labs, Purism) sit lower on the vendor-presence axis. The desktop you built yourself, from commodity parts, sits lowest.
 
 
 ## Tier 1: A desktop you built from parts
 
-A self-assembled desktop is the most sovereign general-purpose computer you can own in 2026 short of exotica. Every component is commoditized; you can replace any single piece without replacing the rest; nothing on the board expects an OEM telemetry pipeline.
+A self-assembled desktop is the most sovereign general-purpose computer you can own in 2026 short of exotica. Every component is commoditised; you can replace any single piece without replacing the rest; nothing on the board expects an OEM telemetry pipeline.
 
-**CPU.** AMD Ryzen (7000-series Zen 4, 9000-series Zen 5) over Intel for Linux in 2026. AMD's PSP (Platform Security Processor) is no better than Intel's ME at the firmware-blob layer — both are closed-source coprocessors with their own privileged execution environments — so don't pick AMD for that reason. Pick it because the kernel-side support story is cleaner: Ryzen's Linux performance, idle power, and scheduler interactions track upstream tightly, while Intel's E-core/P-core hybrid scheduling has had multiple regressions on mainline kernels. AMD Ryzen also makes ECC RAM accessible at consumer prices (covered below).
+**CPU.** AMD Ryzen (7000-series Zen 4, 9000-series Zen 5) over Intel for Linux in 2026. AMD's PSP (Platform Security Processor) is no better than Intel's ME at the firmware-blob layer (both are closed-source coprocessors with their own privileged execution environments), so don't pick AMD for that reason. Pick it because the kernel-side support story is cleaner: Ryzen's Linux performance, idle power, and scheduler interactions track upstream tightly, while Intel's E-core/P-core hybrid scheduling has had multiple regressions on mainline kernels. AMD Ryzen also makes ECC RAM accessible at consumer prices (covered below).
 
 **GPU.** AMD Radeon over Nvidia for any machine that runs a Linux desktop. The open-source `amdgpu` driver is in mainline, Wayland-native, handles HDR/VRR/FreeSync, suspends and resumes correctly, and has zero out-of-tree dependencies. Nvidia's situation has improved (GSP firmware lets the open `nouveau` driver work for non-gaming use, and Nvidia's proprietary driver has gained Wayland support), but you are still chasing a moving target where the open and closed drivers behave differently, Wayland sessions have subtle issues, and suspend remains unreliable. Exception: if you do ML/CUDA work, Nvidia remains the practical pick despite the friction, and a second small AMD machine becomes the general-computing answer.
 
-**Wi-Fi and Bluetooth.** Intel AX2xx-series cards (AX210, AX211, BE200) work mainline-out-of-box with nothing beyond `linux-firmware`. MediaTek MT7921/MT7922 are the second pick. Avoid Realtek and Broadcom — driver support ranges from "binary blob from the vendor that breaks every kernel" to "no support at all." On a desktop you can always swap the card; a single bad pick is not catastrophic.
+**Wi-Fi and Bluetooth.** Intel AX2xx-series cards (AX210, AX211, BE200) work mainline-out-of-box with nothing beyond `linux-firmware`. MediaTek MT7921/MT7922 are the second pick. Avoid Realtek and Broadcom: driver support ranges from "binary blob from the vendor that breaks every kernel" to "no support at all." On a desktop you can always swap the card; a single bad pick is not catastrophic.
 
 **RAM.** ECC if the budget allows. The argument is not theoretical cosmic-ray bit-flips; the argument is that ECC modules are paired with more conservative validation and chip binning, so they fail less often even when ECC correction is not actively kicking in. AMD Ryzen plus an ASRock/ASUS Pro motherboard is the cheap path to ECC at consumer prices; on Intel you're paying Xeon tax for the same feature.
 
-**Storage.** NVMe over SATA. Boring brand names with mature Linux support — Samsung 9xx Pro, WD SN850X, Crucial T700 — over budget controllers with intermittent NVMe-disconnect issues under heavy I/O.
+**Storage.** NVMe over SATA. Boring brand names with mature Linux support (Samsung 9xx Pro, WD SN850X, Crucial T700) over budget controllers with intermittent NVMe-disconnect issues under heavy I/O.
 
 **Case, PSU, motherboard.** Boring. Fractal, Corsair, BeQuiet, Seasonic. The boring choice is the right choice.
 
@@ -47,19 +52,19 @@ What this tier costs you: portability. If you cannot accept a desktop in your ho
 
 ## Tier 2: Laptops
 
-In rough sovereignty order. One note before the picks: the "Linux-certified" Dell XPS / HP / Lenovo Linux SKUs from major OEMs exist, the certification is real, the hardware works — but you're still buying from a vendor whose primary business is shipping Windows machines with vendor telemetry baked into the firmware, and the Linux SKU is a side product. The dedicated-Linux vendors below are competitive on price and better aligned on incentives.
+In rough sovereignty order. One note before the picks: the "Linux-certified" Dell XPS / HP / Lenovo Linux SKUs from major OEMs exist, the certification is real, the hardware works, but you're still buying from a vendor whose primary business is shipping Windows machines with vendor telemetry baked into the firmware, and the Linux SKU is a side product. The dedicated-Linux vendors below are competitive on price and better aligned on incentives.
 
-### Framework — primary recommendation
+### Framework: primary recommendation
 
 Framework 13 and Framework 16 are the most modular mainstream x86 laptops available in 2026. The motherboard is socketed; you can swap CPU generations without buying a new laptop. The ports are modular expansion cards; you choose USB-A/USB-C/HDMI/DisplayPort/MicroSD/storage per slot. Every internal part is sold individually with public service manuals. The April 2026 Panther Lake release shipped with explicit Linux support, including Fedora and Ubuntu OEM images.
 
 What it does well: Linux compatibility is excellent and vendor-tested before release. Battery life on the current AMD Ryzen Framework 13 is competitive with current ThinkPads. The 16" model accepts a discrete GPU expansion bay if you want gaming or ML on a portable.
 
-What it does less well: per-unit cost is higher than a comparable ThinkPad. The hinge on the earliest Framework 13 generations was a weak point (fixed in current units; check before buying refurbished). The 16" model is bulky for its screen size. The keyboard is good, not great — the ThinkPad X1 Carbon remains better.
+What it does less well: per-unit cost is higher than a comparable ThinkPad. The hinge on the earliest Framework 13 generations was a weak point (fixed in current units; check before buying refurbished). The 16" model is bulky for its screen size. The keyboard is good, not great: the ThinkPad X1 Carbon remains better.
 
 On repairability scoring: iFixit gave the current Lenovo T14 Gen 7 and T16 Gen 5 the same 10/10 rating Framework has held for years[^thinkpad-mwc]. iFixit measures whether parts are accessible and replaceable. It does not measure whether you can swap the mainboard for a CPU generation upgrade or whether the ports themselves are user-configurable. Framework still wins on those two dimensions; the generic "most repairable" claim now has competition.
 
-The political flag: GNOME-side commentators have called Framework everything from "supports Fascist and Racist s***heads" (GNOME OS Team, October 2025) to "Nazibook 13 pro" (GNOME contributor Jordan Petridis, April 2026, on Mastodon), after Framework's continued partnership with DHH (David Heinemeier Hansson) on his Omarchy distribution and its sponsorship of Hyprland. The OS guide treats this pattern as a community-politics flag for GNOME, not for Framework; from the capture-risk frame the same pattern reads as inadvertent endorsement of Framework, since the actors attacking it are the ones most willing to weaponize CoC enforcement against engineering work they oppose politically. See `os.md` → "GNOME's political turn and the Code of Conduct asymmetry" for the full chronology and primary sources.
+The political flag: GNOME-side commentators have called Framework everything from "supports Fascist and Racist s***heads" (GNOME OS Team, October 2025) to "Nazibook 13 pro" (GNOME contributor Jordan Petridis, April 2026, on Mastodon), after Framework's continued partnership with DHH (David Heinemeier Hansson) on his Omarchy distribution and its sponsorship of Hyprland. The OS guide treats this pattern as a community-politics flag for GNOME, not for Framework; from the capture-risk frame the same pattern reads as inadvertent endorsement of Framework, since the actors attacking it are the ones most willing to weaponise CoC enforcement against engineering work they oppose politically. See [GNOME's political turn and the Code of Conduct asymmetry](./choosing-os.md#gnomes-political-turn-and-the-code-of-conduct-asymmetry) for the full chronology and primary sources.
 
 ### Current ThinkPad T-series and X-series
 
@@ -84,7 +89,7 @@ Pick this if your threat model specifically includes "the firmware on the laptop
 
 ### System76
 
-US-based hardware company in Denver, ships Pop!_OS preinstalled, runs `system76-firmware` on most current models, funds the COSMIC desktop. The hardware itself is rebranded Clevo/Sager whitebooks (true of most boutique Linux vendors), but the firmware customization is real.
+US-based hardware company in Denver, ships Pop!_OS preinstalled, runs `system76-firmware` on most current models, funds the COSMIC desktop. The hardware itself is rebranded Clevo/Sager whitebooks (true of most boutique Linux vendors), but the firmware customisation is real.
 
 What it does well: ships with Linux configured correctly, the company is actively in the Linux conversation, NVIDIA driver integration is the smoothest of any vendor.
 
@@ -92,7 +97,7 @@ What it does less well: Pop!_OS is Ubuntu-based and the OS guide currently recom
 
 ### Tuxedo Computers and Star Labs
 
-Tuxedo Computers (German) and Star Labs (British) ship Linux preinstalled. Tuxedo offers the broader range, including AMD configurations. Star Labs makes a smaller line — StarBook, StarLite, StarFighter — and has done public work on opening their firmware (partial coreboot ports on some models). Both are smaller companies; warranty and resale logistics favor EU buyers.
+Tuxedo Computers (German) and Star Labs (British) ship Linux preinstalled. Tuxedo offers the broader range, including AMD configurations. Star Labs makes a smaller line (StarBook, StarLite, StarFighter), and has done public work on opening their firmware (partial coreboot ports on some models). Both are smaller companies; warranty and resale logistics favour EU buyers.
 
 Pick if: you're in the EU and want a vendor in your jurisdiction, or you specifically value Star Labs' open-firmware work.
 
@@ -100,15 +105,15 @@ Pick if: you're in the EU and want a vendor in your jurisdiction, or you specifi
 
 The most libre laptop available, sold by the most politically explicit vendor. PureBoot firmware (Coreboot plus Heads), hardware kill switches for camera/microphone and Wi-Fi/Bluetooth, designed around the FSF's free-as-in-freedom criteria.
 
-What it does well: the political posture you're paying for is real, not marketing — the kill switches break the circuit physically, the firmware is auditable, PureBoot uses a YubiKey for tamper-evident attestation.
+What it does well: the political posture you're paying for is real, not marketing; the kill switches break the circuit physically, the firmware is auditable, PureBoot uses a YubiKey for tamper-evident attestation.
 
-What it does less well: performance is a generation behind, the company has had fulfillment delays (the Librem 5 phone took years to ship after the campaign closed), and the per-unit price is high relative to specs.
+What it does less well: performance is a generation behind, the company has had fulfilment delays (the Librem 5 phone took years to ship after the campaign closed), and the per-unit price is high relative to specs.
 
 Pick this if sovereignty matters to you to the point that "every component must be replaceable and every blob removable" is the floor.
 
 ### NitroPad (Heads-flashed ThinkPad from Nitrokey)
 
-The pre-flashed-with-Heads option. Nitrokey (German, open-firmware hardware-token vendor; see `privacy-setup.md`) sells refurbished ThinkPads — currently the X230, T430, and X1 Carbon — with Heads coreboot pre-installed and a Nitrokey USB token paired to the laptop for verified-boot attestation. The pairing is the value-add: at each boot, Heads measures the boot chain, computes an HMAC, and lights a green-or-red LED on the paired Nitrokey indicating whether the measurement matches what was last enrolled. Tamper produces a red LED before you type your passphrase.
+The pre-flashed-with-Heads option. Nitrokey (German, open-firmware hardware-token vendor) sells refurbished ThinkPads (currently the X230, T430, and X1 Carbon) with Heads coreboot pre-installed and a Nitrokey USB token paired to the laptop for verified-boot attestation. The pairing is the value-add: at each boot, Heads measures the boot chain, computes an HMAC, and lights a green-or-red LED on the paired Nitrokey indicating whether the measurement matches what was last enrolled. Tamper produces a red LED before you type your passphrase.
 
 What it does well: gets you a working Heads/coreboot machine without flashing it yourself. Flashing Heads requires SOIC clips, an external programmer (Raspberry Pi or similar), and the time to follow the (long) procedure correctly the first time. NitroPad pays for that work plus the QA. Comes with the verified-boot-token integration ready to use.
 
@@ -132,54 +137,54 @@ Don't buy a MacBook to install Linux on. Asahi Linux's situation in 2026 is roug
 - M3 boots but the GPU does not work and KDE runs in software rendering (LLVMpipe). One driver developer in January 2026 described the state as "ONLY the internal SSD, display, keyboard, and trackpad work"[^asahi-m3].
 - M4 development has stalled. Apple's M4 architecture changes broke the project's reverse-engineering tooling (the SPTM-at-GL2 plus MMU-enabled-EL2 changes that Sven Peter described as "rather painful"). A Linux 6.17 regression set the schedule back further[^asahi-state].
 - M5 bring-up is in its earliest phase; no public confirmation of basic Linux boot as of early 2026[^asahi-state].
-- Hector Martin, the project founder, left in early 2025 over kernel-upstreaming politics — specifically the Rust-in-kernel argument and the difficulty of getting 1000+ downstream patches accepted upstream. The seven-person successor team is focused on upstreaming, not new hardware[^asahi-martin].
+- Hector Martin, the project founder, left in early 2025 over kernel-upstreaming politics, specifically the Rust-in-kernel argument and the difficulty of getting 1000+ downstream patches accepted upstream. The seven-person successor team is focused on upstreaming, not new hardware[^asahi-martin].
 
-Translated: buying a MacBook with the intention of running Linux on it means either buying an M1/M2 used machine where the work is mostly done (the realistic path) or buying an M3+ machine where you're chasing a target Apple is actively making harder to hit. Either way, you've paid Apple's hardware margin for a machine optimized for an OS you're going to replace. Buy a Framework or ThinkPad. They're cheaper, modular, and supported on every distro the OS guide names.
+Translated: buying a MacBook with the intention of running Linux on it means either buying an M1/M2 used machine where the work is mostly done (the realistic path) or buying an M3+ machine where you're chasing a target Apple is actively making harder to hit. Either way, you've paid Apple's hardware margin for a machine optimised for an OS you're going to replace. Buy a Framework or ThinkPad. They're cheaper, modular, and supported on every distro the OS guide names.
 
 
 ## Tier 3: A phone with a keyboard
 
-The provocative tier. PostmarketOS sits at the OS layer; the Pixel and the dedicated Linux phones sit at the hardware layer. The rungs below are organized by hardware first, with OS options inside each.
+The provocative tier. PostmarketOS sits at the OS layer; the Pixel and the dedicated Linux phones sit at the hardware layer. The rungs below are organised by hardware first, with OS options inside each.
 
-### Pixel 8 or newer — the practical hardware
+### Pixel 8 or newer: the practical hardware
 
-Pixel 8/8a/9/9a/9 Pro/10/10 Pro/10a all support DisplayPort Alt Mode over USB-C; everything before Pixel 8 lacks the hardware. The Pixel 9a at roughly ₹38,000 is the value pick; see `choosing-phone.md` for the device argument.
+Pixel 8/8a/9/9a/9 Pro/10/10 Pro/10a all support DisplayPort Alt Mode over USB-C; everything before Pixel 8 lacks the hardware. The Pixel 9a at roughly ₹38,000 is the value pick.
 
 Hardware setup, common to both OS options below:
 
 - USB-C hub with DisplayPort Alt Mode and HDMI out plus PD passthrough for charging. Anker, Plugable, and UGreen sell working models. Cheap charge-only USB-C cables do not pass video; look for "DisplayPort Alt Mode" or "USB-C 4K" on the spec sheet[^plugable].
-- External monitor — 1080p or 1440p in practice; the Pixel can negotiate 4K 60Hz on some configurations but most setups land at 1920x1080 or 2560x1440 today.
+- External monitor: 1080p or 1440p in practice; the Pixel can negotiate 4K 60Hz on some configurations but most setups land at 1920x1080 or 2560x1440 today.
 - Bluetooth keyboard and mouse, or a USB keyboard/mouse via the hub.
 
 #### Option A: GrapheneOS with experimental desktop mode (practical)
 
 The stable polished Android 16 Desktop Mode (QPR3 baseline, taskbar, freeform windows, multi-monitor support) shipped on stock Pixel with the March 2026 Pixel Feature Drop, built on Samsung DeX's foundations per Google's I/O 2025 confirmation[^android16-desktop][^pixel-march-2026]. GrapheneOS users do not get that polished build immediately: Google's 2026 AOSP cadence means QPR3 features are not flowing downstream to custom AOSP forks the way they used to, and the stable Desktop Mode on GrapheneOS is widely expected to arrive via the Android 17 release uplift[^grapheneos-desktop]. In the meantime, GrapheneOS ships an experimental desktop mode that is usable today with the same USB-C dock plus keyboard plus mouse hardware path[^grapheneos-desktop]. It works; it's not as polished as stock QPR3.
 
-What you get: a real desktop with a taskbar, resizable windowed apps, and the phone screen functioning independently — calls and messages still arrive on the phone display while the desktop session runs on the monitor. Browser with many tabs works. Google Docs, Gmail, Lightroom, and spreadsheets work. Terminal-via-Termux works.
+What you get: a real desktop with a taskbar, resizable windowed apps, and the phone screen functioning independently; calls and messages still arrive on the phone display while the desktop session runs on the monitor. Browser with many tabs works. Google Docs, Gmail, Lightroom, and spreadsheets work. Terminal-via-Termux works.
 
 What you don't get: heavy creative work, gaming, or anything that wants discrete GPU power. Some Android apps adapt cleanly to windowed mouse-driven use; some are barely usable in window mode. The trackpad-emulation story is still rough.
 
-The Termux companion: install Termux from F-Droid (the Google Play build is deprecated and stale; F-Droid is the live channel), `pkg install openssh tmux mosh`, ssh out to a real machine, and run your real work there. This combination — Pixel plus GrapheneOS plus Termux plus mosh to a remote desktop or cloud machine — is, for some workflows, a complete substitute for a laptop. Code review, writing, server administration, light scripting, and anything browser-centric all fit comfortably.
+The Termux companion: install Termux from F-Droid (the Google Play build is deprecated and stale; F-Droid is the live channel), `pkg install openssh tmux mosh`, ssh out to a real machine, and run your real work there. This combination (Pixel plus GrapheneOS plus Termux plus mosh to a remote desktop or cloud machine) is, for some workflows, a complete substitute for a laptop. Code review, writing, server administration, light scripting, and anything browser-centric all fit comfortably.
 
 This setup is sovereignty-maximal in a specific way: you carry one device that is also your phone; the OS on that device (GrapheneOS) is one of the most hardened consumer OSes shipping; and your actual work lives on a machine you control somewhere else. Loss or seizure of the device costs you the device, not the work.
 
 #### Option B: PostmarketOS on the same Pixel (more radical)
 
-PostmarketOS is Alpine Linux for phones. The current stable release is v25.12 (December 2025); v26.06 is in development[^pmos-current]. As of February 2026, PostmarketOS supports an estimated 723 device models, including the Pixel 3a, OnePlus 6T, Fairphone 4/5, PinePhone, PinePhone Pro, and a long tail of older hardware[^pmos-state]. The strategic shift in 2026 is toward generic mainline kernels — one kernel image bootable across many devices via Device Tree overlays — replacing the per-device kernel-fork model that previously throttled the project's pace[^pmos-state].
+PostmarketOS is Alpine Linux for phones. The current stable release is v25.12 (December 2025); v26.06 is in development[^pmos-current]. As of February 2026, PostmarketOS supports an estimated 723 device models, including the Pixel 3a, OnePlus 6T, Fairphone 4/5, PinePhone, PinePhone Pro, and a long tail of older hardware[^pmos-state]. The strategic shift in 2026 is toward generic mainline kernels (one kernel image bootable across many devices via Device Tree overlays), replacing the per-device kernel-fork model that previously throttled the project's pace[^pmos-state].
 
 What it gives you: real Linux on phone hardware. GNOME Mobile, Phosh, Plasma Mobile, or Sxmo as the desktop. No Android base, no Play Services, no advertising identifier, no vendor analytics. Alpine's `apk` package manager.
 
-What it costs you: app compatibility. Most Android apps run via Waydroid (a container) with caveats; banking apps that require device attestation typically do not work, even with microG. Camera support is uneven (the camera-stack on many mobile SoCs has no mainline driver). Cellular modem support varies by device. Independent coverage in 2026 characterizes the platform as "a credible development target and an increasingly functional enthusiast platform" rather than a daily-driver replacement for Android or iOS[^pmos-state].
+What it costs you: app compatibility. Most Android apps run via Waydroid (a container) with caveats; banking apps that require device attestation typically do not work, even with microG. Camera support is uneven (the camera-stack on many mobile SoCs has no mainline driver). Cellular modem support varies by device. Independent coverage in 2026 characterises the platform as "a credible development target and an increasingly functional enthusiast platform" rather than a daily-driver replacement for Android or iOS[^pmos-state].
 
 Pick this over Option A if: you want full Linux on the phone hardware itself rather than hardened Android, you can tolerate the rough edges, and you're prepared to roll back to GrapheneOS or stock if something doesn't work. For most readers, Option A is the better trade.
 
-### Dedicated Linux phones — PinePhone Pro and Librem 5 (most radical)
+### Dedicated Linux phones: PinePhone Pro and Librem 5 (most radical)
 
-The PinePhone Pro (Pine64, approximately $399 base) and Librem 5 (Purism, approximately $799 with current promos) are phones designed for Linux from the ground up. PinePhone Pro runs PostmarketOS, Mobian, or one of several other distros; Librem 5 runs PureOS by default. Both have hardware kill switches for the radios and cameras — a feature no Pixel offers.
+The PinePhone Pro (Pine64, approximately $399 base) and Librem 5 (Purism, approximately $799 with current promos) are phones designed for Linux from the ground up. PinePhone Pro runs PostmarketOS, Mobian, or one of several other distros; Librem 5 runs PureOS by default. Both have hardware kill switches for the radios and cameras: a feature no Pixel offers.
 
 What you get: an open Linux mobile device with hardware designed around the open Linux mobile stack. The kill switches are physical circuit breaks, not software toggles.
 
-What you give up: battery life is measured in hours, not days (PinePhone Pro especially is known for 3–5 hours of active use). Camera quality is below 2019 Android-flagship level. Cellular reliability ranges from "fine on common bands" to "intermittent." Purism's fulfillment history is poor (multi-year delays on the original Librem 5 deliveries). Software maturity remains rough enough that long-time users describe both phones with affection-tinged frustration.
+What you give up: battery life is measured in hours, not days (PinePhone Pro especially is known for 3–5 hours of active use). Camera quality is below 2019 Android-flagship level. Cellular reliability ranges from "fine on common bands" to "intermittent." Purism's fulfilment history is poor (multi-year delays on the original Librem 5 deliveries). Software maturity remains rough enough that long-time users describe both phones with affection-tinged frustration.
 
 Pick this if: hardware kill switches are non-negotiable, the phone is primarily a Linux mobile device rather than a working daily phone, and you have patience for the maturity gap.
 
@@ -196,6 +201,7 @@ For most readers asking "phone as workstation," the Pixel hardware path above is
 The MacBook case has its own subsection inside Tier 2 (`#the-macbook-trap`) and is not repeated here.
 
 
+<!-- vale off -->
 [^thinkpad-mwc]: Engadget, *Lenovo's ThinkPads get a spec bump at MWC 2026*, 1 March 2026: <https://www.engadget.com/computing/laptops/lenovos-thinkpads-get-a-spec-bump-at-mwc-2026-230100419.html>. Confirms ThinkPad T14 Gen 7 and T16 Gen 5 starting at $1,799 with Intel Core Ultra Series 3 (vPro) or AMD Ryzen AI Pro 400 Series CPUs, optional 5MP camera with computer vision/vHDR, larger speakers, and an iFixit 10/10 repairability score. T14s Gen 7 starts at $1,899. Most devices shipping Q2 2026.
 
 [^thinkpad-x1c]: NotebookCheck, *Now available to order in many countries: Panther Lake powered Lenovo ThinkPad X1 Carbon Gen 14 releases*, 9 March 2026: <https://www.notebookcheck.net/Lenovo-releases-new-14-inch-ThinkPad-globally-with-120-Hz-VRR-OLED.1246063.0.html>. X1 Carbon Gen 14 with Intel Panther Lake replaces the Lunar Lake-based Gen 13. Three Thunderbolt 4 ports, 58 Wh battery, optional 120 Hz VRR OLED display. Configurable without an OS at a £50/€60 discount.

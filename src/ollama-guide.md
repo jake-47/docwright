@@ -8,6 +8,10 @@ Type to chat, `/bye` to exit.
 
 A walkthrough for installing Ollama on Devuan and running your first local model, written for someone who has never used it.
 
+## Why local LLM
+
+For instance, NYU mathematician Tristan Buckmaster (with Anthropic’s Levent Alpoge) accused OpenAI of racing to finish a Navier-Stokes proof after learning of their unpublished related work, possibly via Codex usage.
+
 ## What Ollama is
 
 A local LLM runtime.

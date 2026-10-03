@@ -1,8 +1,13 @@
 # Choosing Communication Tools
 
-How to choose a messenger or email setup when the goal isn't "what does my contact use" but "what threat model does the tool actually defend against." Covers centrally-coordinated messengers, federated networks, decentralized cryptography, P2P and offline-capable messengers, Nostr-rooted messaging, radio-grade off-grid messaging, and (in a dedicated second half) the email landscape: encrypted-mailbox providers, privacy-respecting standard providers, self-hosted mail, encryption layers, clients, and aliasing.
+> - **For:** people choosing a messenger or an email setup by threat model rather than by what their contacts use.
+> - **Before you start:** nothing. [Choosing networking tools](./choosing-networking-tools.md) covers the layer underneath.
+> - **Reading time:** about 53 minutes end to end; the TL;DR gives the picks in two.
+> - **You end with:** a default messenger, the upgrade path from it, and an email setup.
 
-This doc complements `choosing-networking-tools.md` (the L3/L4 networking layer) by covering the application-layer messaging and email space. The two intersect at Briar and at Reticulum's LXMF: both projects appear in both docs but with different framings.
+How to choose a messenger or email setup when the goal isn't "what does my contact use" but "what threat model does the tool actually defend against." Covers centrally-coordinated messengers, federated networks, decentralised cryptography, P2P and offline-capable messengers, Nostr-rooted messaging, radio-grade off-grid messaging, and (in a dedicated second half) the email landscape: encrypted-mailbox providers, privacy-respecting standard providers, self-hosted mail, encryption layers, clients, and aliasing.
+
+This doc complements [Choosing networking tools](./choosing-networking-tools.md) (the L3/L4 networking layer) by covering the application-layer messaging and email space. The two intersect at Briar and at Reticulum's LXMF: both projects appear in both docs but with different framings.
 
 
 ## TL;DR
@@ -38,11 +43,11 @@ Three architectural questions structure the messenger landscape:
 
 The combination of those three answers is the messenger's threat model. Signal answers "phone number + Signal Foundation servers + donations", strong cryptography, real funding model, US-jurisdiction exposure. SimpleX answers "no identifier + your-choice-of-relays + commercial + foundation", eliminates the metadata that the others handle imperfectly. White Noise answers "Nostr keypair + your-choice-of-relays + MLS encryption + Bitcoin-community-funded", sovereignty by construction at the cost of UX maturity. Nostr DMs (NIP-17) answer the same as White Noise but with weaker forward-secrecy and no native multi-device.
 
-Two more lenses run through both halves of this doc. The first is that open source is a floor, not a bonus: a tool whose source you cannot read is a tool whose behavior you are taking on faith, so fully-open-source-and-auditable tools are prioritized here, partially-open tools (open client and closed server, or open stack and closed app) are named as exactly that, and closed tools are flagged. Open source is necessary but not sufficient, because for any hosted service you still cannot verify that the server runs the code it publishes, which is why the sovereign endpoint in both halves is something you run yourself rather than a provider you trust. The second lens is that longevity is itself a security property: a tool that has operated for a decade through funding scares and legal pressure has demonstrated resilience a six-month-old startup cannot, and the VC-funded-toward-an-exit pattern named above is the specific failure mode to fear. Skiff, in the Email section, is the worked example, a polished, partly-open, well-funded privacy startup acquired and shut down inside four years, stranding its users with no clean migration path. New is not disqualifying, and several of the strongest entries here are recent, but new is unproven, so unproven tools carry a maturity stamp here rather than a recommendation.
+Two more lenses run through both halves of this doc. The first is that open source is a floor, not a bonus: a tool whose source you cannot read is a tool whose behaviour you are taking on faith, so fully-open-source-and-auditable tools are prioritised here, partially-open tools (open client and closed server, or open stack and closed app) are named as exactly that, and closed tools are flagged. Open source is necessary but not sufficient, because for any hosted service you still cannot verify that the server runs the code it publishes, which is why the sovereign endpoint in both halves is something you run yourself rather than a provider you trust. The second lens is that longevity is itself a security property: a tool that has operated for a decade through funding scares and legal pressure has demonstrated resilience a six-month-old startup cannot, and the VC-funded-toward-an-exit pattern named above is the specific failure mode to fear. Skiff, in the Email section, is the worked example, a polished, partly-open, well-funded privacy startup acquired and shut down inside four years, stranding its users with no clean migration path. New is not disqualifying, and several of the strongest entries here are recent, but new is unproven, so unproven tools carry a maturity stamp here rather than a recommendation.
 
 ### A note on MLS (Messaging Layer Security)
 
-MLS is the IETF-standardized group messaging cryptography (RFC 9420, July 2023). It provides forward secrecy (compromise of current keys doesn't expose past messages), post-compromise security (compromise self-heals as the ratchet advances), and end-to-end encrypted groups that scale to thousands of members without rekeying every pair separately. Apple, Google, Mozilla, Cisco, Wire, and Wickr were among the participants in standardization.
+MLS is the IETF-standardised group messaging cryptography (RFC 9420, July 2023). It provides forward secrecy (compromise of current keys doesn't expose past messages), post-compromise security (compromise self-heals as the ratchet advances), and end-to-end encrypted groups that scale to thousands of members without rekeying every pair separately. Apple, Google, Mozilla, Cisco, Wire, and Wickr were among the participants in standardisation.
 
 Adoption in 2026: Wire was the early production deployment; Element X is migrating Matrix from Olm/Megolm to MLS; White Noise is the first Nostr-native MLS messenger via the Marmot protocol; the IETF MIMI working group is building cross-network MLS interop on top. MLS is the trajectory most serious-use messengers are converging toward.
 
@@ -61,7 +66,7 @@ Phone-number identity is the recurring flag. Sign-up requires a phone number; th
 
 US-jurisdiction shape: Signal Foundation is a US 501(c)(3); the legal compulsion model is "the FBI asks, the Foundation provides what's technically possible to provide," which is by design very little (account creation date, last connection date, no message content, no contact list). The 2016 Eastern District of Virginia subpoena response is the canonical example: the Foundation provided account-creation timestamp and last-connection timestamp; that was all it had to provide.
 
-Community-politics flag: Meredith Whittaker's public political alignments are explicit and well-known (anti-corporate AI surveillance, AI Now Institute background); how much weight that carries varies by reader. The technical posture of Signal under her presidency has remained strong (post-quantum protocol upgrade, username feature, no telemetry-creep, no monetization-creep).
+Community-politics flag: Meredith Whittaker's public political alignments are explicit and well-known (anti-corporate AI surveillance, AI Now Institute background); how much weight that carries varies by reader. The technical posture of Signal under her presidency has remained strong (post-quantum protocol upgrade, username feature, no telemetry-creep, no monetisation-creep).
 
 Pick Signal as the default mass-market messenger if: your contacts will install it (the largest "your contacts will install it" surface area of any privacy messenger by an order of magnitude), and you understand the phone-number flag. The cryptography is genuinely strong; the structural risks are jurisdiction and phone-rooted identity, not the crypto.
 
@@ -99,7 +104,7 @@ Smaller user base than Matrix; older codebase; fewer feature creep risks. The pr
 Pick XMPP if: you want a protocol that has outlasted multiple companies and several federation experiments, you're comfortable picking your own server (or running one), and you don't need the rich-media UX Matrix invests in. Some sovereignty-minded operators specifically prefer XMPP over Matrix on the "older, simpler, more outlasted-companies" axis.
 
 
-## Tier 3: Decentralized cryptography
+## Tier 3: Decentralised cryptography
 
 The "no central party knows the topology, even if the relay set is fixed" tier.
 
@@ -121,7 +126,7 @@ Loki/Oxen Network-based, no phone number, no email, no central server. Forked fr
 
 Australian-headquartered (Session was originally a Loki Project initiative). The Oxen Network has had token-economy turbulence over the years.
 
-Pick Session if: you want a fully decentralized routing model, you accept the forward-secrecy trade for the offline-delivery property, and the Oxen Network's continued operation matches your time horizon. Smaller user base than SimpleX; less active development as of 2026.
+Pick Session if: you want a fully decentralised routing model, you accept the forward-secrecy trade for the offline-delivery property, and the Oxen Network's continued operation matches your time horizon. Smaller user base than SimpleX; less active development as of 2026.
 
 
 ## Tier 4: P2P and offline-capable
@@ -154,7 +159,7 @@ P2P SIP-based messenger and voice/video conferencing tool by Savoir-faire Linux 
 
 Capture-risk shape: no central server at all. Savoir-faire Linux maintains the software and runs default DHT bootstrap nodes, but the company can be removed from the loop with self-hosted bootstrap. Available on Linux, Windows, macOS, Android, iOS, including Devuan native packages.
 
-Pick Jami if: voice and video are first-class needs (not bolted onto a chat app), and you want serverless P2P architecture. Particularly useful for self-hosting in family or small-organization contexts where the user count is low enough that DHT discovery latency isn't an issue.
+Pick Jami if: voice and video are first-class needs (not bolted onto a chat app), and you want serverless P2P architecture. Particularly useful for self-hosting in family or small-organisation contexts where the user count is low enough that DHT discovery latency isn't an issue.
 
 ### Berty
 
@@ -166,7 +171,7 @@ Pick Berty over Briar if: you need iOS support. Otherwise Briar is the more esta
 
 Peer-to-peer messenger built by Holepunch and backed by Tether and Bitfinex, the companies behind the USDT stablecoin and the Bitfinex exchange. Built on the Pear Runtime and the Hypercore protocol stack: identity is a cryptographic keypair, peers locate each other through a distributed hash table, and there are no servers in the middle at all. End-to-end encrypted text, voice, and video, plus unlimited-size file transfer (files move device to device with no server to cap them), with integrated Bitcoin Lightning and USDT payments. Launched in 2022, downloaded millions of times, with a download surge through early 2026[^keet].
 
-Open-source status, stated precisely because it is the flag for this audience: the foundation is open source (the Pear Runtime, Hypercore, and Hyperswarm are published under permissive licenses and are reusable by any developer for any P2P app), but the Keet client application itself is not open source. NixOS packages it as unfree, and a 2022 promise to open-source the app has gone substantially unfulfilled as of 2026. So Keet is an open-source P2P stack wrapped in a closed-source client, which is weaker than Signal (open clients, source-available server) and weaker than the fully-open P2P messengers in this tier: Briar, Cwtch, and Jami are open source end to end.
+Open-source status, stated precisely because it is the flag for this audience: the foundation is open source (the Pear Runtime, Hypercore, and Hyperswarm are published under permissive licences and are reusable by any developer for any P2P app), but the Keet client application itself is not open source. NixOS packages it as unfree, and a 2022 promise to open-source the app has gone substantially unfulfilled as of 2026. So Keet is an open-source P2P stack wrapped in a closed-source client, which is weaker than Signal (open clients, source-available server) and weaker than the fully-open P2P messengers in this tier: Briar, Cwtch, and Jami are open source end to end.
 
 Capture-risk shape: zero servers by construction, so no operator to compel; the residual concerns are the closed client (you cannot audit what the app does with your keys) and, as with any DHT-based system, that the network maps your public key to your IP address to route traffic, so your IP is visible to the peers you connect with unless you add a network-layer cover such as a VPN or Tor. Funding flag: Tether and Bitfinex backing is what frees Holepunch from chasing subscription or ad revenue, and is also a commercial crypto-conglomerate dependency a sovereignty-minded reader should weigh on its own terms.
 
@@ -174,7 +179,7 @@ Pick Keet if: you want serverless P2P text with high-quality voice and video, no
 
 ### bitchat
 
-Decentralized messaging over Bluetooth Low Energy mesh, with internet-connected geohash channels via Nostr as an optional second layer. End-to-end encryption via the Noise Protocol Framework (XX pattern), no servers, no accounts, no phone numbers, no email. Built by Jack Dorsey (Twitter co-founder, Block CEO, and one of the most visible Bitcoin advocates in the technology industry) under his "and Other Stuff" open-source development collective, with significant community contribution since[^bitchat]. Repositories: `github.com/permissionlesstech/bitchat` (iOS, Swift, Unlicense / public domain) and `github.com/permissionlesstech/bitchat-android` (Android, Kotlin, GPL-3). iOS v1.5.x and Android v1.7.x current as of early 2026.
+Decentralised messaging over Bluetooth Low Energy mesh, with internet-connected geohash channels via Nostr as an optional second layer. End-to-end encryption via the Noise Protocol Framework (XX pattern), no servers, no accounts, no phone numbers, no email. Built by Jack Dorsey (Twitter co-founder, Block CEO, and one of the most visible Bitcoin advocates in the technology industry) under his "and Other Stuff" open-source development collective, with significant community contribution since[^bitchat]. Repositories: `github.com/permissionlesstech/bitchat` (iOS, Swift, Unlicense / public domain) and `github.com/permissionlesstech/bitchat-android` (Android, Kotlin, GPL-3). iOS v1.5.x and Android v1.7.x current as of early 2026.
 
 Architecture. Each device acts as both client and server in a BLE mesh; messages hop up to seven times to reach recipients outside direct range (~30m per hop). End-to-end encryption uses Noise XX, which provides mutual authentication and forward secrecy. Identity is a Noise static Curve25519 keypair plus an Ed25519 signing keypair, generated on first launch and stored in the device keychain. A user's verifiable fingerprint is the SHA-256 hash of their Noise static public key, readable aloud or scanned via QR for out-of-band verification. Messages live only in device memory by default and self-delete unless explicitly saved. Channel-based group chats (IRC-style `/join`, `/msg`, `/who`) with optional password protection; store-and-forward to offline peers; emergency wipe via triple-tap.
 
@@ -182,7 +187,7 @@ Hybrid Bluetooth-plus-Nostr design. Geohash channels (added in 2025-2026 develop
 
 Adoption signal worth naming. Ahead of Uganda's January 2026 general election, opposition leader Bobi Wine urged citizens to use bitchat to bypass anticipated internet shutdowns. Ugandan search interest for "bitchat" surged in the run-up to the election per Google Trends. The use case bitchat was architected for (protest communication when telecom infrastructure is throttled or shut down) is the use case it's actually being deployed for at scale in 2026. TestFlight beta hit its 10,000-slot cap within hours of Dorsey's July 2025 announcement; iOS App Store reach (25.1k GitHub stars on the iOS repo as of early 2026) gives bitchat a distribution surface that Briar's Android-first reach can't match. This is the rare case where a sovereignty-aligned messenger reached the mainstream-app-store audience without compromising the architecture.
 
-Sovereignty frame. bitchat occupies the same architectural slot in messaging that nostr-vpn (`choosing-networking-tools.md`) occupies in networking: a Bitcoin-aligned developer applies the no-trusted-third-parties pattern to infrastructure that used to require centralized servers, ships open source, and lets the architecture speak. Dorsey's funding via "and Other Stuff" rather than via VC or corporate roadmap puts the project structurally in the same class as Knots and as Malmi's work. The two flags worth naming are the iOS-side closed-app-store distribution (same flag every iOS app carries; the source is open and Android builds from source are fully supported) and Block's commercial position (Bitcoin financial-services company; Dorsey's personal funding is what backs bitchat, not Block's corporate strategy).
+Sovereignty frame. bitchat occupies the same architectural slot in messaging that nostr-vpn ([Choosing networking tools](./choosing-networking-tools.md)) occupies in networking: a Bitcoin-aligned developer applies the no-trusted-third-parties pattern to infrastructure that used to require centralised servers, ships open source, and lets the architecture speak. Dorsey's funding via "and Other Stuff" rather than via VC or corporate roadmap puts the project structurally in the same class as Knots and as Malmi's work. The two flags worth naming are the iOS-side closed-app-store distribution (same flag every iOS app carries; the source is open and Android builds from source are fully supported) and Block's commercial position (Bitcoin financial-services company; Dorsey's personal funding is what backs bitchat, not Block's corporate strategy).
 
 Capture-risk shape: zero by construction (no servers, no operator). Residual concerns are the iOS distribution channel and your trust in the binary build chain; both are addressable by building from source on Android.
 
@@ -197,7 +202,7 @@ Two architectural sub-tiers inside Nostr-rooted messaging: the protocol-level DM
 
 ### White Noise
 
-The sovereignty-frontier Nostr messenger as of 2026[^whitenoise]. Built by Erskin Gardner (`erskingardner`) and Max Hillebrand (founder of Sound Money Solutions); aligned with the Bitcoin community. Built on the Marmot protocol[^marmot], which sits on top of three primitives: Nostr (identity and signaling), Blossom (Nostr file hosting standard for media), and MLS (RFC 9420 Messaging Layer Security for the cryptography).
+The sovereignty-frontier Nostr messenger as of 2026[^whitenoise]. Built by Erskin Gardner (`erskingardner`) and Max Hillebrand (founder of Sound Money Solutions); aligned with the Bitcoin community. Built on the Marmot protocol[^marmot], which sits on top of three primitives: Nostr (identity and signalling), Blossom (Nostr file hosting standard for media), and MLS (RFC 9420 Messaging Layer Security for the cryptography).
 
 What MLS gets you that NIP-17 doesn't:
 
@@ -210,7 +215,7 @@ Sender-recipient unlinkability over relays: Marmot wraps the MLS messages in Nos
 
 Status: alpha. Mobile app via Apple TestFlight (Android paths under iteration); desktop builds available. Open-source alpha; the team explicitly requests audits and community feedback. Production-ready nowhere near; architecturally the most advanced Nostr messenger by some distance.
 
-Pick White Noise if: you want forward secrecy and multi-device on Nostr-rooted identity, you can persuade your contacts to install an alpha-grade messenger, and you're aligned with the Bitcoin community's sovereignty frame. The architecture is what to learn from; deployment for daily use comes when the alpha stabilizes.
+Pick White Noise if: you want forward secrecy and multi-device on Nostr-rooted identity, you can persuade your contacts to install an alpha-grade messenger, and you're aligned with the Bitcoin community's sovereignty frame. The architecture is what to learn from; deployment for daily use comes when the alpha stabilises.
 
 ### Nostr DMs (NIP-17) and the client landscape
 
@@ -225,15 +230,15 @@ Client landscape:
 
 - **Damus** (iOS, macOS): the most-polished iOS Nostr client. Built by William Casarin.
 - **Amethyst** (Android): the most-featureful Android Nostr client. Built by Vitor Pamplona.
-- **Iris** (web, Android): built by Martti Malmi (the same nostr-vpn author from `choosing-networking-tools.md`). Web-first; reasonable mobile experience.
+- **Iris** (web, Android): built by Martti Malmi (the same nostr-vpn author from [Choosing networking tools](./choosing-networking-tools.md)). Web-first; reasonable mobile experience.
 - **0xchat** (iOS, Android, desktop): privacy-focused Nostr client, NIP-17 DMs as default, recently added group-chat support.
 - **Primal** (iOS, Android, web): UX-polished cross-platform client; integrated Lightning wallet for zaps; sometimes feels closer to a Twitter-replacement than a messenger but the DM support is real.
 
 ### Status
 
-Ethereum-rooted decentralized messenger, peer of the Nostr-rooted projects in spirit but built on the Waku protocol (libp2p-based) and the Logos network rather than Nostr relays. Identity is a public-key derived address; no email or phone; integrated cryptocurrency wallet.
+Ethereum-rooted decentralised messenger, peer of the Nostr-rooted projects in spirit but built on the Waku protocol (libp2p-based) and the Logos network rather than Nostr relays. Identity is a public-key derived address; no email or phone; integrated cryptocurrency wallet.
 
-Status has been in development for years; the project's positioning has shifted over time. Production-grade in 2026 but smaller user base than Nostr clients. Token-economic structure exists which is a flag for some sovereignty-minded operators (who prefer the Nostr-rooted projects' relay-as-a-service model over token-incentivized infrastructure).
+Status has been in development for years; the project's positioning has shifted over time. Production-grade in 2026 but smaller user base than Nostr clients. Token-economic structure exists which is a flag for some sovereignty-minded operators (who prefer the Nostr-rooted projects' relay-as-a-service model over token-incentivised infrastructure).
 
 Pick Status if: you're already Ethereum-aligned and prefer that protocol stack over Nostr; otherwise White Noise or NIP-17 clients are the more active sovereignty-frontier messengers.
 
@@ -241,7 +246,7 @@ Pick Status if: you're already Ethereum-aligned and prefer that protocol stack o
 
 Zero by construction if the implementation is correct and you choose relays you trust. Your keypair is yours; relays you can swap out; messages are encrypted such that relays can't read them. The remaining risk is the client itself (closed-source clients on closed-source app stores remain a closed-source-client-on-a-closed-source-app-store risk, the same as for any messenger).
 
-What's mature: protocol-level NIP-17 support across many clients; identity portability across clients via your single nsec; relay portability by changing your relay list. What's young: White Noise as the production-grade MLS upgrade path; Marmot protocol standardization; cross-client UX for forward-secrecy expectations.
+What's mature: protocol-level NIP-17 support across many clients; identity portability across clients via your single nsec; relay portability by changing your relay list. What's young: White Noise as the production-grade MLS upgrade path; Marmot protocol standardisation; cross-client UX for forward-secrecy expectations.
 
 ### Adjacent frontier: Pubky (Synonym)
 
@@ -254,7 +259,7 @@ PKARR (Public Key Addressable Resource Records) publishes small signed DNS-style
 The record points at a homeserver: a conventional web server that stores your data per public key, grants apps write access only to the paths you approve, and serves everything under `/pub/` publicly by default.[^pubky]
 Moving providers means republishing one PKARR record; the project calls this credible exit, and it is the architectural answer to the discovery contrast below.
 
-The user-facing pieces: Pubky Ring (iOS and Android key manager, MIT, v1.15 June 2026) holds the keypair and authorizes apps; pubky.app is the beta reference social app; Pubky Explorer browses what any key has published.[^pubky-repos]
+The user-facing pieces: Pubky Ring (iOS and Android key manager, MIT, v1.15 June 2026) holds the keypair and authorises apps; pubky.app is the beta reference social app; Pubky Explorer browses what any key has published.[^pubky-repos]
 Signup to the flagship homeserver is gated by invite code, SMS verification, or a Bitcoin Lightning payment as anti-spam measures.[^pubky]
 The SMS route links a phone number to the keypair, so anyone running an anonymous identity should take the invite or Lightning path, never SMS.
 
@@ -265,11 +270,11 @@ Synonym CEO John Carvalho positions Pubky as "a strict upgrade" to Nostr on exac
 What Nostr has that Pubky does not: a far larger client and relay ecosystem, NIP-17 encrypted DMs in daily use, and Lightning zaps.
 What Pubky has that Nostr does not: deterministic data location, and a DNS-replacement layer (PKDNS) that is useful beyond social.
 
-Funding and capture-risk shape: Synonym Software was founded by Tether in November 2021, with Tether CTO Paolo Ardoino as Synonym's CTO at launch, the same single-sponsor concentration the Keet entry above and the Holepunch/Pear note in `choosing-networking-tools.md` carry; Pubky also succeeded Synonym's earlier Slashtags project, which ran on the same Hypercore stack Keet runs on.[^synonym-tether]
+Funding and capture-risk shape: Synonym Software was founded by Tether in November 2021, with Tether CTO Paolo Ardoino as Synonym's CTO at launch, the same single-sponsor concentration the Keet entry above and the Holepunch/Pear note in [Choosing networking tools](./choosing-networking-tools.md) carry; Pubky also succeeded Synonym's earlier Slashtags project, which ran on the same Hypercore stack Keet runs on.[^synonym-tether]
 On the other side of the ledger everything is MIT-licensed open source with a Rust core, and homeservers are self-hostable, including a community Umbrel package.[^pubky-repos]
 
 Status: beta and public-data-only.
-There is no end-to-end encryption yet; the project's own FAQ states Pubky is currently optimized for public data, with private and encrypted features planned under Pubky Noise, which exists as an early Rust repository.[^pubky]
+There is no end-to-end encryption yet; the project's own FAQ states Pubky is currently optimised for public data, with private and encrypted features planned under Pubky Noise, which exists as an early Rust repository.[^pubky]
 So today Pubky is an identity and public-publishing layer, not a messenger, and nothing sensitive belongs on a homeserver unless you encrypt it yourself first.
 The sovereignty-complete configuration is a self-hosted homeserver; using the flagship homeserver is trusting one operator, softened by the migration path.
 Revisit when Pubky Noise ships usable end-to-end encryption and signup ungates; until then this is a thing to try with throwaway data and to watch.
@@ -290,7 +295,7 @@ Pick DeltaChat if: you already have email, you want PGP-grade encryption without
 
 ## Tier 7: Radio-grade and off-grid
 
-When the internet is unavailable and Bluetooth-range isn't enough. Network-layer treatment of these tools lives in `choosing-networking-tools.md`; this section covers the messaging layer on top.
+When the internet is unavailable and Bluetooth-range isn't enough. Network-layer treatment of these tools lives in [Choosing networking tools](./choosing-networking-tools.md); this section covers the messaging layer on top.
 
 ### LXMF on Reticulum
 
@@ -302,20 +307,20 @@ Pick LXMF if: you've decided to operate a Reticulum-capable mesh (RNode hardware
 
 ### Meshtastic messaging
 
-Meshtastic's built-in text messaging, over LoRa. Channel-based (groups of devices share a channel key). Floods messages across the mesh; works at small community-mesh scale (hiking groups, neighborhood resilience networks).
+Meshtastic's built-in text messaging, over LoRa. Channel-based (groups of devices share a channel key). Floods messages across the mesh; works at small community-mesh scale (hiking groups, neighbourhood resilience networks).
 
 Pick Meshtastic messaging if: you've deployed Meshtastic hardware for the community-resilience reasons (cheaper than RNode, simpler protocol) and want messaging as one of the use cases. Not metadata-resistant in the way Reticulum is; not E2E-encrypted between specific pairs (channel-key based).
 
 
 ## What to avoid
 
-**WhatsApp.** Meta-owned, phone-number-rooted, metadata extensively logged and shared with Meta's ad targeting graph. Cryptography (Signal Protocol) is fine; everything around the cryptography is the problem. The 2021 privacy-policy update explicitly authorized broader data sharing with Meta. Backups in iCloud/Google Drive are not E2E-encrypted by default.
+**WhatsApp.** Meta-owned, phone-number-rooted, metadata extensively logged and shared with Meta's ad targeting graph. Cryptography (Signal Protocol) is fine; everything around the cryptography is the problem. The 2021 privacy-policy update explicitly authorised broader data sharing with Meta. Backups in iCloud/Google Drive are not E2E-encrypted by default.
 
 **Telegram for anything sensitive.** Default chats are not end-to-end encrypted; only "Secret Chats" are, and they're not the default mode. Group chats are never end-to-end encrypted regardless of mode. Pavel Durov's 2024 arrest in France and Telegram's subsequent policy adjustments on cooperation with law enforcement closed a chapter where Telegram could be framed as a privacy tool; it never was, and the marketing has caught up.
 
 **iMessage for cross-platform.** Apple-only end-to-end encryption. When messaging to an Android user it falls back to SMS or RCS (RCS over Google's network is also E2E now but the iMessage/RCS bridge had a turbulent rollout); the green-bubble cross-platform message often is not E2E. iCloud message backups are E2E only if Advanced Data Protection is explicitly enabled.
 
-**Discord for anything you care about.** Not encrypted at rest from Discord's perspective. Discord employees can read your messages. The terms of service authorize this.
+**Discord for anything you care about.** Not encrypted at rest from Discord's perspective. Discord employees can read your messages. The terms of service authorise this.
 
 **Wickr.** Acquired by Amazon in 2021; AWS Wickr is now the only continuing product; the consumer Wickr Me product was end-of-lifed. Don't start new use on it.
 
@@ -393,7 +398,7 @@ These encrypt your mailbox at rest with a key derived from your password, so the
 
 How Proton has misbehaved, on the record. In 2021 Proton received a legally binding order from the Swiss Federal Department of Justice, originating with French police and routed through Europol, and was compelled to log and hand over the IP address and device type of an account used by the Youth for Climate collective in Paris, which led to an arrest[^proton-ip]. Message contents were never exposed because the zero-access encryption held, but the metadata was, and the episode mattered because Proton's homepage had until then boasted that it kept no IP logs and put your privacy first; Proton quietly deleted that boast and reworded its privacy policy to state that a user under Swiss criminal investigation can be compelled to have their IP logged. The structural lesson is the one that recurs in this section: zero-access encryption protects stored content, but a single-jurisdiction provider can be forced to log IP and metadata on a targeted account going forward, and marketing that implied otherwise was overstatement corrected only after it was caught.
 
-On the controlled-opposition charge. Parts of the privacy and Bitcoin community characterize Proton as controlled opposition, a service that exists to gather privacy-seekers into one auditable place, pointing to the IP-logging episode, Proton's 2022 World Economic Forum Technology Pioneer designation, and CEO Andy Yen's December 2024 public praise for a Trump antitrust nominee[^proton-ip]. The primary-source record supports the narrower claims, namely Swiss court-compulsion exposure, a marketing-versus-reality reversal, and establishment-adjacent signaling a sovereignty-minded reader may legitimately weigh, but it does not establish the strong claim of deliberate intelligence control: Proton is governed by a non-profit foundation, is headquartered outside the Five and Fourteen Eyes alliances, and the Yen episode was a narrow antitrust comment the company walked back as not reflecting an official position. Treat the strong-form label as an unproven inference, and treat the narrower facts as the actual basis for deciding how much to trust a Swiss single-company mailbox.
+On the controlled-opposition charge. Parts of the privacy and Bitcoin community characterise Proton as controlled opposition, a service that exists to gather privacy-seekers into one auditable place, pointing to the IP-logging episode, Proton's 2022 World Economic Forum Technology Pioneer designation, and CEO Andy Yen's December 2024 public praise for a Trump antitrust nominee[^proton-ip]. The primary-source record supports the narrower claims, namely Swiss court-compulsion exposure, a marketing-versus-reality reversal, and establishment-adjacent signalling a sovereignty-minded reader may legitimately weigh, but it does not establish the strong claim of deliberate intelligence control: Proton is governed by a non-profit foundation, is headquartered outside the Five and Fourteen Eyes alliances, and the Yen episode was a narrow antitrust comment the company walked back as not reflecting an official position. Treat the strong-form label as an unproven inference, and treat the narrower facts as the actual basis for deciding how much to trust a Swiss single-company mailbox.
 
 Pick Proton if you want the most-polished encrypted mailbox, you accept Swiss-single-company trust and the court-compulsion exposure above, and an open client is enough verification for you in the absence of an open server.
 
@@ -417,7 +422,7 @@ Pick one of these if you want client freedom (use Thunderbird, nmail, neomutt, w
 
 This doc treats how long a service has operated as a security signal, so newer entrants get a maturity stamp rather than a recommendation, and recently-shut-down services get named as the reason why.
 
-**AtomicMail.** A new encrypted-mailbox service, EU-based (an Estonian company with servers in Germany, GDPR-compliant), whose mobile client shipped in 2025[^atomicmail]. It offers zero-access encryption, anonymous signup with no phone number, and seed-phrase account recovery. Two things keep it out of the recommended set on this doc's own criteria. First, it is not fully open source: its code is not fully published, which by the open-source-is-a-floor lens means its behavior is taken on faith, and it carries a higher trust requirement than even Proton or Tuta. Second, it uses its own proprietary Atomic Encryption (built on AES-256 and ECIES) rather than OpenPGP, which reproduces Tuta's client lock-in without Tuta's decade of operation, and there is no published independent security audit. The encryption claims may well be sound; the point is that with a closed, unaudited, very young service you cannot check, and the whole reason to leave Gmail is to stop taking such things on faith. Revisit AtomicMail if it opens its source and publishes an independent audit; until then it is one to watch, not one to trust with anything that matters.
+**AtomicMail.** A new encrypted-mailbox service, EU-based (an Estonian company with servers in Germany, GDPR-compliant), whose mobile client shipped in 2025[^atomicmail]. It offers zero-access encryption, anonymous signup with no phone number, and seed-phrase account recovery. Two things keep it out of the recommended set on this doc's own criteria. First, it is not fully open source: its code is not fully published, which by the open-source-is-a-floor lens means its behaviour is taken on faith, and it carries a higher trust requirement than even Proton or Tuta. Second, it uses its own proprietary Atomic Encryption (built on AES-256 and ECIES) rather than OpenPGP, which reproduces Tuta's client lock-in without Tuta's decade of operation, and there is no published independent security audit. The encryption claims may well be sound; the point is that with a closed, unaudited, very young service you cannot check, and the whole reason to leave Gmail is to stop taking such things on faith. Revisit AtomicMail if it opens its source and publishes an independent audit; until then it is one to watch, not one to trust with anything that matters.
 
 **Skiff, the cautionary tale.** Skiff was a polished end-to-end-encrypted mail, calendar, and document suite, founded in 2020, partially open source, and well funded, having raised 14.2 million dollars from investors including Sequoia[^skiff]. In February 2024 it was acquired by Notion, and by August 2024 the entire product was shut down, with mail forwarding limping on only until February 2025, leaving users to migrate everything out under a deadline. The lesson is the one this doc builds the longevity lens around: a slick, partly-open, VC-funded privacy startup is the profile most likely to be acquired and killed, because the funding model points at an exit rather than at operating the same service for twenty years. Weight a provider's years in operation and its funding model accordingly, and prefer the boring decade-old options for anything you cannot afford to migrate on someone else's timeline.
 
@@ -431,9 +436,9 @@ Maximum sovereignty, highest operational cost in this entire project series. Run
 
 The hard truth, named prominently because every "self-host your mail" pitch glosses it: deliverability is the problem, not the software. To not land in Gmail's and Outlook's spam folders you need four correct DNS records (MX, SPF, DKIM, DMARC), a matching PTR reverse-DNS record, and (critically) a sending IP with clean reputation that isn't on any blocklist. Residential ISP connections fail this by default: port 25 is commonly blocked outbound, and residential IP ranges are blocklisted as a class. So self-hosted mail belongs on a VPS with a clean IP and unblocked port 25, not on a home connection, unless you front outbound mail through a relay.
 
-**StartOS, and why home-hosted mail is the hard case.** StartOS (Start9, formerly EmbassyOS; renamed; 0.4.0 unveiled March 2026; MIT-licensed, Rust backend; serves a graphical interface as a private website; runs services over Tor v3 with clearnet hosting also supported)[^startos] is the leading plug-and-play sovereign-computing OS: it lets non-sysadmins discover, install, configure, back up, and monitor self-hosted services on a home appliance from a web UI. For Nextcloud, a Bitcoin full node, Vaultwarden, a Lightning node, media servers, and most of the self-hosting catalog, it is an excellent answer and squarely in this project's sovereignty frame. Start9 sells preflashed Server One hardware or you can DIY-install on your own box.
+**StartOS, and why home-hosted mail is the hard case.** StartOS (Start9, formerly EmbassyOS; renamed; 0.4.0 unveiled March 2026; MIT-licensed, Rust backend; serves a graphical interface as a private website; runs services over Tor v3 with clearnet hosting also supported)[^startos] is the leading plug-and-play sovereign-computing OS: it lets non-sysadmins discover, install, configure, back up, and monitor self-hosted services on a home appliance from a web UI. For Nextcloud, a Bitcoin full node, Vaultwarden, a Lightning node, media servers, and most of the self-hosting catalogue, it is an excellent answer and squarely in this project's sovereignty frame. Start9 sells preflashed Server One hardware or you can DIY-install on your own box.
 
-Mail is the exception, and it's worth being precise about why. StartOS does not currently ship a turnkey mail server in its marketplace (its FAQ confirms a service has to meet packaging requirements and mail isn't a first-class offering today). More fundamentally, a StartOS box lives on your home connection, exactly the residential-IP, port-25-blocked, blocklisted-by-class situation that makes home-hosted outbound mail land in spam. So StartOS is a great home for self-hosted services generally and a legitimate host for a relay-fronted mail setup (where a clean-IP VPS or a transactional relay handles outbound delivery and your StartOS box holds the mailboxes), but it is not a one-click fix for the thing that actually makes self-hosted mail hard. If your goal is sovereign mail specifically, a Stalwart instance on a clean-IP VPS is the more honest path than mail on a home appliance. StartOS's fuller treatment as a sovereign-computing platform belongs in `os.md`; here it's named for the self-hosted-mail-deployment question only.
+Mail is the exception, and it's worth being precise about why. StartOS does not currently ship a turnkey mail server in its marketplace (its FAQ confirms a service has to meet packaging requirements and mail isn't a first-class offering today). More fundamentally, a StartOS box lives on your home connection, exactly the residential-IP, port-25-blocked, blocklisted-by-class situation that makes home-hosted outbound mail land in spam. So StartOS is a great home for self-hosted services generally and a legitimate host for a relay-fronted mail setup (where a clean-IP VPS or a transactional relay handles outbound delivery and your StartOS box holds the mailboxes), but it is not a one-click fix for the thing that actually makes self-hosted mail hard. If your goal is sovereign mail specifically, a Stalwart instance on a clean-IP VPS is the more honest path than mail on a home appliance. Here it is named for the self-hosted-mail-deployment question only.
 
 ### The ladder to self-hosted mail
 
@@ -455,9 +460,9 @@ The deliverability problem from the self-hosted section sets where the climb get
 
 Independent of provider, you can add body encryption.
 
-**PGP / OpenPGP.** Thunderbird has OpenPGP built in (no Enigmail plugin needed since Thunderbird 78). This is the standard way to encrypt email bodies end-to-end across any provider, provided your correspondent also uses PGP. The honest limitations: key management is a real burden, there's no forward secrecy (compromise of your long-term key exposes all past mail encrypted to it), and the metadata still leaks. These limitations are precisely why the messenger tiers in the first half of this doc exist. For the mechanics of PGP keys, hardware-token storage, and the web-of-trust, see `gpg-concepts.md` rather than re-deriving it here.
+**PGP / OpenPGP.** Thunderbird has OpenPGP built in (no Enigmail plugin needed since Thunderbird 78). This is the standard way to encrypt email bodies end-to-end across any provider, provided your correspondent also uses PGP. The honest limitations: key management is a real burden, there's no forward secrecy (compromise of your long-term key exposes all past mail encrypted to it), and the metadata still leaks. These limitations are precisely why the messenger tiers in the first half of this doc exist.
 
-**age-encrypted attachments.** For sending a sensitive file over any email, encrypting it with age (a modern, simple file-encryption tool, see `choosing-encryption-tools.md`) and attaching the ciphertext sidesteps the PGP-email complexity entirely: the email is just a transport for an independently-encrypted blob. Lower-ceremony than PGP-email for the specific case of "send this one file securely."
+**age-encrypted attachments.** For sending a sensitive file over any email, encrypting it with age (a modern, simple file-encryption tool, see [Choosing encryption tools](./choosing-encryption-tools.md)) and attaching the ciphertext sidesteps the PGP-email complexity entirely: the email is just a transport for an independently-encrypted blob. Lower-ceremony than PGP-email for the specific case of "send this one file securely."
 
 **Autocrypt.** The in-band key-exchange profile that DeltaChat (Tier 6 above) uses to make PGP transparent. Some other clients support it. It trades a little security (keys exchanged opportunistically in headers) for the usability that hand-managed PGP lacks.
 
@@ -479,7 +484,7 @@ A unique email alias per service means a breach or data-sale at one service expo
 
 ### What to avoid for email
 
-**Gmail, Outlook / Microsoft 365, Yahoo for anything sensitive.** Content is scanned, the business model monetizes what it learns about you, and the mailbox is readable by the provider and anyone who compels the provider. Fine for low-stakes mail and mailing-list signups; not for anything you'd mind being read. The "free that isn't a free tier of a paid product" frame from `choosing-networking-tools.md` applies identically: if the email is free and the company is an advertising company, you are the product.
+**Gmail, Outlook / Microsoft 365, Yahoo for anything sensitive.** Content is scanned, the business model monetises what it learns about you, and the mailbox is readable by the provider and anyone who compels the provider. Fine for low-stakes mail and mailing-list signups; not for anything you'd mind being read. The "free that isn't a free tier of a paid product" frame from [Choosing networking tools](./choosing-networking-tools.md) applies identically: if the email is free and the company is an advertising company, you are the product.
 
 ### Email maturity table
 
@@ -502,6 +507,7 @@ A unique email alias per service means a breach or data-sale at one service expo
 | addy.io | Aliasing | Yes | Production | Self-hostable |
 
 
+<!-- vale off -->
 [^simplex-no-ids]: SimpleX Chat, project home page: <https://simplex.chat/>. "The first messenger without user IDs. Other apps have user IDs: Signal, Matrix, Session, Briar, Jami, Cwtch, etc. SimpleX does not, not even random numbers. ... To deliver messages, instead of user IDs used by all other platforms, SimpleX uses temporary anonymous pairwise identifiers of message queues, separate for each of your connections, there are no long term identifiers."
 
 [^simplex-tob]: SimpleX Chat blog, *SimpleX network: cryptographic design review by Trail of Bits, v6.1 released with better calls and user experience*, 14 October 2024: <https://simplex.chat/blog/20241014-simplex-network-v6-1-security-review-better-calls-user-experience.html>. The Trail of Bits review followed an earlier 2022 audit: <https://simplex.chat/blog/20221108-simplex-chat-v4.2-security-audit-new-website.html>.

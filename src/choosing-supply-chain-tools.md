@@ -1,6 +1,11 @@
 # Choosing Supply Chain Tools
 
-How to defend the code you install. This is the question the other input-vetting work does not answer: `choosing-document-scanning-tools.md` covers the files you open, this covers the code you install and build. It sits alongside the detection layer (`choosing-hids-tools.md`, which catches tampering after the fact) and the credential-isolation cross-cutting concern in the master overview (which keeps a compromised build environment from acting as you). The motivation, including the IronWorm npm worm that makes this concrete, is in `why-secure-your-system.md`. Recommends a baseline at the end; the rest is the reasoning that defends it.
+> - **For:** anyone who installs software from language ecosystems (npm, pip, cargo) or from outside the distribution.
+> - **Before you start:** nothing.
+> - **Reading time:** about 13 minutes.
+> - **You end with:** a five-step baseline for installing code without handing it your secrets.
+
+How to defend the code you install. This is the question the other input-vetting work does not answer: [Choosing document-scanning tools](./choosing-doc-scan-tools.md) covers the files you open, this covers the code you install and build. It sits alongside the detection layer (host integrity monitoring, which catches tampering after the fact) and the credential-isolation cross-cutting concern in the master overview (which keeps a compromised build environment from acting as you). The motivation, including the IronWorm npm worm that makes this concrete, is in [the security overview](./system-security-overview.md). Recommends a baseline at the end; the rest is the reasoning that defends it.
 
 
 ## TL;DR
@@ -15,7 +20,7 @@ The baseline, in order of return per minute of effort:
 4. Contain install-time execution. Set npm to ignore install scripts by default; for ecosystems that cannot disable it (cargo, apt), run the install or build of any code you have not reviewed inside a disposable, network-restricted, credential-free sandbox.
 5. Keep the credentials that publish, sign, or unlock value off the machine that installs and builds. The most common payload is an environment-variable sweep, so the build machine should not hold your cloud, npm, AI, or wallet secrets.
 
-No single one of these stops every attack. Depth is the point, the same as everywhere else in this project. Detection after the fact is `choosing-hids-tools.md`; recovery is backups, in the overview.
+No single one of these stops every attack. Depth is the point, the same as everywhere else in this project. Detection after the fact is host integrity monitoring; recovery is backups, in the overview.
 
 
 ## The shape of the threat
@@ -26,10 +31,10 @@ The IronWorm npm worm in June 2026 is the worked example, and it is worth unders
 
 - Permissive install hooks. A Rust binary ran from a `preinstall` script the moment the package installed, before dependency resolution finished, with no build step and no confirmation.
 - Trusted-publishing abuse. It propagated using stolen credentials, including the short-lived OIDC tokens of npm's Trusted Publishing workflow, so it could publish from a victim's own pipeline.
-- Forged commit metadata. It planted back-dated commits across nine organizations under the names of trusted automation, dependabot, github-actions, and "claude," to blend in with routine work.
+- Forged commit metadata. It planted back-dated commits across nine organisations under the names of trusted automation, dependabot, github-actions, and "claude," to blend in with routine work.
 - SemVer-tolerant updates. The malicious versions were minor or patch bumps, designed to be picked up automatically by lockfiles configured to accept them.
 
-The result was self-propagating: it stole a developer's publish credentials, republished itself into that developer's packages, and infected the next person who installed them. The lesson for defense is that the package manager's convenience features (run-on-install, automatic version updates, stored publish tokens) are the attack surface, and the defenses below are mostly about removing or containing each one.
+The result was self-propagating: it stole a developer's publish credentials, republished itself into that developer's packages, and infected the next person who installed them. The lesson for defence is that the package manager's convenience features (run-on-install, automatic version updates, stored publish tokens) are the attack surface, and the defences below are mostly about removing or containing each one.
 
 
 ## The ecosystems, one at a time
@@ -40,11 +45,11 @@ The ecosystems differ enough that one rule does not fit all. Worst-to-best for y
 
 The Debian and Devuan archives are cryptographically signed, and apt verifies the release signature against trusted keys before installing anything. The main archive is not the threat. The threat is what you add to it and what you run around it.
 
-apt runs maintainer scripts (`preinst`, `postinst`) as root at install time, so a compromised package or repository is a root-level install-time execution problem, the highest-privilege version of the npm hook issue. You cannot easily sandbox `dpkg`, so the defense is trusting the source rather than containing it.
+apt runs maintainer scripts (`preinst`, `postinst`) as root at install time, so a compromised package or repository is a root-level install-time execution problem, the highest-privilege version of the npm hook issue. You cannot easily sandbox `dpkg`, so the defence is trusting the source rather than containing it.
 
 What to do:
 
-- Minimize third-party repositories. Prefer Devuan and Debian main and backports, then Flatpak, over downloading upstream `.deb` files or adding vendor repositories.
+- Minimise third-party repositories. Prefer Devuan and Debian main and backports, then Flatpak, over downloading upstream `.deb` files or adding vendor repositories.
 - When you must add a repository, install its signing key to `/etc/apt/keyrings/` and bind the repository to that key with a `Signed-By:` line in the `.sources` entry, so a different key cannot silently sign updates.
 - Never pipe `curl` into `sh`, and never as root. These installers bypass the package manager, its signatures, and its uninstall path entirely. Download, read, then run if you trust it.
 - `apt-listchanges` and `apt-listbugs` surface what an upgrade is about to do before it does it.
@@ -82,7 +87,7 @@ Pin and verify. Commit `package-lock.json` and install from it with `npm ci`, wh
 
 Detect downgraded trust. pnpm 10.21 and later ship a `trustPolicy` setting whose `no-downgrade` mode refuses to install a package whose publish-time trust level has dropped, for example a package that used to ship with provenance and now does not, which is an early signal of a compromised account[^pnpm].
 
-Screen before you add. Socket and `npq` screen packages for suspicious behavior before installation. Check maintainer history, download counts, and repository activity, and be especially careful with package names suggested by an AI assistant, which can hallucinate a name that an attacker has since registered.
+Screen before you add. Socket and `npq` screen packages for suspicious behaviour before installation. Check maintainer history, download counts, and repository activity, and be especially careful with package names suggested by an AI assistant, which can hallucinate a name that an attacker has since registered.
 
 Hardening what you publish is in the cross-cutting section below.
 
@@ -116,18 +121,18 @@ cargo is the hard case, because by design it executes arbitrary code at build ti
 
 It is worse than that. The RustSec maintainer's guidance is to not run any `cargo` command on a project you have not reviewed, because every cargo command invokes Cargo, which can be made to execute arbitrary code, and that includes the supply-chain tools themselves: `cargo audit`, `cargo deny`, and `cargo vet` all go through Cargo and can be turned into code execution, for instance via a `.cargo/config.toml` alias in the repository[^cargountrusted]. The practical consequence is that the auditing tools are not a safe way to inspect untrusted code; they are a way to check code you already intend to build.
 
-So for cargo the defense is review and sandboxing, not flags:
+So for cargo the defence is review and sandboxing, not flags:
 
 - Commit `Cargo.lock` and build with `cargo build --locked` (or `--frozen` offline), which pins exact versions and verifies registry checksums.
 - Run the build, and any cargo command, on code you have not reviewed inside the same disposable, network-restricted sandbox you would use for an untrusted install.
-- Inside that trusted-build context, the RustSec tooling earns its place: `cargo audit` and `cargo deny` (with the `cargo-deny-action` in CI) flag advisories, and let you also gate licenses and crate sources[^rustsec]. `cargo-vet` and `cargo-crev` record human audit attestations. `cargo-supply-chain` lists who you are trusting. `cargo-auditable` embeds the dependency tree into the compiled binary so the result stays auditable.
+- Inside that trusted-build context, the RustSec tooling earns its place: `cargo audit` and `cargo deny` (with the `cargo-deny-action` in CI) flag advisories, and let you also gate licences and crate sources[^rustsec]. `cargo-vet` and `cargo-crev` record human audit attestations. `cargo-supply-chain` lists who you are trusting. `cargo-auditable` embeds the dependency tree into the compiled binary so the result stays auditable.
 
 ### Tarballs and source you build yourself
 
 The same principle applies to a tarball or a `git clone` you build with `make`: the build runs whatever the `Makefile` and configure scripts say, with your privileges. Verify the download against a signature or a published checksum from the project (not from the same place you got the file), read the build files if the source is unfamiliar, and build untrusted source in a sandbox.
 
 
-## Cross-cutting defenses
+## Cross-cutting defences
 
 These apply across every ecosystem above.
 
@@ -137,7 +142,7 @@ A lockfile that records exact versions and integrity hashes, committed to the re
 
 ### Disable or sandbox install-time execution
 
-Where the ecosystem lets you disable run-on-install (npm), do it by default. Where it does not (cargo, apt, source builds), contain it instead: run the install or build of any code you have not personally reviewed inside a disposable environment that has no network it does not need and none of your credentials. A throwaway container, a VM, or Firejail per the hardening doc (`devuan-secure-workstation.md`) all work; Qubes makes it the default. This is the single highest-value habit in this document, because it holds regardless of ecosystem and regardless of whether a specific control was bypassed: install-time code that runs in an empty, network-restricted sandbox cannot sweep secrets that are not there.
+Where the ecosystem lets you disable run-on-install (npm), do it by default. Where it does not (cargo, apt, source builds), contain it instead: run the install or build of any code you have not personally reviewed inside a disposable environment that has no network it does not need and none of your credentials. A throwaway container, a VM, or Firejail per the hardening doc ([Devuan secure workstation](./devuan-secure-workstation.md)) all work; Qubes makes it the default. This is the single highest-value habit in this document, because it holds regardless of ecosystem and regardless of whether a specific control was bypassed: install-time code that runs in an empty, network-restricted sandbox cannot sweep secrets that are not there.
 
 ### Keep publishing and signing credentials off the build machine
 
@@ -152,7 +157,7 @@ For publishing specifically:
 
 ### Secret hygiene on the machine that installs
 
-Because the most common payload is an environment-variable and credential-file sweep, the machine that runs `npm install`, `pip install`, or `cargo build` should not have your AWS, GCP, Vault, npm, Anthropic, OpenAI, or wallet secrets sitting in environment variables, shell rc files, or unencrypted dotfiles. Keep them in a secrets manager that releases them per process, or on a separate user or VM (`privacy-setup.md`), so an install-time sweep finds nothing. A meaningful crypto seed should never be on the build machine at all; cold storage on an air-gapped machine is the credential-isolation pattern for funds.
+Because the most common payload is an environment-variable and credential-file sweep, the machine that runs `npm install`, `pip install`, or `cargo build` should not have your AWS, GCP, Vault, npm, Anthropic, OpenAI, or wallet secrets sitting in environment variables, shell rc files, or unencrypted dotfiles. Keep them in a secrets manager that releases them per process, or on a separate user or VM, so an install-time sweep finds nothing. A meaningful crypto seed should never be on the build machine at all; cold storage on an air-gapped machine is the credential-isolation pattern for funds.
 
 ### Screen before you add, but know the limits
 
@@ -180,11 +185,12 @@ The axis driving this order is security first, then the long term, per the proje
 
 ## The honest limits
 
-No single control stops every supply-chain attack, and the marketing around each one oversells it. Trusted publishing does not help if your package manager runs preinstall scripts from every dependency, and blocking those scripts does not help if an attacker replaces a version at the registry level. PackageGate showed that the lifecycle-script-disabling defense itself had bypasses. OIDC eliminates the stored token but not the compromised workflow that mints a legitimate one. Lockfiles do not fully cover git dependencies. cargo cannot disable build-time execution at all, which is why review and sandboxing carry the weight there.
+No single control stops every supply-chain attack, and the marketing around each one oversells it. Trusted publishing does not help if your package manager runs preinstall scripts from every dependency, and blocking those scripts does not help if an attacker replaces a version at the registry level. PackageGate showed that the lifecycle-script-disabling defence itself had bypasses. OIDC eliminates the stored token but not the compromised workflow that mints a legitimate one. Lockfiles do not fully cover git dependencies. cargo cannot disable build-time execution at all, which is why review and sandboxing carry the weight there.
 
-These defenses shift the odds and contain the damage; they do not guarantee safety. Detecting a compromise after it lands is a different layer (`choosing-hids-tools.md`), and coming back from one is backups (the overview). Depth across all of these is the posture, not faith in any one of them.
+These defences shift the odds and contain the damage; they do not guarantee safety. Detecting a compromise after it lands is a different layer (host integrity monitoring), and coming back from one is backups (the overview). Depth across all of these is the posture, not faith in any one of them.
 
 
+<!-- vale off -->
 [^ironworm]: JFrog Security Research, "IronWorm: Shai-Hulud's rustier cousin," 3 June 2026, <https://research.jfrog.com/post/iron-worm-shai-hulud-rustier-cousin/>. Corroborated by BleepingComputer, "New IronWorm malware hits 36 packages in npm supply-chain attack," <https://www.bleepingcomputer.com/news/security/new-ironworm-malware-hits-36-packages-in-npm-supply-chain-attack/>. Disclosed via the compromised `asteroiddao` npm account in the Arweave/WeaveDB ecosystem; reported package count ranges from 36 to 43; 86 environment variables and 20 credential-file paths targeted; 57 back-dated commits across nine organizations under automation identities including dependabot, github-actions, and "claude."
 
 [^axios]: Microsoft Security Blog, "Mitigating the Axios npm supply chain compromise," 1 April 2026, <https://www.microsoft.com/en-us/security/blog/2026/04/01/mitigating-the-axios-npm-supply-chain-compromise/>. Recommends `npm ci --ignore-scripts` or `npm config set ignore-scripts true`, and adopting OIDC trusted publishing to eliminate stored credentials.

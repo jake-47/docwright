@@ -1,17 +1,14 @@
 # Security Overview
 
-Secure your system. The long answer for why you must secure it is [explained here](why-secure-your-system.md). The short answer is that it's the prudent thing to do. Before the steps, [the security landscape](security-landscape.md) maps what you are defending and how far the climb goes. It's a long journey, but the guides below will help you get through the steps in order. They place concepts before procedures and climb slowly, each reducing more attack surface. The early ones (OS, encryption) are the foundation the rest assume. You don't have to reach the summit on day one, but you can start climbing today.
+Secure your system; it is the prudent thing to do. Before the steps, [the security landscape](./security-landscape.md) maps what you are defending and how far the climb goes. It's a long journey, but the guides below will help you get through the steps in order. They place concepts before procedures and climb slowly, each reducing more attack surface. The early ones (OS, encryption) are the foundation the rest assume. You don't have to reach the summit on day one, but you can start climbing today.
 
-1. [**Replace the OS**](os.md). Compare distros, leave Windows or Mac, pick one, migrate. The largest single cut to your attack surface, and the foundation every guide above it assumes.
-2. [**Encrypt**](choosing-encryption-tools.md). Disk and file encryption. Read the [GPG concepts guide](gpg-concepts.md) alongside it for the key, signing, and identity model behind those choices; that one is concept, not procedure.
-3. [**Separate identities, manage keys**](privacy-setup.md). Identity separation across users and VMs, SSH and GPG key strategy, hardware tokens, behavioral discipline.
-4. [**Secure messaging**](choosing-communication-tools.md). Signal at the base, up through federated, Nostr-rooted, P2P, off-grid, and email.
-5. [**Sovereign transport**](choosing-networking-tools.md). VPN, mesh, overlay, Tor, censorship-evasion, off-grid radio.
-6. [**Detect compromise**](choosing-hids-tools.md). Host integrity monitoring; the shift from prevention to detection.
-7. [**Vet documents**](choosing-document-scanning-tools.md). Scanning and metadata hygiene for files you receive, before you open them.
-8. [**Dedicated hardware**](choosing-hardware.md). A desktop built from parts, Linux or coreboot laptops, hardware tokens; raises the floor the apex guides stand on.
-9. [**Harden the whole workstation**](devuan-secure-workstation.md). The desktop apex: LUKS, VM compartmentalization, USBGuard, nftables, kernel hardening, encrypted DNS. Driven by the [install script](devuan-luks2-install.sh).
-10. [**Harden mobile**](choosing-phone.md). The phone apex, a parallel track you can climb any time after step 1: Pixel plus GrapheneOS, flashed per [the GrapheneOS install guide](grapheneos-install.md).
+1. [**Replace the OS**](./choosing-os.md). Compare distros, leave Windows or Mac, pick one, migrate. The largest single cut to your attack surface, and the foundation every guide above it assumes.
+2. [**Encrypt**](choosing-encryption-tools.md). Disk and file encryption.
+3. [**Secure messaging**](choosing-communication-tools.md). Signal at the base, up through federated, Nostr-rooted, P2P, off-grid, and email.
+4. [**Sovereign transport**](choosing-networking-tools.md). VPN, mesh, overlay, Tor, censorship-evasion, off-grid radio.
+5. [**Vet documents**](./choosing-doc-scan-tools.md). Scanning and metadata hygiene for files you receive, before you open them.
+6. [**Dedicated hardware**](choosing-hardware.md). A desktop built from parts, Linux or coreboot laptops, hardware tokens; raises the floor the apex guides stand on.
+7. [**Harden the whole workstation**](devuan-secure-workstation.md). The desktop apex: LUKS, VM compartmentalisation, USBGuard, nftables, kernel hardening, encrypted DNS. Installed per [the full-disk encryption guide](./full-disk-encryption-devuan.md).
 
 
 ## Cross-cutting concerns
@@ -68,7 +65,7 @@ Where to read more: osresearch.net for the project itself, plus Insurgo and Mull
 A frequent question. The short answer: three different things often grouped under "VPN," each with a different threat model.
 
 1. **Commercial VPN.** Single-hop tunnel to one company that knows who you are. Replaces your ISP with one trusted company. The "VPN for privacy" frame; structurally weaker than Tor and not an anonymity tool.
-2. **Self-hosted or mesh VPN.** WireGuard between machines you control; Tailscale-style mesh with the coordinator either centralized or self-hosted (Headscale, NetBird). Not an anonymity tool; the right answer for connecting your own devices over hostile networks.
+2. **Self-hosted or mesh VPN.** WireGuard between machines you control; Tailscale-style mesh with the coordinator either centralised or self-hosted (Headscale, NetBird). Not an anonymity tool; the right answer for connecting your own devices over hostile networks.
 3. **Tor.** Multi-hop volunteer-run onion network. The actual answer for anonymity.
 
 For the commercial-VPN versus Tor question:
@@ -81,7 +78,7 @@ A commercial VPN encrypts your traffic between your device and the VPN provider.
 
 The commercial-VPN threat model is "I don't trust my ISP." The VPN replaces the ISP with a single company that you trust more (or that you think you trust more). If the VPN is compromised, logs are subpoenaed, or the VPN itself is hostile, all your traffic is exposed. This is not a hypothetical: VPN companies have been compromised, have been compelled to log, and have been acquired by surveillance-adjacent parents.
 
-Tor encrypts your traffic and routes it through three unrelated volunteer-run nodes, each of which only knows one hop. The entry guard knows who you are but not what you're doing; the middle relay knows nothing useful; the exit knows what you're doing but not who you are. For any single party to deanonymize you, they need to control or observe both your guard and your exit, which is exponentially harder than compromising a single VPN.
+Tor encrypts your traffic and routes it through three unrelated volunteer-run nodes, each of which only knows one hop. The entry guard knows who you are but not what you're doing; the middle relay knows nothing useful; the exit knows what you're doing but not who you are. For any single party to deanonymise you, they need to control or observe both your guard and your exit, which is exponentially harder than compromising a single VPN.
 
 Tor's threat model is "I don't trust any single party with both who I am and what I'm doing." It is structurally stronger than any commercial VPN can be.
 
@@ -97,7 +94,7 @@ A commercial VPN may make sense as a transport for getting to Tor when your ISP 
 
 For the typical user with no specific reason: use Tor (via Tor Browser or Whonix) when you need anonymity; use WireGuard or Headscale when you need a private network between your own devices; don't bother with a commercial VPN unless you have a narrow specific reason (geographic bypass, hostile-ISP bypass). The whole "VPN for privacy" marketing of the 2010s and 2020s sold a weaker product to people who wanted stronger.
 
-For the full landscape of VPN, mesh, overlay, anonymity, and off-grid networking options, see `choosing-networking-tools.md`.
+For the full landscape of VPN, mesh, overlay, anonymity, and off-grid networking options, see [Choosing networking tools](./choosing-networking-tools.md).
 
 ### Browser hardening
 
@@ -112,17 +109,17 @@ Don't use Chrome. Don't use Edge. Don't use Safari. The threat model these docum
 
 For Devuan plus the hardening doc, the right browser stack is LibreWolf as default plus Tor Browser available for specific sessions. Add Firefox Multi-Account Containers (or arkenfox's container patterns) to keep work, personal, and miscellaneous browsing isolated within the same browser.
 
-This document doesn't cover browser hardening in more detail; there are dedicated projects that do it better. PrivacyGuides.org has up-to-date recommendations and is independent of any commercial party. A future `choosing-browser-hardening.md` is on the roadmap.
+This document doesn't cover browser hardening in more detail; there are dedicated projects that do it better. PrivacyGuides.org has up-to-date recommendations and is independent of any commercial party.
 
 ### Credential isolation across machines
 
 The pattern: separate the machine that writes code (or composes emails, or signs documents) from the machine that holds the credentials to push code (send emails, distribute signed documents).
 
-The threat model: an attacker who compromises the writing machine should not automatically gain credentials to act as you on the network. Compromise of the writing machine leaks code-in-progress, draft emails, unsigned documents, bad, but bounded. Without credential isolation, compromise of the writing machine leaks the credentials too, much worse, because the attacker can now act as you on the network and the bad version of every project gets pushed. The IronWorm npm worm in June 2026 was exactly this cascade: it stole developers' npm publish credentials and republished itself into their own packages. The supply-chain section below covers the defenses; `why-secure-your-system.md` has the case.
+The threat model: an attacker who compromises the writing machine should not automatically gain credentials to act as you on the network. Compromise of the writing machine leaks code-in-progress, draft emails, unsigned documents, bad, but bounded. Without credential isolation, compromise of the writing machine leaks the credentials too, much worse, because the attacker can now act as you on the network and the bad version of every project gets pushed. The IronWorm npm worm in June 2026 was exactly this cascade: it stole developers' npm publish credentials and republished itself into their own packages. The supply-chain section below covers the defences.
 
 The Qubes pattern is the cleanest: split GPG and split SSH. A dedicated credential-holding qube has the keys; work qubes don't. When a work qube needs to sign something or push something, it makes a qubes-rpc call to the credential qube; the credential qube performs the operation and returns the result. The credentials never leave the credential qube. The work qube can be wiped and rebuilt without losing the credentials.
 
-The non-Qubes version is `bundle-queue.sh` for the git-push case. The work machine creates a git bundle (no credentials needed); the bundle travels by sneakernet or by a controlled transport to a separate credential-holding machine; the credential machine pushes the bundle to the remote. The work machine never holds the remote's credentials.
+The non-Qubes version, for the git-push case, is a bundle queue. The work machine creates a git bundle (no credentials needed); the bundle travels by sneakernet or by a controlled transport to a separate credential-holding machine; the credential machine pushes the bundle to the remote. The work machine never holds the remote's credentials.
 
 Similar patterns for other workflows:
 
@@ -137,14 +134,14 @@ When to pick into this layer: when you've identified a specific credential whose
 The code you install is an attack surface in its own right, separate from the documents you open.
 Every dependency you pull through apt, Flatpak, npm, cargo, pip, or a curl-piped install script is code that runs on your machine, often the moment it installs, with your privileges and your secrets in reach.
 The IronWorm npm worm in June 2026 is the live example: a binary that fired on install, swept the machine for cloud, npm, AI, and wallet credentials, then republished itself through the victims' own publishing credentials.
-The credential-isolation pattern above is half the defense: keep the credentials that publish or sign off the machine that installs and builds, so a compromised build environment cannot act as you.
-The rest, disabling install hooks where the ecosystem allows it, pinning dependencies by hash, vetting what you add, sandboxing the build of code you have not reviewed, and hardening how you publish, is in `choosing-supply-chain-tools.md`.
+The credential-isolation pattern above is half the defence: keep the credentials that publish or sign off the machine that installs and builds, so a compromised build environment cannot act as you.
+The rest, disabling install hooks where the ecosystem allows it, pinning dependencies by hash, vetting what you add, sandboxing the build of code you have not reviewed, and hardening how you publish, is in [Choosing supply-chain tools](./choosing-supply-chain-tools.md).
 
 ### Backup as the final answer
 
 Backups aren't a layer in the defensive stack; they're the recovery answer when the defensive stack fails. The detection layer tells you that compromise happened; backups tell you how to come back.
 
-The operational floor: Borg with daily automated snapshots to a local encrypted external drive, plus monthly rotation of a second external drive to an off-site location, plus a verified-working restore procedure. Choosing the backup tool and the discipline around it (3-2-1, off-site rotation, append-only, restore testing) is in `choosing-backup-tools.md`; the Devuan procedure that implements this floor is in `devuan-secure-workstation.md` Part 3.1.
+The operational floor: Borg with daily automated snapshots to a local encrypted external drive, plus monthly rotation of a second external drive to an off-site location, plus a verified-working restore procedure. The backup principles are in [Planning](./backup-planning.md); the Devuan procedure that implements this floor is in [Devuan secure workstation](./devuan-secure-workstation.md), Part 3.1.
 
 The threat model where backups specifically matter: ransomware, disk failure, theft, fire, your own mistake (`rm -rf` to the wrong directory). For all of these, the answer is "restore from yesterday's snapshot." For the off-site-fire case specifically, the answer requires the off-site copy; backups in the same building as the original are one bad day from being no backups.
 
@@ -155,7 +152,7 @@ The hardest part of backups is not the technology; it's the routine. A backup th
 
 Things this project does not cover and where to find the equivalent treatment for each.
 
-**Browser hardening details.** The cross-cutting section above gives the framework. The deep dive belongs to PrivacyGuides.org and the arkenfox project. A future `choosing-browser-hardening.md` in this project is on the roadmap.
+**Browser hardening details.** The cross-cutting section above gives the framework. The deep dive belongs to PrivacyGuides.org and the arkenfox project.
 
 **Operational security in general.** The discipline of not leaking metadata, not reusing names, not posting on schedules, not getting photographed at the same coffee shop where you do anonymous work. This is the layer no software can provide. Read the EFF SSD, Grugq's older essays on operational security, and the Tails operational-security documentation.
 

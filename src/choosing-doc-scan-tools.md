@@ -1,8 +1,13 @@
 # Choosing Document Scanning Tools
 
-A comparison of the open-source tools that vet PDF, EPUB, and other documents on a Devuan workstation before you open them. Parallel in structure to `choosing-hids-tools.md` and `choosing-encryption-tools.md`. Recommends a specific stack at the end; the rest of the document is the reasoning that defends the recommendation.
+> - **For:** Devuan and Debian users who receive documents from people they do not fully trust.
+> - **Before you start:** a Linux workstation with apt.
+> - **Reading time:** about 16 minutes.
+> - **You end with:** a scanning stack (ClamAV, pdfid, YARA, Firejail) and the reasons for it.
 
-If you came here from `security-overview.md` looking for the input-vetting specialist, the short answer is: ClamAV plus Didier Stevens' pdfid suite plus YARA, with VirusTotal as an optional consensus check and Firejail as the open-it-safely layer. Operational companion is `doc-malware-scan.sh` in this project. Read the rest if you want to understand why those and not the alternatives.
+A comparison of the open-source tools that vet PDF, EPUB, and other documents on a Devuan workstation before you open them. Parallel in structure to [Choosing encryption tools](./choosing-encryption-tools.md). Recommends a specific stack at the end; the rest of the document is the reasoning that defends the recommendation.
+
+If you came here from [the security overview](./system-security-overview.md) looking for the input-vetting specialist, the short answer is: ClamAV plus Didier Stevens' pdfid suite plus YARA, with VirusTotal as an optional consensus check and Firejail as the open-it-safely layer. Read the rest if you want to understand why those and not the alternatives.
 
 
 ## TL;DR
@@ -10,8 +15,6 @@ If you came here from `security-overview.md` looking for the input-vetting speci
 Document scanning is the layer between "this PDF arrived" and "I'm now reading it." It does not prevent attacks; it catches known-bad and flags suspicious-structured documents before you open them. The tools are mostly mature, mostly in Debian and Devuan repositories, and require modest configuration to be useful.
 
 The standard stack: ClamAV for signature matching, Didier Stevens' pdfid plus pdf-parser for PDF structural triage, YARA for rule-based pattern matching, Firejail as the sandboxed-opening layer. Four tools, each doing one thing well, plus optional VirusTotal hash lookup for multi-engine consensus. Total configuration time on a fresh install: a one-time `apt install`, a small Didier Stevens download, and an optional YARA-rules clone.
-
-The operational companion is `doc-malware-scan.sh` in this project, which wires all of these together with first-run auto-install and folder-recursion support.
 
 Tools that compete with ClamAV in the open-source AV space (Linux Malware Detect / maldet) lose on coverage and freshness. Tools in the same category as pdfid for PDF analysis (peepdf, mutool) are complementary rather than replacements. Sandboxed-reader alternatives to Firejail (Bubblewrap, Flatpak's portal model) are usable but require more setup.
 
@@ -34,14 +37,14 @@ Plus the sandbox tier: even with all of the above passing, the safest open is in
 
 Adjacent categories worth knowing but not the focus here:
 
-- **HIDS (host integrity monitoring).** Watches the system for post-compromise changes. `choosing-hids-tools.md` covers this layer. Different category: HIDS catches an attack after success; document scanning catches it before success.
+- **HIDS (host integrity monitoring).** Watches the system for post-compromise changes. Different category: HIDS catches an attack after success; document scanning catches it before success.
 - **Endpoint AV in the Windows sense.** Continuously scans every file the OS touches. Linux versions exist (ClamAV's clamd daemon, ClamWin, ESET for Linux) but the Linux threat model rarely justifies the resource cost; on-demand scanning of documents you receive covers most of the realistic threat.
 - **Network-level scanning.** Mail gateways and proxy filters that scan attachments before they reach the workstation. Out of scope for single-workstation usage; relevant if you operate a mail server or HTTP proxy.
 
 
 ## The tool comparison
 
-The tools are organized by the categories above, plus auxiliary inspection tools and the sandboxing layer that sits after the scan.
+The tools are organised by the categories above, plus auxiliary inspection tools and the sandboxing layer that sits after the scan.
 
 ### Structural analysis: PDF
 
@@ -49,7 +52,7 @@ The tools are organized by the categories above, plus auxiliary inspection tools
 
 Public-domain Python scripts by a long-running malware analyst at the SANS Internet Storm Center. Not packaged in Debian or Devuan; requires manual download from didierstevens.com to a script directory of your choosing (typically `~/bin`).
 
-License: effectively public domain (Didier Stevens releases his work for general use; check the specific release).
+Licence: effectively public domain (Didier Stevens releases his work for general use; check the specific release).
 
 What they do: pdfid produces a one-page summary of suspicious-tag counts (/JavaScript, /JS, /OpenAction, /AA, /Launch, /JBIG2Decode, /RichMedia, /EmbeddedFile, /XFA) plus general object counts. pdf-parser walks the PDF object graph and lets you extract specific objects by ID, filter by content, or dump decoded streams.
 
@@ -69,7 +72,7 @@ When to pick: always, for PDF triage. There is no substitute that's both as accu
 
 #### peepdf
 
-Active community fork of the original Jose Miguel Esparza project (the original was Python 2 and unmaintained; the active fork is Python 3 and incorporates additional features). License: GPLv3.
+Active community fork of the original Jose Miguel Esparza project (the original was Python 2 and unmaintained; the active fork is Python 3 and incorporates additional features). Licence: GPLv3.
 
 What it does: interactive PDF analysis. Decodes streams, detects JavaScript, runs some pattern detection against known exploits, lets you navigate the PDF object tree.
 
@@ -87,7 +90,7 @@ When to pick: when pdfid plus pdf-parser have flagged a PDF as suspicious and yo
 
 #### mupdf-tools (mutool)
 
-Part of the MuPDF project (Artifex Software, behind Ghostscript). Packaged in Debian and Devuan as `mupdf-tools`. License: AGPLv3 (commercial alternative available from Artifex).
+Part of the MuPDF project (Artifex Software, behind Ghostscript). Packaged in Debian and Devuan as `mupdf-tools`. Licence: AGPLv3 (commercial alternative available from Artifex).
 
 What it does: structural inspection of PDFs, not security-focused. `mutool show file.pdf trailer` shows the trailer dictionary; `mutool clean -d file.pdf out.pdf` rewrites with streams decompressed and visible.
 
@@ -109,7 +112,7 @@ EPUBs are zip archives of XHTML, CSS, JavaScript, and images. There is no dedica
 
 #### epubcheck
 
-Java tool from the W3C / DAISY consortium. Packaged in Debian and Devuan as `epubcheck`. License: BSD 3-Clause.
+Java tool from the W3C / DAISY consortium. Packaged in Debian and Devuan as `epubcheck`. Licence: BSD 3-Clause.
 
 What it does: validates EPUB conformance against the EPUB 2 and EPUB 3 specifications.
 
@@ -128,9 +131,9 @@ When to pick: as a heuristic check on EPUBs from non-publisher sources. Run alon
 
 #### ClamAV
 
-The dominant open-source antivirus engine. Originally a small project (Tomasz Kojm, 2001), now developed under Cisco's Talos security organization since the 2007 acquisition of Sourcefire. Packaged in Debian and Devuan as `clamav` (CLI) and `clamav-daemon` (clamd).
+The dominant open-source antivirus engine. Originally a small project (Tomasz Kojm, 2001), now developed under Cisco's Talos security organisation since the 2007 acquisition of Sourcefire. Packaged in Debian and Devuan as `clamav` (CLI) and `clamav-daemon` (clamd).
 
-License: GPLv2.
+Licence: GPLv2.
 
 What it does: scans files against a signature database for known malware. Recurses into archives (zip, rar, 7z, tar) and document containers (Office, PDF, EPUB) natively. Two main invocation modes: `clamscan` loads signatures on every invocation (slow); `clamdscan` queries a running `clamd` daemon (fast). `freshclam` updates signatures.
 
@@ -154,7 +157,7 @@ When to pick: always, as the signature-scanning layer. No other open-source opti
 
 #### YARA
 
-Originally a VirusTotal project (Victor Manuel Alvarez, then at VirusTotal, now at Google). Packaged in Debian and Devuan as `yara`. License: BSD-3-Clause.
+Originally a VirusTotal project (Victor Manuel Alvarez, then at VirusTotal, now at Google). Packaged in Debian and Devuan as `yara`. Licence: BSD-3-Clause.
 
 What it does: pattern-matching engine for malware research. You write rules (specific strings, byte patterns, structural conditions, file-size and magic-number tests); YARA scans files and reports which rules matched.
 
@@ -199,7 +202,7 @@ When to pick: hash lookup on every file (privacy-safe, fast). Full upload only w
 
 #### exiftool
 
-Long-running Perl tool by Phil Harvey (since 2003). Packaged in Debian and Devuan as `libimage-exiftool-perl`. License: GPLv1 or Artistic (Perl's dual license).
+Long-running Perl tool by Phil Harvey (since 2003). Packaged in Debian and Devuan as `libimage-exiftool-perl`. Licence: GPLv1 or Artistic (Perl's dual licence).
 
 What it does: reads, writes, and edits metadata in a vast range of file formats. For document analysis: exposes authoring tools, creation timestamps, embedded thumbnails, EXIF and IPTC fields.
 
@@ -211,13 +214,13 @@ Strengths:
 
 Weaknesses:
 
-- Not a malware tool. Exposes metadata, doesn't analyze threats.
+- Not a malware tool. Exposes metadata, doesn't analyse threats.
 
 When to pick: when you want to know who made a file and when, or when you suspect fabricated provenance.
 
 #### binwalk
 
-Originally created by Craig Heffner; the project's lineage includes a period of funding from ReFirm Labs (acquired by Microsoft in 2021). Packaged in Debian and Devuan as `binwalk`. License: MIT.
+Originally created by Craig Heffner; the project's lineage includes a period of funding from ReFirm Labs (acquired by Microsoft in 2021). Packaged in Debian and Devuan as `binwalk`. Licence: MIT.
 
 What it does: scans files for embedded files of known formats. Originally built for firmware analysis (finding filesystems and bootloaders inside firmware blobs); useful generally for "is there something hidden inside this thing?"
 
@@ -228,7 +231,7 @@ Strengths:
 
 Weaknesses:
 
-- Not document-focused. Useful for the specific question "is there a payload hidden inside this seemingly-innocent file" but doesn't analyze the document content itself.
+- Not document-focused. Useful for the specific question "is there a payload hidden inside this seemingly-innocent file" but doesn't analyse the document content itself.
 - Microsoft-adjacent lineage via the ReFirm acquisition is a trust consideration for some users; the project itself remains open-source and community-maintained.
 
 When to pick: when other tools have flagged a document as suspicious and you want to check for embedded content (an executable hidden in an image, a zip appended to a PDF).
@@ -237,7 +240,7 @@ When to pick: when other tools have flagged a document as suspicious and you wan
 
 #### Firejail
 
-SUID-based namespace sandbox. Packaged in Debian and Devuan as `firejail`. License: GPLv2.
+SUID-based namespace sandbox. Packaged in Debian and Devuan as `firejail`. Licence: GPLv2.
 
 What it does: runs a process in a namespace sandbox with restricted filesystem access, optional network isolation, seccomp filters, and capability dropping. Profile system covers most common applications.
 
@@ -257,7 +260,7 @@ When to pick: opening untrusted documents always. The SUID trade-off is acceptab
 
 #### Bubblewrap
 
-User-namespace-based sandbox without SUID. Packaged in Debian and Devuan as `bubblewrap`. License: LGPLv2.
+User-namespace-based sandbox without SUID. Packaged in Debian and Devuan as `bubblewrap`. Licence: LGPLv2.
 
 What it does: same general purpose as Firejail (process isolation via Linux namespaces) but without requiring SUID. Used as the sandbox foundation by Flatpak.
 
@@ -277,11 +280,11 @@ When to pick: if you've decided Firejail's SUID is unacceptable for your threat 
 
 ## Political and lineage clustering
 
-Less politically charged than encryption tools — no Snowden-era controversies to navigate. The tools fall into three lineages, distinguished by funding base and project culture:
+Less politically charged than encryption tools: no Snowden-era controversies to navigate. The tools fall into three lineages, distinguished by funding base and project culture:
 
 **Original-author / security-community lineage.** Didier Stevens' pdfid and pdf-parser, exiftool, ClamAV in its early years. Long-running solo or small-team projects with strong individual stewardship. Stable for decades. Vulnerable to bus factor but otherwise low-controversy.
 
-**Corporate-FOSS lineage.** ClamAV (Cisco-funded since 2007), YARA (Google-funded via VirusTotal), Firejail (community plus occasional corporate contributions), Bubblewrap (Red Hat / Flatpak ecosystem). The corporate funding hasn't measurably changed project direction or compromised the open-source nature; both projects' code is inspectable and the funding has stabilized rather than co-opted them. Trust here is mostly an issue for users who object to the parent corporation on principle (US-headquartered, large, surveillance-adjacent for ClamAV / Cisco; advertising-funded for YARA / Google).
+**Corporate-FOSS lineage.** ClamAV (Cisco-funded since 2007), YARA (Google-funded via VirusTotal), Firejail (community plus occasional corporate contributions), Bubblewrap (Red Hat / Flatpak ecosystem). The corporate funding hasn't measurably changed project direction or compromised the open-source nature; both projects' code is inspectable and the funding has stabilised rather than co-opted them. Trust here is mostly an issue for users who object to the parent corporation on principle (US-headquartered, large, surveillance-adjacent for ClamAV / Cisco; advertising-funded for YARA / Google).
 
 **Multi-engine consensus with privacy cost.** VirusTotal (Google subsidiary). The trade-off is explicit: roughly 70 engines of coverage in exchange for your files entering a Google-owned, AV-industry-shared database. Hash-only lookups avoid the file-disclosure cost; full uploads accept it.
 
@@ -294,7 +297,7 @@ Three questions, in order:
 
 1. **What documents are you vetting?** PDFs only → pdfid plus pdf-parser plus ClamAV. Mixed PDF and EPUB → add EPUB extract-and-grep plus epubcheck. Office documents (Word, Excel, PowerPoint) → add oletools (mentioned below). Academic papers and ebooks → the vanilla stack covers; oletools if you handle Office.
 
-2. **How much configuration time can you absorb?** Zero → ClamAV alone with weekly cron of Downloads. Low → add pdfid for the PDFs that actually come through. Medium → the full stack via `doc-malware-scan.sh`. High (this is your job) → custom YARA rules tuned to your specific threat surface, plus a clamd daemon for fast scans.
+2. **How much configuration time can you absorb?** Zero → ClamAV alone with weekly cron of Downloads. Low → add pdfid for the PDFs that actually come through. Medium → the full stack. High (this is your job) → custom YARA rules tuned to your specific threat surface, plus a clamd daemon for fast scans.
 
 3. **What's your response posture on a hit?** If a hit will be ignored or routinely dismissed, none of this matters. The minimum posture: structural-suspicion hit → don't open without sandbox; signature hit → don't open at all without inspection; critical hit → don't open, quarantine, investigate origin. Pre-decide before the first hit, because the first hit will arrive at an inconvenient moment.
 
@@ -302,8 +305,6 @@ Three questions, in order:
 ## The recommendation
 
 ClamAV + Didier Stevens' pdfid suite + YARA + Firejail. Plus VirusTotal hash lookup if you have an API key (free tier sufficient for casual use).
-
-Operational companion: `doc-malware-scan.sh` in this project. First run auto-installs everything; subsequent runs scan files or folders.
 
 One-time setup (also done automatically by the script on first invocation):
 
@@ -356,10 +357,10 @@ The doc-malware-scan workflow above targets PDF and EPUB explicitly. Adjacent fo
 
 **Sandbox-execution detonation (the cuckoo-sandbox model).** Run the suspicious document in an instrumented VM, observe what it does. Real category, real value for security researchers, way too much infrastructure for a workstation user. If you need it, REMnux ships pre-configured.
 
-**Specialized formats (CAD files, scientific data formats).** Format-specific. Most don't have meaningful malware exposure; the ones that do (DWG, certain GIS formats) have their own niche analysis tools.
+**Specialised formats (CAD files, scientific data formats).** Format-specific. Most don't have meaningful malware exposure; the ones that do (DWG, certain GIS formats) have their own niche analysis tools.
 
 **QR-code analysis.** A QR code is a URL container; the threat is the URL it encodes, not the QR code itself. Scanning the URL with a reputation service (urlscan.io, VirusTotal URL endpoint) handles the actual question. Tooling like `zbarimg` decodes the QR; deciding whether the decoded URL is hostile is a different category of work than document scanning. Worth knowing about; deliberately not in the doc-malware-scan workflow.
 
 **HTML email with tracking pixels.** Email tracking pixels (1x1 transparent images served from a tracking domain) leak read-receipts to the sender. Defense is at the mail-client layer (block remote image loading by default; Thunderbird and Geary both support this) rather than the scanning layer. Out of scope here because the question is mail-client configuration, not document scanning.
 
-**Downloaded-binary signature verification.** Verifying a downloaded binary's GPG signature or shasum is a separate workflow from scanning a document. The procedure (download `.asc` plus binary, `gpg --verify`, or compare `sha256sum` against the publisher's published value) is mechanical and covered in `privacy-setup.md` and `gpg-concepts.md`. The document-scanning workflow can apply afterward (scanning the verified-as-authentic binary for completeness) but the primary defense for binaries is signature verification, not pdfid.
+**Downloaded-binary signature verification.** Verifying a downloaded binary's GPG signature or shasum is a separate workflow from scanning a document. The procedure (download `.asc` plus binary, `gpg --verify`, or compare `sha256sum` against the publisher's published value) is mechanical. The document-scanning workflow can apply afterward (scanning the verified-as-authentic binary for completeness) but the primary defence for binaries is signature verification, not pdfid.

@@ -1,15 +1,20 @@
 # Choosing Encryption Tools
 
+> - **For:** Linux newcomers deciding how to encrypt disks, files and backups.
+> - **Before you start:** [Choosing the OS](./choosing-os.md).
+> - **Reading time:** about 30 minutes.
+> - **You end with:** one tool per job (LUKS, Borg, age or GPG, Cryptomator, VeraCrypt) and the reasons for each.
+
 A guide to encrypting your files, folders, and disks when you've left Windows and Mac for Linux. Written for beginners. Updated as things change.
 
 ## TL;DR
 
 If you're still on Windows or macOS and reading this, the highest-leverage move you can make is leaving. Both platforms encrypt your disk by default and then quietly hand the keys to the vendor. BitLocker uploads your recovery key to your Microsoft account. Apple holds your iCloud encryption keys unless you've gone out of your way to turn on Advanced Data Protection. You are not the only one who can decrypt your data on those systems. This is upstream of every other encryption decision you'll make.
 
-Migrate to Linux. The companion OS guide `os.md` covers picking a distro. Once you're there, encryption gets simple:
+Migrate to Linux. [Choosing the OS](./choosing-os.md) covers picking a distro. Once you're there, encryption gets simple:
 
 - **Encrypt your laptop disk.** Enable LUKS at install. Every Linux installer offers a checkbox. This solves "stolen laptop" once and forever.
-- **Backups.** The backup tool encrypts the archive itself; choosing among Borg, Restic, and the rest is covered in `choosing-backup-tools.md`.
+- **Backups.** The backup tool encrypts the archive itself; this site's backup section uses Borg (see [Whys of backup](./backup-whys.md)).
 - **Cloud-synced folders.** Cryptomator on top of whatever sync provider you tolerate, or move to a provider that does end-to-end encryption natively (Proton Drive, Tresorit, Mega).
 - **Encrypting a single file to keep for yourself.** GPG to your own key if you already keep one for `pass` and signing, since it adds no new tool and no new key to back up; age if you do not run GPG.
 - **Sending an encrypted file to someone.** age. The recipient can install it in one minute on any platform.
@@ -17,9 +22,9 @@ Migrate to Linux. The companion OS guide `os.md` covers picking a distro. Once y
 - **GUI drag-and-drop for one file.** Picocrypt.
 - **Plausible deniability under coercion.** VeraCrypt hidden volumes, the only tool in this category, and the Windows side of it is at risk through 2026 (more below).
 
-If you've never encrypted a file in your life and you don't know where to start, do this in order: turn on LUKS the next time you reinstall, install Borg and back up your home directory once a week (the backup tools themselves are covered in `choosing-backup-tools.md`), and don't touch the rest of this guide until those two are habits.
+If you've never encrypted a file in your life and you don't know where to start, do this in order: turn on LUKS the next time you reinstall, install Borg and back up your home directory once a week (see [Getting started with Borg](./getting-started-with-borg.md)), and don't touch the rest of this guide until those two are habits.
 
-What this artifact is not: a how-to. There are no commands here. This is for picking the right tool for the right job and understanding the politics of each. The companion `devuan-luks2-install.sh` in the project covers the actual install procedure for users who want to bypass distro installer wrappers. For the concepts beneath these tools (what encryption, signing, hashing, keys, and the web of trust actually are), the companion `gpg-concepts.md` is the home; this guide assumes those and points there rather than re-explaining.
+What this artifact is not: a how-to. There are no commands here. This is for picking the right tool for the right job and understanding the politics of each. [Full disk encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md) covers the actual install procedure for users who want to bypass distro installer wrappers. This guide assumes the concepts beneath these tools (what encryption, signing, hashing and keys are) rather than re-explaining them.
 
 
 ## Why your encryption choices matter: the surface you're defending
@@ -34,7 +39,7 @@ You don't need a threat model that includes nation-states for any of this to mat
 This is the stuff encryption-at-rest defends against. What it does *not* defend against:
 
 - Malware on your unlocked, logged-in machine. The data is decrypted in memory while you're using it; encryption-at-rest does nothing here.
-- Keyloggers. If the password gets captured, the math is irrelevant.
+- Keyloggers. If the password gets captured, the maths is irrelevant.
 - Coercion. A government with rubber hoses gets the password. (The narrow exception below: VeraCrypt hidden volumes.)
 - Backups *of the unencrypted versions* of files. If you ever decrypted a file and then synced your home directory to OneDrive in plaintext, that's the version that exists.
 - Cold-boot attacks on a powered-on or suspended laptop. RAM holds keys for several seconds after power is cut, longer if cooled. "Locked screen" is not "encryption is engaged." Real protection means powered off.
@@ -49,7 +54,7 @@ BitLocker, in its default Windows 11 configuration, uploads your recovery key to
 
 Apple's FileVault doesn't upload the disk-encryption key by default. But your iCloud data (including iMessage backups, photos, notes, files in iCloud Drive, and Safari history) is by default encrypted with keys Apple holds. Apple can read it. Apple can hand it over. Apple has handed it over, repeatedly, to law enforcement requests. The opt-out is called Advanced Data Protection, was introduced in iOS 16.2 in late 2022, requires you to set up at least one recovery contact or recovery key, and is off by default. Most Mac users have never heard of it. Their iCloud is end-to-end encrypted in the marketing material and not end-to-end encrypted in fact.
 
-These aren't bugs. They're product decisions. Microsoft and Apple sell convenience and recoverability; they price that against your sovereignty over your own data, and the price is your sovereignty. This is the same pattern as Recall (Windows 11's screenshot-everything feature), notarization (Apple deciding what software you can run on your own machine), and account-required setup. The OS vendor takes a seat at the table you didn't offer them.
+These aren't bugs. They're product decisions. Microsoft and Apple sell convenience and recoverability; they price that against your sovereignty over your own data, and the price is your sovereignty. This is the same pattern as Recall (Windows 11's screenshot-everything feature), notarisation (Apple deciding what software you can run on your own machine), and account-required setup. The OS vendor takes a seat at the table you didn't offer them.
 
 The Linux equivalent (LUKS) does not phone home. The key derivation runs locally; the master volume key never leaves your machine; there is no recovery service. If you forget your password, the data is gone. That's the deal. It's a worse experience for the careless user and a categorically better one for everyone else.
 
@@ -72,7 +77,7 @@ Encryption-at-rest tools cluster into four families. The right tool depends almo
 
 **Per-file or per-folder.** Each file is encrypted individually, and the encrypted output is a file you can move around, sync, or share. Some present as a transparent virtual folder where you drop plaintext and it gets encrypted on save. Examples: age, GnuPG, Picocrypt, Cryptomator, gocryptfs. Use case: cloud-syncable encryption, sharing a single encrypted file with someone, or per-directory encryption on Linux.
 
-**Encrypted backup archive.** A backup-format-first tool where encryption is built into the format. The output is a deduplicated, compressed, encrypted archive that only the backup tool understands. These are backup tools first, with encryption as a property of the format rather than the point of the tool; choosing among them (Borg, Restic, and the rest) is covered in `choosing-backup-tools.md`, and this guide does not re-select them. Use case: serious backup of large amounts of data to local or remote storage.
+**Encrypted backup archive.** A backup-format-first tool where encryption is built into the format. The output is a deduplicated, compressed, encrypted archive that only the backup tool understands. These are backup tools first, with encryption as a property of the format rather than the point of the tool; the backup section of this site covers Borg, and this guide does not re-select them. Use case: serious backup of large amounts of data to local or remote storage.
 
 A sub-mode that crosses these categories: filesystem-native encryption. ZFS native encryption and Linux's fscrypt operate at the filesystem layer, neither block-level (whole-disk) nor application-level (per-file). They appear once in the tools list below but conceptually they sit alongside the four families rather than inside any one of them.
 
@@ -91,11 +96,11 @@ Fits: laptop disk encryption, encrypted partitions, encrypted external drives th
 
 LUKS comes in two on-disk formats. LUKS1 is the original; LUKS2 (default on most distributions since around 2019) supports Argon2id key derivation, multiple keyslots with stronger metadata, and re-encryption of an existing volume. New installs should use LUKS2. Stay on LUKS1 only if your bootloader doesn't support LUKS2 yet, which is increasingly rare.
 
-A related modern variant: systemd-homed, which encrypts each user's home directory in its own LUKS image rather than encrypting the whole disk. This gives "home only" protection (your data is encrypted; system files aren't) and lets the encryption follow the user across machines. Politically it's part of the systemd ecosystem and inherits everything that comes with that; see the systemd discussion in `os.md`.
+A related modern variant: systemd-homed, which encrypts each user's home directory in its own LUKS image rather than encrypting the whole disk. This gives "home only" protection (your data is encrypted; system files aren't) and lets the encryption follow the user across machines. Politically it's part of the systemd ecosystem and inherits everything that comes with that; see [The systemd problem](./choosing-os.md#the-systemd-problem).
 
 For users who don't want to type a password every boot, modern Linux supports TPM2-backed unlock via Clevis or systemd-cryptenroll. The TPM holds the key and releases it only if the boot chain hasn't been tampered with. Convenient; not appropriate against an attacker who has physical access to the powered-off device.
 
-For users who want to skip the distro installer and configure LUKS by hand, the project's `devuan-luks2-install.sh` is a worked example: GPT + LUKS2 + LVM + ext4 with keyfile-in-initramfs and GRUB cryptodisk, on Devuan. Read it before you run it.
+For users who want to skip the distro installer's checkbox and configure LUKS by hand, [Full disk encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md) is the worked procedure: GPT + LUKS2 + LVM + ext4 with keyfile-in-initramfs and GRUB cryptodisk.
 
 Political leaning: Linux-kernel mainstream. The boring engineering option. Ships in every distribution, gets used at industrial scale, has no political enemies to make. Trusts the Linux kernel security model implicitly.
 
@@ -113,9 +118,9 @@ Fits: cross-platform encrypted containers (works on Linux, Windows, macOS); Wind
 
 Political leaning: post-cypherpunk, Snowden-era state-resistant. TrueCrypt was the tool of choice for journalists, dissidents, and activists; VeraCrypt inherits that lineage. Hidden volumes only make sense as a feature if you take seriously the threat of compelled disclosure by a state actor.
 
-Current state matters. Version 1.26.27 (September 2025) added Argon2id, modernizing the password hashing. But in early 2026, Microsoft terminated Mounir Idrassi's developer account without explanation. He has been unable to sign new Windows drivers or bootloaders since. Linux and macOS releases are unaffected; the most recent upload to SourceForge is from late April 2026. Existing Windows installs continue to work, but the certificate authority used for the VeraCrypt bootloader expires in late June 2026 and Microsoft is revoking it in July 2026, after which Secure Boot may refuse to load new VeraCrypt installations on Windows. Idrassi has called the situation a potential "death sentence" for VeraCrypt-on-Windows. This is not a cryptographic failure or a state-vs-encryption story; it's a platform-vendor termination story, and the lesson is that even hardcore state-resistant tools depend on cooperation from the platforms they ship through. Note that this is also a strong argument for migrating *off* Windows, the same gatekeeping that's killing VeraCrypt is what makes BitLocker the default.
+Current state matters. Version 1.26.27 (September 2025) added Argon2id, modernising the password hashing. But in early 2026, Microsoft terminated Mounir Idrassi's developer account without explanation. He has been unable to sign new Windows drivers or bootloaders since. Linux and macOS releases are unaffected; the most recent upload to SourceForge is from late April 2026. Existing Windows installs continue to work, but the certificate authority used for the VeraCrypt bootloader expires in late June 2026 and Microsoft is revoking it in July 2026, after which Secure Boot may refuse to load new VeraCrypt installations on Windows. Idrassi has called the situation a potential "death sentence" for VeraCrypt-on-Windows. This is not a cryptographic failure or a state-vs-encryption story; it's a platform-vendor termination story, and the lesson is that even hardcore state-resistant tools depend on cooperation from the platforms they ship through. Note that this is also a strong argument for migrating *off* Windows, the same gatekeeping that's killing VeraCrypt is what makes BitLocker the default.
 
-Tradeoff: single-maintainer risk, now actively materializing on the Windows side. On Linux and macOS the tool is unaffected.
+Tradeoff: single-maintainer risk, now actively materialising on the Windows side. On Linux and macOS the tool is unaffected.
 
 Use if: you need a cross-platform encrypted container right now, you're on Linux or Mac, and LUKSbox isn't mature enough yet. For Windows specifically, plan for migration off either Windows or VeraCrypt before mid-2026.
 
@@ -165,7 +170,7 @@ Current state: 1.3.0 (December 2025) added an X25519+ML-KEM-768 hybrid post-quan
 
 Tradeoff: deliberately doesn't sign. If you need authenticated provenance ("this file came from me"), you combine age with signify, minisign, or `ssh-keygen -Y sign`. There's no built-in revocation story.
 
-Use if: you want to send an encrypted file or directory to someone, or you want to encrypt one for yourself and do not already keep a GPG key. If you do keep a GPG key for `pass` and signing, encrypting your own at-rest files to that key consolidates onto one key you already protect; see the GnuPG entry. This is still the right default for "I want to encrypt this thing" when no GPG key is already in the picture. For the conceptual comparison of age versus GPG, what each does cryptographically and why age drops signing and the web of trust, see `gpg-concepts.md`.
+Use if: you want to send an encrypted file or directory to someone, or you want to encrypt one for yourself and do not already keep a GPG key. If you do keep a GPG key for `pass` and signing, encrypting your own at-rest files to that key consolidates onto one key you already protect; see the GnuPG entry. This is still the right default for "I want to encrypt this thing" when no GPG key is already in the picture.
 
 ### GnuPG / GPG
 
@@ -175,7 +180,7 @@ Maintainer: Werner Koch and the GnuPG team. The funding situation has been preca
 
 Fits: legacy interop, verifying package signatures, signing git commits, encrypting email under PGP/MIME, anything that already speaks OpenPGP. Also encrypting your own files at rest when you already keep a GPG key for `pass` and signing, where using that one key avoids adding a second encryption tool and a second key to back up. Rarely the right starting point for a new file-encryption workflow that has no GPG key behind it already.
 
-Political leaning: FSF-adjacent cypherpunk old guard. GPL-licensed. Built around the web-of-trust philosophy of the 1990s, that key authenticity should be established peer-to-peer rather than via certificate authorities; `gpg-concepts.md` covers how the web of trust actually works and why it never scaled. The project's institutional rhythm is famously slow, the UX is famously hostile, and the codebase is famously baroque. Modernizers (age, Sequoia-PGP) treat it as the cautionary tale.
+Political leaning: FSF-adjacent cypherpunk old guard. GPL-licensed. Built around the web-of-trust philosophy of the 1990s, that key authenticity should be established peer-to-peer rather than via certificate authorities. The project's institutional rhythm is famously slow, the UX is famously hostile, and the codebase is famously baroque. Modernisers (age, Sequoia-PGP) treat it as the cautionary tale.
 
 Tradeoff: the worst available choice for someone with a free hand and no existing GPG key, since age is the cleaner file primitive; the sensible choice when you already hold a GPG key and want one key to cover signing, `pass`, and your own files at rest.
 
@@ -189,7 +194,7 @@ Maintainer: Evan Su (single developer).
 
 Fits: occasional encryption of one or several files via a GUI. The "I just want to put a password on this PDF and email it to my accountant" use case.
 
-Political leaning: minimalist tooling with cypherpunk-flavored populism. The cryptographic primitives are modern (XChaCha20, Argon2id) and the interface is austere in the age tradition, but the marketing copy invokes "three-letter agencies like the NSA", that's a cultural tell about who the project imagines its user is. Sits between age (austere, developer-focused) and VeraCrypt (heavy, cypherpunk-traditional). The "paranoid pack" with reproducible builds is a supply-chain-trust marker shared with age and LUKSbox.
+Political leaning: minimalist tooling with cypherpunk-flavoured populism. The cryptographic primitives are modern (XChaCha20, Argon2id) and the interface is austere in the age tradition, but the marketing copy invokes "three-letter agencies like the NSA", that's a cultural tell about who the project imagines its user is. Sits between age (austere, developer-focused) and VeraCrypt (heavy, cypherpunk-traditional). The "paranoid pack" with reproducible builds is a supply-chain-trust marker shared with age and LUKSbox.
 
 Tradeoff: single-developer project. Limited CLI; the workflow really wants the GUI. Not designed for cloud sync, each operation produces a static encrypted file.
 
@@ -261,7 +266,7 @@ CryFS and securefs are alternative FUSE-based encrypted filesystems. CryFS chunk
 
 eCryptfs (per-directory encryption that Ubuntu used to ship for `~/.private`) is essentially abandoned. fscrypt (kernel-native per-directory encryption in ext4 / f2fs / UBIFS) is the current Linux successor and is fine if you want native kernel support without FUSE. Like ZFS encryption, it's filesystem-native rather than fitting cleanly into the four families above.
 
-Sequoia-PGP is a Rust rewrite of OpenPGP, German-funded, the most credible modernization attempt for the GnuPG ecosystem. Worth knowing about if you're stuck with OpenPGP for legacy reasons but want a less hostile codebase. Not a starting point for someone who has a free choice, pick age instead.
+Sequoia-PGP is a Rust rewrite of OpenPGP, German-funded, the most credible modernisation attempt for the GnuPG ecosystem. Worth knowing about if you're stuck with OpenPGP for legacy reasons but want a less hostile codebase. Not a starting point for someone who has a free choice, pick age instead.
 
 Kryptor is a single-developer age-like project with solid cryptography but a much smaller user base. Mentioned for completeness; not recommended over age.
 
@@ -282,7 +287,7 @@ Pick the row that describes your use case. The recommended tool is in column two
 | Encrypted "vault" on existing Linux system | Tomb | VeraCrypt container, LUKSbox |
 | Encrypted home directory only (not full disk) | systemd-homed or fscrypt | gocryptfs |
 | Plausible deniability under coercion | VeraCrypt hidden volumes (Linux/Mac viable; Windows uncertain through 2026) | LUKSbox detached-header (when 1.0+) |
-| Encrypted backup, local or SSH or cloud | The backup tool encrypts the archive; see `choosing-backup-tools.md` | , |
+| Encrypted backup, local or SSH or cloud | The backup tool encrypts the archive; see [Whys of backup](./backup-whys.md) | , |
 | Encrypted ZFS pool / dataset replication | ZFS native encryption |, |
 | Cloud-synced encrypted folder (Dropbox / Google Drive / iCloud) | Cryptomator | gocryptfs + sync client; rclone crypt; or move to a natively E2EE provider |
 | Encrypted sync to any rclone backend | rclone crypt |, |
@@ -294,7 +299,7 @@ Pick the row that describes your use case. The recommended tool is in column two
 | Per-directory encryption inside ext4 / f2fs | fscrypt | gocryptfs |
 | Verify package or git signatures (signing, not encryption) | GnuPG |, |
 
-The last row is for completeness: signing and encryption are different operations. If your goal is signing, GnuPG and `ssh-keygen -Y sign` are the practical options; the rest of this guide is about encryption. Why the two operations differ, and what authenticity and integrity each give you, is covered in `gpg-concepts.md`.
+The last row is for completeness: signing and encryption are different operations. If your goal is signing, GnuPG and `ssh-keygen -Y sign` are the practical options; the rest of this guide is about encryption.
 
 Two pieces of practical advice not captured in the matrix.
 
@@ -309,13 +314,13 @@ Encryption-at-rest tools cluster into several ideological lineages. Knowing whic
 
 **Linux-kernel mainstream.** LUKS, fscrypt. Engineering-above-ideology, ships in every distribution, gets used at industrial scale, has no political enemies to make. The least flashy category and by far the most reliable.
 
-**Self-hosting sysadmin.** rclone crypt, gocryptfs, ZFS native encryption. FOSS-pragmatist by temperament, but with a discernible preference for "your own server, your own disks" deployment patterns. Less ideological than the cypherpunks but more opinionated than pure infrastructure-as-utility. Stable funding because these tools are the backbone of competent self-hosting. The backup tools that also sit in this lineage (Borg, Restic) are covered in `choosing-backup-tools.md`.
+**Self-hosting sysadmin.** rclone crypt, gocryptfs, ZFS native encryption. FOSS-pragmatist by temperament, but with a discernible preference for "your own server, your own disks" deployment patterns. Less ideological than the cypherpunks but more opinionated than pure infrastructure-as-utility. Stable funding because these tools are the backbone of competent self-hosting. Borg, which also sits in this lineage, has its own section on this site.
 
 **Cypherpunk / post-Snowden state-resistant.** VeraCrypt, GnuPG. Built around the assumption that adversaries include nation-states. Hidden volumes, web of trust, paranoid threat models, sometimes-difficult UX as a feature rather than a bug. Currently the most fragile category, the VeraCrypt-Microsoft situation in early 2026 is a state-resistant tool being shut down not by a state but by a platform vendor, and the lesson is that even hardcore cypherpunk tools depend on cooperation from the platforms they ship through.
 
-**Modern minimalist / post-PGP.** age, with Sequoia-PGP as a sibling on the OpenPGP-modernization side. A reaction against GnuPG complexity by a younger generation of cryptographers. Smaller maintainer pools, smaller surface area, far better ergonomics, less institutional inertia. Funded by individual sponsorships and tech-company patronage rather than foundations. Reproducible builds and signed-binary attestation (Sigsum, transparency logs) are markers of this lineage.
+**Modern minimalist / post-PGP.** age, with Sequoia-PGP as a sibling on the OpenPGP-modernisation side. A reaction against GnuPG complexity by a younger generation of cryptographers. Smaller maintainer pools, smaller surface area, far better ergonomics, less institutional inertia. Funded by individual sponsorships and tech-company patronage rather than foundations. Reproducible builds and signed-binary attestation (Sigsum, transparency logs) are markers of this lineage.
 
-**Cypherpunk-flavored populism.** Picocrypt. Modern primitives, austere interface, but explicitly populist threat-model framing, the marketing names the NSA. Sits between modernist tooling and the older cypherpunk culture.
+**Cypherpunk-flavoured populism.** Picocrypt. Modern primitives, austere interface, but explicitly populist threat-model framing, the marketing names the NSA. Sits between modernist tooling and the older cypherpunk culture.
 
 **Modernist-cypherpunk hybrid.** LUKSbox. Cypherpunk threat model (post-quantum, hardware-key, detached header for plausible deniability) implemented with modernist tooling (Rust, Apache 2.0, fuzzing-and-audit-first development, cross-platform via FUSE3 / WinFsp). The first tool on this list to combine those two camps deliberately. Funded by a French pentesting firm rather than a maintainer-of-one or a privacy-product company.
 
@@ -323,7 +328,7 @@ Encryption-at-rest tools cluster into several ideological lineages. Knowing whic
 
 **Hacker-collective / autonomist.** Tomb (Dyne.org). The most explicitly political category. European free-software-as-political-practice tradition. Bash-script aesthetics, KISS philosophy, leftist hacker culture.
 
-The takeaway: the encryption itself is not the interesting variable. AES-256, ChaCha20-Poly1305, Argon2id, these are mature primitives and any of the actively maintained tools above gets the math right. What differs is the threat model the project assumes, the funding base that sustains it, and the behaviors you're being signed up for when you adopt their workflow. Pick on those.
+The takeaway: the encryption itself is not the interesting variable. AES-256, ChaCha20-Poly1305, Argon2id, these are mature primitives and any of the actively maintained tools above gets the maths right. What differs is the threat model the project assumes, the funding base that sustains it, and the behaviours you're being signed up for when you adopt their workflow. Pick on those.
 
 
 ## Migration from Windows or Mac
@@ -346,7 +351,7 @@ For files that were in iCloud Drive: check whether you had Advanced Data Protect
 
 **General advice for both directions.** Decrypt and copy is almost always cleaner than trying to read foreign-OS encrypted volumes natively. Schedule the migration when you have time to sit through a full decrypt-backup-reinstall-restore cycle, ideally with two separate copies of the data on different physical drives. Encryption migration is the most common point at which people lose data permanently; budget extra paranoia for it.
 
-**Once you're on Linux.** Default starting setup: LUKS at install on the system disk, plus one secondary tool for whichever specific job is in front of you (Borg for backups, Cryptomator for cloud-synced folders, age for one-off files). Add others only when a new job genuinely requires them. The companion `devuan-luks2-install.sh` covers the LUKS-LVM-Devuan install procedure in detail for users who want full control over the install.
+**Once you're on Linux.** Default starting setup: LUKS at install on the system disk, plus one secondary tool for whichever specific job is in front of you (Borg for backups, Cryptomator for cloud-synced folders, age for one-off files). Add others only when a new job genuinely requires them. [Full disk encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md) covers the install procedure in detail for users who want full control over the install.
 
 
 ## How to think about choosing
@@ -363,7 +368,7 @@ Concrete countermeasures, in increasing order of paranoia:
 
 - Write the password down on paper and put the paper somewhere a thief wouldn't look but you would (a sealed envelope in a filing cabinet, a safe-deposit box, a trusted family member's house). Physical paper is not a meaningful threat surface for the attacks encryption defends against, and it's the most reliable backup medium humans have for short secrets.
 - Use a password manager (KeePassXC, Bitwarden) and back up its database, but the master password itself has to live somewhere outside the password manager, so this just shifts the problem.
-- For LUKS specifically, save the LUKS header to a separate medium. If the header gets corrupted on the disk, the data is unrecoverable even with the correct password; the backup header restores recoverability. The command and the full procedure live in `devuan-secure-workstation.md` and the `devuan-luks2-install.sh` script, not here.
+- For LUKS specifically, save the LUKS header to a separate medium. If the header gets corrupted on the disk, the data is unrecoverable even with the correct password; the backup header restores recoverability. The command and the full procedure live in [Devuan secure workstation](./devuan-secure-workstation.md), not here.
 - For backups, keep at least two physically separated copies of any encrypted archive plus the password to decrypt it. The backup is no good if the password died with the laptop.
 
 Most people who go from "no encryption" to a single working LUKS-plus-Borg setup, with the password written down in a sealed envelope at home and the LUKS header backed up to a USB stick in a different room, get more real-world security than people who spend a year reading about hidden volumes and never finish setting anything up.

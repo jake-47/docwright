@@ -34,7 +34,13 @@
 
 # Version control
 
+- [Version control Overview](./vcs-overview.md)
+
 - [Whys of version control](./vcs-whys.md)
+
+- [Getting started with Git](./git-getting-started.md)
+
+- [Git for writers](./git-for-writers.md)
 
 - [Git concepts](./gitconcepts.md)
 
@@ -80,15 +86,15 @@
 
 - [Static-site generators](./static-sites.md)
 
-- [Publish a book or knowledge base](./publish-book.md)
+- [Publish a book: Mdbook guide](./publish-book.md)
 
 - [Bootstrap mdbook script](./boostrap-mdbook.md)
 
-- [Publish a blog](./publish-blog.md)
+- [Publish a blog: Zola guide](./publish-blog.md)
 
 - [Bootstrap zola blog script](./boostrap-zola.md)
 
-- [Publish a docs site](./publish-docs.md)
+- [Publish a docs site: Mkdocs guide](./publish-docs.md)
 
 - [Bootstrap mkdocs script](./boostrap-mkdocs.md)
 

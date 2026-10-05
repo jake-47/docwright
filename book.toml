@@ -10,6 +10,3 @@ default-theme = "ayu"
 preferred-dark-theme = "ayu"
 site-url = "/docwright/"
 edit-url-template = "https://github.com/jake-47/docwright/edit/main/{path}"
-
-[output.html.search.chapter]
-"unlisted" = { enable = false }

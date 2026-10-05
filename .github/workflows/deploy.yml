@@ -53,14 +53,60 @@ jobs:
           # legally contain | and ".
           version=$(git describe --tags 2>/dev/null | sed -E 's/-([0-9]+)-g[0-9a-f]+$/+\1/' || true)
           version=${version//[^A-Za-z0-9._+-]/}
+          # Last-commit time per chapter source, as the JSON object custom.js reads:
+          # {"src/chapter.md":"<git %aI>"}. It replaces the QUOTED placeholder, so
+          # the stamped line is an object literal while the unstamped one stays a
+          # string a local build can parse. The splice into sed is safe because both
+          # sides are constrained: %aI is digits, letters, 'T', ':', '+' and '-'
+          # only, and a path is admitted only from a charset with no '"', backslash,
+          # '&', '|' or newline — anything else is skipped with a notice and that
+          # page just shows no line.
+          dates="{" sep=""
+          while IFS= read -r -d '' f; do
+            case "$f" in *.md) ;; *) continue ;; esac
+            case "$f" in *[!A-Za-z0-9._/' '-]*)
+              echo "page dates: skipping '$f' (character outside the safe set)"; continue ;;
+            esac
+            d=$(git log -1 --format=%aI -- "$f")
+            [ -n "$d" ] || continue
+            dates="$dates$sep\"$f\":\"$d\""
+            sep=","
+          done < <(git ls-files -z -- src)
+          dates="$dates}"
           sed -i \
             -e "s|__MDB_BUILD_VERSION__|${version}|" \
-            -e "s|__MDB_BUILD_DATE__|$(date -u +%Y-%m-%d)|" \
+            -e "s|__MDB_BUILD_DATE__|$(date -u +%Y-%m-%dT%H:%M:%SZ)|" \
             -e "s|__MDB_BUILD_SHA__|${GITHUB_SHA::7}|" \
+            -e "s|\"__MDB_PAGE_DATES__\"|${dates}|" \
             custom.js
 
       - name: Build
         run: mdbook build
+
+      - name: Install lychee 0.24.2
+        run: |
+          set -euo pipefail
+          base="https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail -sSL "$base" -o lychee.tar.gz
+          # Pinned version AND bytes, like mdBook — but lychee never installs
+          # locally, so the digest was recorded in the bootstrap script at pin time
+          # (the release publishes a matching .sha256) rather than computed here.
+          echo "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  lychee.tar.gz" | sha256sum -c -
+          tar -xz -f lychee.tar.gz --strip-components=1 \
+            --directory=/usr/local/bin lychee-x86_64-unknown-linux-gnu/lychee
+
+      - name: Check links
+        run: |
+          # Offline pass over the built book: every internal link and every
+          # #fragment must resolve, or this step fails and nothing deploys.
+          # print.html repeats every chapter (each break would report twice) and
+          # 404.html carries a <base href> pointing at the live site, so both are
+          # excluded as inputs; links TO them are still checked. --offline also
+          # means external links are not fetched here — this gate is for the
+          # book's own integrity.
+          lychee --offline --include-fragments --root-dir "$PWD/book" \
+            --exclude-path book/print.html --exclude-path book/404.html \
+            'book/**/*.html'
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d

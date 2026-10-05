@@ -3,9 +3,14 @@
 # Git history delete
 <p class="mdb-subtitle">Script to permanently purge files from a git repo</p>
 
-1. Verify script
-2. Copy and save script.
-3. Run `bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt`
+The script below removes files you've already deleted from every commit in a Git repo, so they're gone from its history and not just from the latest version. Use it when a file has to vanish completely, like private notes in a repo you're about to make public. It skips anything still tracked on a branch or tag, so delete the file and commit that first. It wraps `git filter-repo` and rewrites history: every commit from the first one with that file gets a new hash, and you force-push afterwards. If the file held a password or a key, change that first; purging doesn't undo a leak, and [Never commit secrets](./gitconcepts.md#never-commit-secrets) explains why. For details, see [Purging files from history](./gitreference.md#purging-files-from-history) in Git reference.
+
+1. Verify script: read it through before you run it.
+2. Copy and save script as `gitdel.sh`.
+3. Back up the repo's history: `tar -czf ~/myrepo-git.tar.gz -C ~/projects/myrepo .git`. It prints nothing. If the purge goes wrong, this is your way back; the branch tips the script prints aren't, because filter-repo deletes the old commits as it finishes.
+4. Do a dry run: `bash gitdel.sh ~/projects/myrepo --dry-run`. It lists the files it would purge and ends with `Dry-run complete. No changes made.` If something you want to keep is on the list, stop here. If it stops early because `git-filter-repo` isn't installed or you have uncommitted changes, it says what to do.
+5. Run `bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt`. It prints the same list, a WARNING block, and `Proceed? This rewrites history and cannot be undone. (y/n):`. Type `y`. The filter-repo lines that follow are normal, including a NOTICE that it removed `origin`. It ends with `Done. Git history has been rewritten.` and the `git remote add` and `git push --force` commands for your repo.
+6. Run those commands. The branch push shows `(forced update)`; the tag push may only say `Everything up-to-date`, which is fine. Anyone else with a copy of the repo needs to clone it again.
 
 ```bash
 #!/usr/bin/env bash

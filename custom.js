@@ -1,16 +1,64 @@
 // Script-owned. Edit GIT_REPO_URL at the top of the script and re-run. The other
-// three are stamped by the deploy workflow at build time: MDB_VERSION from the tag
+// four are stamped by the deploy workflow at build time: MDB_VERSION from the tag
 // on the built commit (empty when it carries none), MDB_UPDATED from the build
-// date, MDB_SHA from the built commit itself.
+// time, MDB_SHA from the built commit itself, and MDB_PAGE_DATES, whose whole
+// quoted token the workflow replaces with an object literal mapping each chapter
+// source to its last commit time ({"src/x.md":"2026-…"}). It is a QUOTED string
+// here on purpose: unstamped (every local build) the file must still parse, and a
+// bare identifier would throw and take the rest of this file with it.
 var MDB_REPO = "https://github.com/jake-47/docwright";
 var MDB_VERSION = "__MDB_BUILD_VERSION__";
 var MDB_UPDATED = "__MDB_BUILD_DATE__";
 var MDB_SHA = "__MDB_BUILD_SHA__";
+var MDB_PAGE_DATES = "__MDB_PAGE_DATES__";
 (function () {
   var ready = function (fn) {
     if (document.readyState === "loading")
       document.addEventListener("DOMContentLoaded", fn);
     else fn();
+  };
+
+  // One test for every workflow-stamped string: non-empty and actually
+  // substituted (an unstamped local build leaves the __MDB_ placeholder).
+  var stamped = function (v) {
+    return typeof v === "string" && v !== "" && v.indexOf("__MDB_") !== 0;
+  };
+
+  // The one relative-time formatter, shared by the sidebar footer and the
+  // per-page line. Buckets are LOCAL CALENDAR DAYS, not 24-hour windows, so
+  // "yesterday" means yesterday on the reader's clock: same day, "N hours ago"
+  // ("just now" under an hour); one day back, "yesterday"; two and three,
+  // spelled out; older, the plain local date (YYYY-MM-DD, the format the footer
+  // showed before). A future timestamp (clock skew) lands in days<=0 with ms
+  // clamped, so it reads "just now" rather than a negative; an unparseable one
+  // returns null and the caller falls back or draws nothing. Computed once at
+  // load — no ticking timer — and the exact timestamp rides the element's title
+  // attribute, so hover shows the precision the words drop. 'now' is a
+  // parameter only so the formatter can be unit-tested; callers pass nothing.
+  var mdbWhen = function (iso, now) {
+    var d = new Date(iso);
+    if (isNaN(d)) return null;
+    now = now || new Date();
+    var ms = now - d;
+    if (ms < 0) ms = 0;
+    var day = function (x) { return new Date(x.getFullYear(), x.getMonth(), x.getDate()); };
+    var days = Math.round((day(now) - day(d)) / 86400000);
+    var text;
+    if (days <= 0) {
+      var h = Math.floor(ms / 3600000);
+      text = h < 1 ? "just now" : h === 1 ? "1 hour ago" : h + " hours ago";
+    } else if (days === 1) text = "yesterday";
+    else if (days === 2) text = "two days ago";
+    else if (days === 3) text = "three days ago";
+    else {
+      var p = function (n) { return (n < 10 ? "0" : "") + n; };
+      text = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+    }
+    var t = document.createElement("time");
+    t.dateTime = iso;
+    t.title = iso;
+    t.textContent = text;
+    return t;
   };
 
   // 'b' toggles the sidebar. The guard mirrors mdBook's own
@@ -86,10 +134,18 @@ var MDB_SHA = "__MDB_BUILD_SHA__";
   ready(function () {
     var box = document.querySelector(".sidebar .sidebar-scrollbox");
     if (!box) return;
-    var stamped = function (v) { return v !== "" && v.indexOf("__MDB_") !== 0; };
     var parts = [];
     if (stamped(MDB_VERSION)) parts.push(document.createTextNode(MDB_VERSION));
-    if (stamped(MDB_UPDATED)) parts.push(document.createTextNode("updated " + MDB_UPDATED));
+    if (stamped(MDB_UPDATED)) {
+      // "updated <when>", relative, with the exact timestamp on hover. If the
+      // stamp doesn't parse as a date, show it verbatim rather than nothing.
+      var u = document.createElement("span");
+      u.appendChild(document.createTextNode("updated "));
+      var w = mdbWhen(MDB_UPDATED);
+      if (w) u.appendChild(w);
+      else u.appendChild(document.createTextNode(MDB_UPDATED));
+      parts.push(u);
+    }
     if (stamped(MDB_SHA)) {
       if (MDB_REPO) {
         var s = document.createElement("a");
@@ -104,10 +160,66 @@ var MDB_SHA = "__MDB_BUILD_SHA__";
     var p = document.createElement("div");
     p.className = "mdb-sitemeta";
     for (var i = 0; i < parts.length; i++) {
-      if (i) p.appendChild(document.createTextNode(" \u00b7 "));
+      if (i) p.appendChild(document.createTextNode(" · "));
       p.appendChild(parts[i]);
     }
     box.appendChild(p);
+  });
+
+  // Per-page "Last updated <when>" under the chapter H1, after the subtitle when
+  // there is one. MDB_PAGE_DATES is stamped by the workflow as an object literal
+  // mapping each chapter source to its last commit time; unstamped it is still
+  // the placeholder STRING, so the typeof test is the whole local-build guard.
+  // The source path comes from the edit link — mdBook's #git-edit-button sits
+  // inside the <a> whose href ends in the expanded {path}, src/…; matching the
+  // href against the stamped keys (longest wins) sidesteps parsing the branch
+  // segment, which may itself contain '/'. The fallback maps the page URL
+  // (foo/bar.html -> src/foo/bar.md) using path_to_root for the depth.
+  // index.html is a COPY of the first chapter, so the fallback would name a
+  // source that doesn't exist and the map lookup draws nothing — the edit link,
+  // when there is one, carries it. print.html is skipped outright: a flat
+  // concatenation has no single source.
+  ready(function () {
+    if (typeof MDB_PAGE_DATES !== "object" || !MDB_PAGE_DATES) return;
+    if (/(^|\/)print\.html$/.test(location.pathname)) return;
+    var src = "";
+    var btn = document.getElementById("git-edit-button");
+    var a = btn && btn.closest ? btn.closest("a") : null;
+    var href = a ? a.getAttribute("href") || "" : "";
+    if (href) {
+      try { href = decodeURIComponent(href); } catch (err) {}
+      for (var k in MDB_PAGE_DATES) {
+        if (href.slice(-(k.length + 1)) === "/" + k && k.length > src.length) src = k;
+      }
+    }
+    if (!src) {
+      var depth = 0;
+      if (typeof path_to_root === "string")
+        depth = (path_to_root.match(/\.\.\//g) || []).length;
+      var segs = location.pathname.split("/").filter(Boolean);
+      var rel = segs.slice(segs.length - 1 - depth).join("/");
+      try { rel = decodeURIComponent(rel); } catch (err) {}
+      if (/\.html$/.test(rel) && rel !== "index.html") {
+        var cand = "src/" + rel.replace(/\.html$/, ".md");
+        if (MDB_PAGE_DATES[cand]) src = cand;
+      }
+    }
+    var iso = src ? MDB_PAGE_DATES[src] : "";
+    if (!iso) return;
+    var w = mdbWhen(iso);
+    if (!w) return;
+    var main = document.querySelector("#mdbook-content main");
+    if (!main) return;
+    var h1 = main.querySelector("h1");
+    if (!h1) return;
+    var after = h1;
+    var sib = h1.nextElementSibling;
+    if (sib && sib.classList && sib.classList.contains("mdb-subtitle")) after = sib;
+    var p = document.createElement("p");
+    p.className = "mdb-updated";
+    p.appendChild(document.createTextNode("Last updated "));
+    p.appendChild(w);
+    after.parentNode.insertBefore(p, after.nextSibling);
   });
 
   // print.html. mdBook auto-opens the print dialog there, and cancelling it
@@ -133,7 +245,7 @@ var MDB_SHA = "__MDB_BUILD_SHA__";
       p.className = "mdb-print-back";
       var a = document.createElement("a");
       a.href = (typeof path_to_root === "string" ? path_to_root : "") + "index.html";
-      a.textContent = "\u2190 Back";
+      a.textContent = "← Back";
       p.appendChild(a);
       main.insertBefore(p, main.firstChild);
     });
@@ -196,4 +308,71 @@ var MDB_SHA = "__MDB_BUILD_SHA__";
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", gutters);
   else gutters();
+})();
+
+// Scrollable code is keyboard-reachable. tabindex="0" goes on code blocks that
+// overflow sideways, and ONLY those: the keyboard must reach what scrolls (axe:
+// scrollable-region-focusable) and skip what doesn't — a tab stop on every block
+// would make Tab a long walk. mdBook's pre > code.hljs is the scroll container
+// (white-space:pre; overflow-x:auto), so it takes the attribute, and a tabindex
+// of "0" comes off again once the block no longer overflows. Current Chromium
+// puts a scrolling block in the Tab order by itself; the attribute is for
+// engines that don't, and for axe, which flags the block without it. This
+// section sits AFTER the line-number section on purpose: the gutter narrows
+// <code> when it is drawn, and measuring before it would miss blocks the gutter
+// pushes into overflow.
+(function () {
+  // "Overflows" means by MORE than a pixel. scrollWidth and clientWidth are
+  // integers, so a line that fits to within a fraction of a pixel reads as 1px
+  // of overflow (measured: 657 against 656 for a 0.9px overhang), and a tab stop
+  // that scrolls one pixel is noise. Still stricter than axe-core, whose
+  // scrollable-region-focusable rule only counts overflow beyond 13px
+  // (getScroll(node, 13)), so every region axe would flag keeps its stop.
+  var apply = function () {
+    var blocks = document.querySelectorAll("pre > code.hljs");
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      if (b.scrollWidth > b.clientWidth + 1) b.setAttribute("tabindex", "0");
+      else if (b.getAttribute("tabindex") === "0") b.removeAttribute("tabindex");
+    }
+  };
+  // Re-check when a BLOCK changes size, not when the window does. mdBook animates
+  // .page-wrapper for 0.3s (general.css: margin-left and transform), and toggling
+  // the sidebar re-sizes every block without firing a resize event at all, so a
+  // check 150ms after the last window resize measured mid-animation and could
+  // leave a tab stop on a block that ended up fitting. A ResizeObserver reports
+  // each size a block passes through; debounced ~150ms, the check runs once the
+  // layout has settled. Window resize is the fallback where it is missing.
+  var timer = null;
+  var later = function () {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(apply, 150);
+  };
+  var run = function () {
+    apply();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(later);
+      var blocks = document.querySelectorAll("pre > code.hljs");
+      for (var i = 0; i < blocks.length; i++) ro.observe(blocks[i]);
+    } else {
+      window.addEventListener("resize", later);
+    }
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+  // Focus alone is not enough: the arrows must reach the block. book.js turns
+  // Left/Right into chapter navigation from a keydown listener on document that
+  // calls preventDefault() — its guard (mdbook_something_else_has_focus) exempts
+  // only input, select and textarea — so a focused code block never scrolled,
+  // and on a page with a next chapter Right turned the page instead. While a
+  // code block has focus, stop the two bare arrows in the CAPTURE phase, which
+  // on document runs before book.js's bubble-phase listener on the same node.
+  // Nothing then cancels the event, so the browser does its default and scrolls
+  // the block. Arrows with a modifier, and every other key, pass through.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var t = e.target;
+    if (t && t.matches && t.matches("pre > code.hljs")) e.stopPropagation();
+  }, true);
 })();

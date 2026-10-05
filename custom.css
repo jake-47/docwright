@@ -135,7 +135,8 @@ html{font-family:var(--serif);}
    (#f4f2e8); in dark it sits a step above it (#242420 over the #1b1b18 quote) because
    at #1b1b18 the block barely parted from the #111 page.
    Only the ground moves; the syntax token colours are left as the highlight theme sets
-   them. --inline-bg is a separate, slightly stronger tint so a short inline pill reads
+   them — except comments: see --code-comment, repainted by its own rule further down.
+   --inline-bg is a separate, slightly stronger tint so a short inline pill reads
    against both the page and the running text around it. */
 html.ayu{
   --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
@@ -144,7 +145,7 @@ html.ayu{
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
   --icons:#7a786e;--icons-hover:#e8e6da;
   --copy-button-filter:invert(1) opacity(.55);--copy-button-filter-hover:invert(1) opacity(1);
-  --quote-bg:#1b1b18;--quote-border:#2c2c28;--warning-border:#ffb454;--code-bg:#242420;
+  --quote-bg:#1b1b18;--quote-border:#2c2c28;--warning-border:#ffb454;--code-bg:#242420;--code-comment:#8b949e;
   --table-border-color:#2c2c28;--table-header-bg:#2c2c28;--table-alternate-bg:#191916;
   --searchbar-bg:#1b1b18;--searchbar-fg:#e8e6da;--searchbar-border-color:#42423c;--searchbar-shadow-color:#42423c;
   --searchresults-border-color:#2c2c28;--searchresults-header-fg:#9a988c;--searchresults-li-bg:#191916;
@@ -158,6 +159,17 @@ html.ayu{
    same colour, so the block reads as one surface rather than as two columns with a
    seam down the middle. */
 pre > code.hljs{background-color:var(--code-bg);}
+
+/* Comment tokens, from the palette. The ground above moved but the token colours
+   did not: they live in the highlight sheet, where ayu paints comments #5c6773 —
+   about 2.7:1 on the #242420 ground, under WCAG AA's 4.5:1 (coal and navy load
+   tomorrow-night, whose #969896 passes but is unified anyway). Only the
+   comment/quote classes are repainted; every other token stays the sheet's.
+   Fixed mode only, and that gate is load-bearing: in default mode --code-comment
+   is undefined, and var() with no fallback computes to INHERIT — the rule would
+   wipe the stock sheets' comment colour instead of leaving it alone. The print
+   palette resets the token with the rest. */
+pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comment);}
 
 /* Inline code. mdBook paints NO ground on inline code: chrome.css gives it only
    padding + radius (:not(pre) > .hljs) and a text colour (:not(pre):not(a) > .hljs),
@@ -195,7 +207,7 @@ pre > code.hljs{background-color:var(--code-bg);}
 @media print{
   html.ayu{
        --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
-       --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;
+       --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;--code-comment:#555;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
 #mdbook-menu-bar .icon-button{font:inherit;line-height:var(--menu-bar-height);}
@@ -214,6 +226,9 @@ pre > code.hljs{background-color:var(--code-bg);}
 
 .sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
+
+/* The per-page "Last updated <when>" line custom.js inserts under the chapter H1. */
+.content .mdb-updated{margin-block:.6rem 0;font-size:.75em;color:var(--muted,#999);}
 
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}

@@ -72,6 +72,10 @@
 
 - [Full disk encryption with LUKS2 + LVM on Devuan](./full-disk-encryption-devuan.md)
 
+- [Qemu + Whonix](./qemu-whonix.md)
+
+- [Qemu install script](./qemu-install.md)
+
 - [Open letter to Devuan devs](./open-letter-to-devuan.md)
 
 # Local AI

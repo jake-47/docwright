@@ -1,12 +1,22 @@
 # Welcome to Docwright
-<p class="mdb-subtitle">Site orientation</p>
+<p class="mdb-subtitle">Tools of power and productivity for students, writers, and other knowledge workers</p>
 
-You can read this site in order, or just jump to whichever section or chapter that interests you. It starts with [backups](./backup-whys.md), because that's what protects your labour when a laptop dies or a file goes missing. A key to productivity is decluttering your mind. You want full assurance that your work can be restored if your laptop is stolen.
+If your work is words and files, this site is for you: students, writers, researchers, and other knowledge workers. Programmers have had the tools to protect and publish their work for years, but their documentation is often written by developers for developers. Docwright explains those tools for the rest of us. Everything here runs on free software, and none of it requires you to know how to code.
 
-Then it moves to [version control](./vcs-whys.md), which sounds technical but mostly just means keeping a history of your drafts so you can retrieve the version you wrote last Thursday. Version control is much more than keeping versions, so don't skip that if you're a knowledge worker. 
+## Start here
 
-After that comes [security](./system-security-overview.md) and moving over to Linux. That's a big move but definitely worth it for not just security but productivity in the long run. 
+If all of this is new to you, read these five in order, about half an hour all told. The times are for reading; the doing takes longer.
 
-Then it moves to [running AI models](./ollama-guide.md) on your own machine, so what you write doesn't get sent off to someone else's servers. 
+1. [Terminal basics](./terminal-basics.md), 3 minutes. The one skill every other guide leans on.
+2. [Whys of backup](./backup-whys.md), 8 minutes. Why a backup comes first, and why it stays offline.
+3. [Getting started with Borg](./getting-started-with-borg.md), 6 minutes. Your first encrypted backup on a USB stick, and your first restore.
+4. [Why version control](./vcs-whys.md), 4 minutes. Keeping every draft without keeping every file.
+5. [The Choosing-the-OS TL;DR](./choosing-os.md#tldr), 5 minutes. The case for leaving Windows and macOS, and which Linux to pick.
 
-And finally, Docwright ends with how you can put your writing online on a [blog](./publish-blog.md) or a [website](./publish-book.md) like this one. And none of these require you to know how to code.
+## What the site covers
+
+[Backup](./backup-overview.md) protects your labour when a laptop dies, a file goes missing or a machine is stolen; knowing everything can be restored also clears your head for the work itself. [Version control](./vcs-whys.md) sounds technical but mostly means keeping a history of your drafts, so you can retrieve the version you wrote last Thursday; it turns out to be much more than that. [System security](./system-security-overview.md) is the move to Linux and the hardening after it: a big move, but worth it for productivity in the long run, not just security. [A local AI model](./ollama-guide.md) runs on your own machine, so what you write doesn't get sent off to someone else's servers. [Publishing](./static-sites.md) puts your writing online as a [blog](./publish-blog.md), a [book site](./publish-book.md) like this one, or a [documentation site](./publish-docs.md).
+
+## Finding your way
+
+The sidebar lists every chapter; <kbd>b</kbd> opens and closes it, <kbd>s</kbd> searches the whole site, and the left and right arrow keys move between chapters. The printer icon turns the site into a single page for printing or saving, and the pencil opens the page's source on GitHub, so you can send a fix if you spot a mistake. [Using the site](./usage-docwright.md) has the rest of the keys and icons.

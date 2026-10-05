@@ -2,9 +2,9 @@
 
 # Intro
 
-- [Welcome](./welcome.md)
+- [Welcome to Docwright](./welcome.md)
 
-- [Site usage-guide](./usage-docwright.md)
+- [Using the Site](./usage-docwright.md)
 
 # Backup
 
@@ -66,13 +66,13 @@
 
 - [Open letter to Devuan devs](./open-letter-to-devuan.md)
 
-# LLMs
+# Local AI
 
 - [Ollama guide: set up a local LLM](./ollama-guide.md)
 
 - [Ollama install script](./ollama-install-script.md)
 
-# Publish
+# Publishing
 
 - [Amy Eskridge investigation](./amyeskridge-investigation.md)
 

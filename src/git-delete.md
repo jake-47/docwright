@@ -12,175 +12,225 @@ The script below removes files you've already deleted from every commit in a Git
 5. Run `bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt`. It prints the same list, a WARNING block, and `Proceed? This rewrites history and cannot be undone. (y/n):`. Type `y`. The filter-repo lines that follow are normal, including a NOTICE that it removed `origin`. It ends with `Done. Git history has been rewritten.` and the `git remote add` and `git push --force` commands for your repo.
 6. Run those commands. The branch push shows `(forced update)`; the tag push may only say `Everything up-to-date`, which is fine. Anyone else with a copy of the repo needs to clone it again.
 
-```bash
-#!/usr/bin/env bash
+````bash
+#!/bin/bash
+# purge-deleted, v3
+#
+# Permanently purge files from git history using git-filter-repo.
+# Auto-detects deleted files across all refs, or accepts an explicit
+# path list. Rename-aware: walks rename chains and skips chains whose
+# final destination is still tracked.
+
 set -euo pipefail
 
-# Git delete
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
+    echo "error: bash 4.3 or newer required (have ${BASH_VERSION})" >&2
+    exit 1
+fi
 
-## ─── Usage ────────────────────────────────────────────────────────────────────
-## To permanently purge files from a git repo in say ~/projects/myrepo, run in terminal:
-##   bash gitdel.sh <repo-path> [file-list.txt] [--dry-run] [--save-list <file>] [--yes]
-##   example: bash gitdel.sh ~/projects/myrepo --save-list ~/Downloads/purge_log.txt
-##
-## Without a file list: auto-detects all deleted files in history (all refs).
-## With a file list:    purges exactly those files (same validation rules apply).
-## Renames: if a deleted file was renamed, all historical names back to its
-##          original are purged. If its final name is still tracked, the
-##          entire chain is skipped.
-## --dry-run:           shows what would be purged, touches nothing.
-## --save-list <file>:  saves the final purge list to a file.
-## --yes / -y:          skip the interactive confirm prompt. Use only in
-##                      non-interactive contexts where you have already
-##                      reviewed the dry-run output.
+VERSION_LINE=$(sed -n '2s/^# //p' "${BASH_SOURCE[0]}")
+readonly VERSION_LINE
 
-## ─── Flow ─────────────────────────────────────────────────────────────────────
-## 1. Parse arguments into REPO_PATH, INPUT, DRY_RUN, SAVE_LIST, ASSUME_YES.
-## 2. Validate dependencies, repo state, and working tree cleanliness.
-## 3. Capture remote URLs before filter-repo wipes them.
-## 4. Detect submodule paths to skip them during purge.
-## 5. Build a rename map: old_path -> new_path across all branches.
-## 6. Build a lookup of all currently tracked files across every ref.
-## 7. Collect files to purge: from input list or by scanning deleted files in history.
-## 8. Validate each candidate: skip tracked, on-disk, submodule, or live-renamed files.
-## 9. For renamed files whose final destination is also gone, resolve and purge the full chain.
-## 10. Report skipped files, show purge list, optionally save it.
-## 11. In dry-run mode, exit here.
-## 12. Confirm with user (unless --yes), record pre-rewrite ref tips, run filter-repo, print remote re-add and force-push instructions.
+# ---- Logging ----------------------------------------------------------------
+# Graded log set per script-spec rule 29. Info/debug to stdout; warn/error to
+# stderr. --quiet/-q suppresses info and below; --verbose/-v enables debug.
+# say/die remain available; say aliases log_info, die routes through
+# log_error and exits non-zero.
 
-## ─── Scope ────────────────────────────────────────────────────────────────────
-## Deletions and renames are scanned across all refs (--all). TRACKED_SET is
-## built from the union of every ref's tree, so a file live on any branch,
-## tag, or stash is protected from purge.
-##
-## Merge-only renames (renames recorded only in merge commits) are invisible
-## to the rename scan because --no-merges skips them. If you know a file was
-## renamed during conflict resolution in a merge commit, pass those paths
-## explicitly via --paths-from-file input.
-##
-## Rename-similarity threshold is -M10%, which catches low-similarity renames
-## at the cost of occasional false positives on repos with many near-identical
-## files (generated code, lockfiles). A false positive here results in
-## under-purge, which is the safer direction for this tool.
-##
-## Path scans run under core.quotePath=false so that non-ASCII paths are
-## emitted verbatim rather than C-quoted; without this a tracked non-ASCII
-## file could be misread as untracked and purged, and the purge list handed
-## to filter-repo could match nothing. One residual limitation remains: a
-## path containing a literal tab or newline byte cannot be round-tripped
-## through the newline-delimited scan and is not handled; such paths are
-## vanishingly rare and must be purged manually.
+VERBOSITY=info  # quiet | error | warn | info | debug
 
-## ─── Argument parsing ─────────────────────────────────────────────────────────
+_should_log() {
+    local level=$1
+    case "$VERBOSITY" in
+        quiet) [[ "$level" == "error" ]] ;;
+        error) [[ "$level" == "error" ]] ;;
+        warn)  [[ "$level" == "error" || "$level" == "warn" ]] ;;
+        info)  [[ "$level" != "debug" ]] ;;
+        debug) true ;;
+    esac
+}
+
+log_info()  { if _should_log info;  then echo "$*";              fi; }
+log_warn()  { if _should_log warn;  then echo "warn: $*"  >&2;   fi; }
+log_error() { if _should_log error; then echo "error: $*" >&2;   fi; }
+log_debug() { if _should_log debug; then echo "debug: $*";       fi; }
+say()       { log_info  "$@"; }
+die()       { log_error "$@"; exit 1; }
+
+# Indented list lines at a level's filter and stream, so a list never prints
+# under --quiet without the header it belongs to.
+log_list() {
+    local level=$1; shift
+    _should_log "$level" || return 0
+    case "$level" in
+        warn) printf '  %s\n' "$@" >&2 ;;
+        *)    printf '  %s\n' "$@" ;;
+    esac
+}
+
+# ---- Help / version ---------------------------------------------------------
+
+print_help() {
+    cat <<'EOF'
+usage: purge-deleted <repo-path> [file-list.txt] [options]
+
+Purge files from git history using git-filter-repo. Without a file
+list, auto-detects all files ever deleted across every ref. With a
+file list, purges exactly those paths.
+
+Renames: if a deleted file was renamed, the full chain back to its
+earliest name is purged. If the chain's final destination is still
+tracked on any ref, the entire chain is skipped.
+
+Options:
+  -n, --dry-run         print the plan; touch nothing
+  -L, --save-list FILE  write the final purge list to FILE
+  -R, --save-refs FILE  write pre-rewrite refs snapshot to FILE
+                        (default: $XDG_RUNTIME_DIR/purge-deleted-refs-<ts>.txt)
+  -y, --yes             skip confirmation (review --dry-run first)
+  -q, --quiet           suppress info-level output
+  -v, --verbose         enable debug output
+      help              show this help (aliases: --help, -h)
+      version           show identity string (alias: --version)
+
+Operates on the working repo. Run on a throwaway clone dedicated to
+the purge, not the canonical working tree. After the rewrite,
+re-add the origin remote (filter-repo removes it by design) and
+force-push. The script prints those commands at the end.
+EOF
+}
+
+print_version() { echo "$VERSION_LINE"; }
+
+# Early dispatch: help / version exit before any side effects.
+case "${1:-}" in
+    help|--help|-h)    print_help;    exit 0 ;;
+    version|--version) print_version; exit 0 ;;
+esac
+
+# ---- Argument parsing -------------------------------------------------------
 
 REPO_PATH=""
 INPUT=""
 DRY_RUN=false
 SAVE_LIST=""
+SAVE_REFS=""
 ASSUME_YES=false
 
-while [[ $# -gt 0 ]]; do
+# Fills the repo path, then the list file. Also called for everything after
+# '--', so a path that starts with '-' can still be given.
+add_positional() {
+    if   [[ -z "$REPO_PATH" ]]; then REPO_PATH="$1"
+    elif [[ -z "$INPUT"     ]]; then INPUT="$1"
+    else die "unexpected argument: $1"
+    fi
+}
+
+while (( $# > 0 )); do
     case "$1" in
-        --dry-run)
-            DRY_RUN=true
-            shift
-            ;;
-        --save-list)
-            [[ $# -lt 2 ]] && { echo "Error: --save-list requires an argument."; exit 1; }
-            SAVE_LIST="$2"
-            shift 2
-            ;;
-        --yes|-y)
-            ASSUME_YES=true
-            shift
-            ;;
-        -*)
-            echo "Unknown option: $1"
-            echo "Usage: bash gitdel_v4.sh <repo-path> [file-list.txt] [--dry-run] [--save-list <file>] [--yes]"
-            exit 1
-            ;;
-        *)
-            if [[ -z "$REPO_PATH" ]]; then
-                REPO_PATH="$1"
-            elif [[ -z "$INPUT" ]]; then
-                INPUT="$1"
-            else
-                echo "Unexpected argument: $1"
-                exit 1
-            fi
-            shift
-            ;;
+        -n|--dry-run)   DRY_RUN=true; shift ;;
+        -L|--save-list) [[ $# -ge 2 ]] || die "--save-list requires an argument"
+                        SAVE_LIST="$2"; shift 2 ;;
+        -R|--save-refs) [[ $# -ge 2 ]] || die "--save-refs requires an argument"
+                        SAVE_REFS="$2"; shift 2 ;;
+        -y|--yes)       ASSUME_YES=true; shift ;;
+        -q|--quiet)     VERBOSITY=quiet; shift ;;
+        -v|--verbose)   VERBOSITY=debug; shift ;;
+        help|--help|-h) print_help;    exit 0 ;;
+        version|--version) print_version; exit 0 ;;
+        --)             shift; break ;;
+        -*)             die "unknown flag: $1" ;;
+        *)              add_positional "$1"; shift ;;
     esac
 done
+for arg in "$@"; do add_positional "$arg"; done
 
-if [[ -z "$REPO_PATH" ]]; then
-    echo "Usage: bash gitdel_v4.sh <repo-path> [file-list.txt] [--dry-run] [--save-list <file>] [--yes]"
-    exit 1
+[[ -n "$REPO_PATH" ]] || die "missing repo path; help for usage"
+
+# ---- Path resolution (after existence checks) -------------------------------
+
+[[ -d "$REPO_PATH" ]] || die "repo path not found or not a directory: $REPO_PATH"
+REPO_PATH=$(realpath "$REPO_PATH")
+
+if [[ -n "$INPUT" ]]; then
+    [[ -f "$INPUT" ]] || die "input file not found: $INPUT"
+    INPUT=$(realpath "$INPUT")
 fi
-
-REPO_PATH="$(realpath "$REPO_PATH")"
-[[ -n "$INPUT" ]] && INPUT="$(realpath "$INPUT")"
 
 if [[ -n "$SAVE_LIST" ]]; then
-    SAVE_DIR="$(dirname "$SAVE_LIST")"
-    [[ ! -d "$SAVE_DIR" ]] && { echo "Error: --save-list parent directory does not exist: $SAVE_DIR"; exit 1; }
-    SAVE_LIST="$(realpath "$SAVE_DIR")/$(basename "$SAVE_LIST")"
+    SAVE_LIST_DIR=$(dirname "$SAVE_LIST")
+    [[ -d "$SAVE_LIST_DIR" ]] || die "--save-list parent directory does not exist: $SAVE_LIST_DIR"
+    SAVE_LIST="$(realpath "$SAVE_LIST_DIR")/$(basename "$SAVE_LIST")"
 fi
 
-## ─── Dependency check ─────────────────────────────────────────────────────────
-
-if ! command -v git-filter-repo &>/dev/null; then
-    echo "git-filter-repo not found. Install it with:"
-    echo "  sudo apt install git-filter-repo"
-    exit 1
+if [[ -n "$SAVE_REFS" ]]; then
+    SAVE_REFS_DIR=$(dirname "$SAVE_REFS")
+    [[ -d "$SAVE_REFS_DIR" ]] || die "--save-refs parent directory does not exist: $SAVE_REFS_DIR"
+    SAVE_REFS="$(realpath "$SAVE_REFS_DIR")/$(basename "$SAVE_REFS")"
+else
+    SAVE_REFS="${XDG_RUNTIME_DIR:-/tmp}/purge-deleted-refs-$(date +%Y%m%d-%H%M%S).txt"
 fi
 
-## ─── Repo validation ──────────────────────────────────────────────────────────
-
-if [[ ! -d "$REPO_PATH" ]]; then
-    echo "Repo path not found or not a directory: $REPO_PATH"
-    exit 1
+# Reject non-interactive invocation without --yes. The confirm prompt
+# reads from /dev/tty; without one we'd hang silently.
+if [[ "$DRY_RUN" == false && "$ASSUME_YES" == false && ! -t 0 ]]; then
+    die "no controlling tty and --yes not given; refusing to hang on confirmation"
 fi
+
+# ---- Dependency checks ------------------------------------------------------
+
+command -v git             >/dev/null 2>&1 || die "git not found"
+command -v git-filter-repo >/dev/null 2>&1 || die "git-filter-repo not found. install: sudo apt install git-filter-repo"
+
+# ---- Repo state checks ------------------------------------------------------
 
 cd "$REPO_PATH"
 
-if ! git rev-parse --git-dir &>/dev/null; then
-    echo "Not inside a git repository: $REPO_PATH"
-    exit 1
+git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a git repository: $REPO_PATH"
+
+[[ "$(git rev-parse --is-bare-repository)" == "false" ]] || die "bare repo not supported"
+
+# Reject partial clones (--filter=blob:none and friends). filter-repo
+# doesn't handle promisor objects cleanly. Their packs carry a .promisor file.
+if [[ -n "$(find "$(git rev-parse --git-path objects/pack)" -maxdepth 1 -name '*.promisor' -print -quit)" ]]; then
+    die "partial clone detected (promisor pack present); use a full clone"
 fi
 
-GIT_ROOT="$(git rev-parse --show-toplevel)"
-if [[ "$(pwd -P)" != "$GIT_ROOT" ]]; then
-    echo "Switching to repo root: $GIT_ROOT"
+# A shallow clone stops at its depth: filter-repo writes the oldest commit it
+# has as a root, and force-pushing that replaces the remote's full history.
+[[ "$(git rev-parse --is-shallow-repository)" == "false" ]] \
+    || die "shallow clone detected; the rewrite would cut history off at its depth; use a full clone"
+
+# Empty repo: nothing to purge and the pre-rewrite anchor would fail.
+git rev-parse --verify HEAD >/dev/null 2>&1 || die "repo has no commits; nothing to purge"
+
+GIT_ROOT=$(realpath "$(git rev-parse --show-toplevel)")
+CWD=$(realpath .)
+if [[ "$CWD" != "$GIT_ROOT" ]]; then
+    say "switching to repo root: $GIT_ROOT"
     cd "$GIT_ROOT"
 fi
 
-git diff --quiet          || { echo "Unstaged changes detected. Commit or stash them first."; exit 1; }
-git diff --cached --quiet || { echo "Staged changes detected. Commit or stash them first."; exit 1; }
+git diff --quiet          || die "unstaged changes detected; commit or stash first"
+git diff --cached --quiet || die "staged changes detected; commit or stash first"
 
-echo "Repo: $(pwd -P)"
-[[ "$DRY_RUN" == true ]] && echo "(dry-run mode — no changes will be made)"
-echo ""
+say "repo: $(pwd -P)"
+[[ "$DRY_RUN" == true ]] && say "(dry-run mode -- no changes will be made)"
+say ""
 
-## ─── Capture remote URLs before filter-repo removes them ─────────────────────
+# ---- Capture remote URLs before filter-repo removes origin ------------------
 
 declare -A REMOTE_URLS=()
 while IFS= read -r remote; do
-    url="$(git remote get-url "$remote" 2>/dev/null || true)"
-    if [[ -z "$url" ]]; then
-        echo "WARNING: remote '$remote' has no URL configured; omitting it from re-add instructions."
-        continue
-    fi
-    REMOTE_URLS["$remote"]="$url"
+    [[ -n "$remote" ]] && REMOTE_URLS["$remote"]=$(git remote get-url "$remote")
 done < <(git remote)
 
-if [[ ${#REMOTE_URLS[@]} -eq 0 ]]; then
-    echo "WARNING: No remote detected. If something goes wrong, history cannot be recovered."
-    echo "Consider pushing to a backup remote before proceeding."
-    echo ""
+if (( ${#REMOTE_URLS[@]} == 0 )); then
+    log_warn "no remote configured; if this repo is the only copy, the rewrite cannot be undone"
+    say ""
 fi
 
-## ─── Submodule detection ──────────────────────────────────────────────────────
+# ---- Submodule paths to skip ------------------------------------------------
 
 declare -A SUBMODULE_PATHS=()
 if [[ -f ".gitmodules" ]]; then
@@ -191,45 +241,38 @@ if [[ -f ".gitmodules" ]]; then
     done < .gitmodules
 fi
 
-## ─── Build rename map (across all branches) ───────────────────────────────────
-## RENAMED_FROM: old_path -> immediate new_path (one hop only).
-## -F'\t' is required — paths can contain spaces; default awk splitting breaks them.
-## -M10% lowers the similarity threshold from the default 50% so that low-similarity
-## renames are still detected. This may produce occasional false positives on repos
-## with many near-identical files, but missing a rename is worse than a false positive
-## here because an undetected rename leaves stale history under the old name.
+# A name filter-repo can take from its path list and a terminal can show: the
+# list is one path per line with '==>' meaning a rename, and names arrive raw
+# from git (-z), so a control character would reach the terminal unescaped.
+_listable() { [[ "$1" != *[[:cntrl:]]* && "$1" != *'==>'* ]]; }
 
-echo "Scanning rename history..."
+# ---- Rename map across all refs ---------------------------------------------
+# RENAMED_FROM: old -> new (one hop). Walked transitively by
+# resolve_rename_chain. -M10% catches low-similarity renames, so a live file
+# keeps its early history; the cost is that an unrelated file added in the
+# same commit can pass for a rename and keep a deleted one out of the purge.
+# The dry run lists every such skip.
+
+say "scanning rename history..."
 declare -A RENAMED_FROM=()
+while IFS= read -r -d '' status; do
+    [[ "$status" == R* ]] || continue
+    IFS= read -r -d '' old || break
+    IFS= read -r -d '' new || break
+    if _listable "$old" && _listable "$new"; then
+        RENAMED_FROM["$old"]="$new"
+    fi
+done < <(git log --all --no-merges --no-show-signature -z --pretty=format: \
+             --diff-filter=R -M10% --name-status)
 
-while IFS=$'\t' read -r old new; do
-    [[ -z "$old" || -z "$new" ]] && continue
-    RENAMED_FROM["$old"]="$new"
-done < <(git -c core.quotePath=false log --all --no-merges --pretty=format: --diff-filter=R -M10% --name-status \
-         | awk -F'\t' '/^R[0-9]*\t/{print $2"\t"$3}')
-
-## resolve_rename_chain <start>
-##
-## Walks RENAMED_FROM transitively and writes every name in the chain
-## (including <start>) to stdout, one per line, in order: start … final.
-##
-## Requires bash 4.3+. The binding constraint is the negative array index
-## ${chain[-1]} used below, which bash introduced in 4.3; the 'declare -A'
-## scoping and '-v' key tests this function also relies on are older (4.0
-## and 4.2 respectively). Debian and Devuan stable ship bash 5.x, so this
-## is not a concern in practice, but do not run on bash < 4.3.
-##
-## Cycle detection: keeps a visited associative array; if a name reappears
-## the chain is corrupt — emit an error to stderr and return non-zero so
-## the caller can decide what to do with the partial chain.
-
+# resolve_rename_chain <start>: walk RENAMED_FROM transitively, emit
+# each name in order (start ... final). Cycle detection returns 1.
 resolve_rename_chain() {
-    local current="$1"
-    declare -A visited=()
-
+    local current=$1
+    local -A visited=()
     while true; do
         if [[ -v visited["$current"] ]]; then
-            echo "ERROR: rename cycle detected involving: $current" >&2
+            log_error "rename cycle involving: $current"
             return 1
         fi
         visited["$current"]=1
@@ -239,49 +282,70 @@ resolve_rename_chain() {
     done
 }
 
-## ─── Build tracked-files lookup (across all refs) ─────────────────────────────
-## git ls-files only lists HEAD, which is narrower than what filter-repo
-## rewrites (all refs). Build TRACKED_SET from every ref's tree so a file
-## live on any branch, tag, or stash is protected from purge.
+# ---- Tracked-files lookup across all refs -----------------------------------
+# filter-repo rewrites all refs, so protection must be all-refs too.
+# ls-files only covers HEAD and is insufficient.
 
-echo "Building tracked-files lookup across all refs..."
+say "building tracked-files lookup across all refs..."
 declare -A TRACKED_SET=()
-while IFS= read -r f; do
-    [[ -n "$f" ]] && TRACKED_SET["$f"]=1
+while IFS= read -r -d '' f; do
+    [[ -n "$f" ]] || continue
+    TRACKED_SET["$f"]=1
+    # filter-repo takes a listed path as a directory too, so the directories
+    # holding tracked files are protected the same way the files are.
+    while [[ "$f" == */* ]]; do
+        f=${f%/*}
+        [[ -v TRACKED_SET["$f"] ]] && break
+        TRACKED_SET["$f"]=1
+    done
 done < <(
     git for-each-ref --format='%(refname)' | while IFS= read -r ref; do
-        git -c core.quotePath=false ls-tree -r --name-only "$ref" 2>/dev/null || true
-    done | sort -u
+        git ls-tree -r -z --name-only "$ref" 2>/dev/null || true
+    done | sort -zu
 )
 
-## ─── Collect files to purge ───────────────────────────────────────────────────
+# ---- Collect files to purge -------------------------------------------------
 
-declare -A PURGE_SET=()   # used for deduplication
+declare -A PURGE_SET=()
 PURGE=()
-
-## Single associative array: skipped_renamed["old_path"]="final_path"
 declare -A SKIPPED_TRACKED_SET=()
 SKIPPED_TRACKED=()
 declare -A SKIPPED_EXISTS_SET=()
 SKIPPED_EXISTS=()
 declare -A SKIPPED_SUBMODULE_SET=()
 SKIPPED_SUBMODULE=()
-declare -A SKIPPED_RENAMED=()   # old_path -> live final destination
+declare -A SKIPPED_RENAMED=()  # old_path -> live final destination
 
 add_to_purge() {
-    local name="$1"
-    if [[ ! -v PURGE_SET["$name"] ]]; then
-        PURGE_SET["$name"]=1
-        PURGE+=("$name")
-    fi
+    local name=$1
+    [[ -v PURGE_SET["$name"] ]] && return
+    PURGE_SET["$name"]=1
+    PURGE+=("$name")
+}
+
+# _path_safe <path>: reject absolute paths and any path containing a
+# `..` component. Returns 0 if safe, 1 otherwise.
+_path_safe() {
+    local p=$1
+    if [[ "$p" == /* ]]; then return 1; fi
+    local IFS=/
+    local seg
+    for seg in $p; do
+        if [[ "$seg" == ".." ]]; then return 1; fi
+    done
+    return 0
 }
 
 validate_and_collect() {
-    local f="$1"
+    local f=$1
 
-    if [[ "$f" == /* ]]; then
-        echo "ERROR: absolute path not supported: $f"
-        exit 1
+    if ! _listable "$f"; then
+        log_warn "skipping a name with a control character or '==>', which this does not handle: $(printf '%q' "$f")"
+        return
+    fi
+
+    if ! _path_safe "$f"; then
+        die "unsafe input path (absolute or contains '..'): $f"
     fi
 
     if [[ -v TRACKED_SET["$f"] ]]; then
@@ -316,18 +380,18 @@ validate_and_collect() {
         done < <(resolve_rename_chain "$f") || chain_ok=false
 
         if [[ "$chain_ok" == false ]]; then
-            echo "ERROR: skipping '$f' due to rename cycle in history. Inspect manually." >&2
+            log_warn "skipping '$f' due to rename cycle in history"
             return
         fi
 
         local final="${chain[-1]}"
-
         if [[ -v TRACKED_SET["$final"] ]]; then
             SKIPPED_RENAMED["$f"]="$final"
         else
+            local name
             for name in "${chain[@]}"; do
                 if [[ -v TRACKED_SET["$name"] ]]; then
-                    echo "WARNING: intermediate rename name '$name' is currently tracked; skipping that name only." >&2
+                    log_warn "intermediate rename name '$name' is tracked; skipping that name only"
                 else
                     add_to_purge "$name"
                 fi
@@ -340,132 +404,126 @@ validate_and_collect() {
 }
 
 if [[ -n "$INPUT" ]]; then
-    echo "Reading file list from: $INPUT"
-    while IFS= read -r line; do
+    say "reading file list from: $INPUT"
+    # The || test keeps a last line that has no newline after it.
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line%$'\r'}"
+        line="${line#./}"
+        line="${line%/}"   # directories are looked up without the slash
         [[ -z "$line" || "$line" == \#* ]] && continue
-        f="${line#./}"
-        f="${f%$'\r'}"
-        validate_and_collect "$f"
+        validate_and_collect "$line"
     done < "$INPUT"
 else
-    echo "Scanning git history for deleted files (all branches)..."
-    while IFS= read -r line; do
+    say "scanning git history for deleted files (all refs)..."
+    # --no-renames lists a name that was renamed away as deleted too, so the
+    # earlier names of a renamed-then-deleted file are purged, not only its last.
+    while IFS= read -r -d '' line; do
         [[ -n "$line" ]] && validate_and_collect "$line"
-    done < <(git -c core.quotePath=false log --all --no-merges --pretty=format: --name-only --diff-filter=D | sort -u)
+    done < <(git log --all --no-merges --no-show-signature --no-renames -z \
+                 --pretty=format: --name-only --diff-filter=D | sort -zu)
 fi
 
-## ─── Report skipped files ─────────────────────────────────────────────────────
+# ---- Report skipped files ---------------------------------------------------
 
 if (( ${#SKIPPED_TRACKED[@]} > 0 )); then
-    echo "WARNING: ${#SKIPPED_TRACKED[@]} file(s) skipped — currently tracked on some ref:"
-    printf '  %s\n' "${SKIPPED_TRACKED[@]}"
+    log_warn "${#SKIPPED_TRACKED[@]} file(s) skipped -- tracked on some ref:"
+    log_list warn "${SKIPPED_TRACKED[@]}"
 fi
 
 if (( ${#SKIPPED_EXISTS[@]} > 0 )); then
-    echo "WARNING: ${#SKIPPED_EXISTS[@]} file(s) skipped — exist on disk but not tracked:"
-    printf '  %s\n' "${SKIPPED_EXISTS[@]}"
+    log_warn "${#SKIPPED_EXISTS[@]} file(s) skipped -- exist on disk but not tracked:"
+    log_list warn "${SKIPPED_EXISTS[@]}"
 fi
 
 if (( ${#SKIPPED_SUBMODULE[@]} > 0 )); then
-    echo "WARNING: ${#SKIPPED_SUBMODULE[@]} submodule path(s) skipped — handle these manually:"
-    printf '  %s\n' "${SKIPPED_SUBMODULE[@]}"
+    log_warn "${#SKIPPED_SUBMODULE[@]} submodule path(s) skipped -- handle manually:"
+    log_list warn "${SKIPPED_SUBMODULE[@]}"
 fi
 
 if (( ${#SKIPPED_RENAMED[@]} > 0 )); then
-    echo "INFO: ${#SKIPPED_RENAMED[@]} file(s) skipped — renamed in history, live destination is tracked:"
+    say "${#SKIPPED_RENAMED[@]} file(s) skipped -- renamed in history, live destination tracked:"
     for old in "${!SKIPPED_RENAMED[@]}"; do
-        echo "  $old  ->  ${SKIPPED_RENAMED[$old]}"
+        say "  $old  ->  ${SKIPPED_RENAMED[$old]}"
     done
 fi
 
 if (( ${#PURGE[@]} == 0 )); then
-    echo "No files to purge after validation."
+    say "no files to purge after validation."
     exit 0
 fi
 
-## ─── Show purge list ──────────────────────────────────────────────────────────
+# ---- Show purge list --------------------------------------------------------
 
-echo ""
-echo "Files to purge from history (${#PURGE[@]} total):"
-printf '  %s\n' "${PURGE[@]}"
-echo ""
-
-## ─── Optionally save the list ─────────────────────────────────────────────────
+say ""
+say "files to purge from history (${#PURGE[@]} total):"
+log_list info "${PURGE[@]}"
+say ""
 
 if [[ -n "$SAVE_LIST" ]]; then
     printf '%s\n' "${PURGE[@]}" > "$SAVE_LIST"
-    echo "File list saved to: $SAVE_LIST"
+    say "purge list saved to: $SAVE_LIST"
 fi
 
-## ─── Dry-run exit ─────────────────────────────────────────────────────────────
-
 if [[ "$DRY_RUN" == true ]]; then
-    echo "Dry-run complete. No changes made."
+    say "dry-run complete. no changes made."
     exit 0
 fi
 
-## ─── Confirm and execute ──────────────────────────────────────────────────────
+# ---- Pre-rewrite refs snapshot ----------------------------------------------
+# A record of every ref's tip, not a way back: filter-repo expires the reflogs
+# and prunes the old objects as it finishes, so the old commits survive only
+# in the repo this was cloned from.
 
-echo ""
-echo "WARNING: git filter-repo --force bypasses the fresh-clone check."
-echo "  - Stashes will be discarded."
-echo "  - Other worktrees pointing at this repo will break."
-echo "  - Remote-tracking refs will be cleared (by design)."
-echo "  - Reflog entries may be expired by subsequent gc."
-echo "If this repo is not a throwaway clone dedicated to this purge, stop now."
-echo ""
+git for-each-ref --format='%(objectname) %(refname)' > "$SAVE_REFS"
+say "pre-rewrite refs snapshot: $SAVE_REFS"
+say "  a record only: the old commits are pruned, so the way back is the repo you cloned from"
+say ""
+
+# ---- Confirm and execute ----------------------------------------------------
+
+say "WARNING: git filter-repo --force rewrites history irreversibly."
+say "  - other worktrees pointing here will break"
+say "  - the origin remote is removed (by design)"
+say "  - reflogs are expired and the old objects pruned at once"
+say "  if this is not a throwaway clone, stop now."
+say ""
 
 if [[ "$ASSUME_YES" == true ]]; then
-    echo "Proceeding without prompt (--yes specified)."
+    say "proceeding without prompt (--yes specified)."
 else
-    printf "Proceed? This rewrites history and cannot be undone. (y/n): " >/dev/tty
+    printf "Proceed? rewrites history, cannot be undone. (y/n): " >/dev/tty
     read -r CONFIRM </dev/tty
-    [[ "$CONFIRM" == "y" ]] || { echo "Aborted."; exit 0; }
+    [[ "$CONFIRM" == "y" || "$CONFIRM" == "Y" ]] || die "aborted"
 fi
 
-TMPFILE="$(mktemp)"
+TMPFILE=$(mktemp)
 trap 'rm -f "$TMPFILE"' EXIT
-printf '%s\n' "${PURGE[@]}" > "$TMPFILE"
+# literal: keeps a name that starts with '#', 'glob:' or 'regex:' from being
+# read by filter-repo as a comment or a pattern.
+printf 'literal:%s\n' "${PURGE[@]}" > "$TMPFILE"
 
-## Recovery anchors: filter-repo rewrites every ref, so record the tip of
-## each ref (not just HEAD) before force-pushing. If the rewrite is wrong,
-## `git update-ref <refname> <sha>` restores any ref to its pre-rewrite
-## tip without depending on reflog retention.
-echo "Pre-rewrite ref tips (record these; recover any ref with: git update-ref <refname> <sha>):"
-git for-each-ref --format='  %(refname) %(objectname)' refs/heads refs/tags
-echo ""
-
-## Pre-clean filter-repo metadata directory. A prior gitdel run (or any
-## prior filter-repo run) leaves state under .git/filter-repo/. If that
-## directory persists for more than a day and we hit filter-repo's
-## continuation prompt, answering Y to it makes filter-repo try to chain
-## off the prior metadata, which can crash in `_record_metadata` with
-## `FileNotFoundError: ...first-changed-commits` after the rewrite has
-## already been written to refs. Removing the directory here ensures no
-## continuation prompt fires and no chaining attempts occur.
-rm -rf "$GIT_ROOT/.git/filter-repo"
-
+say ""
+say "running git filter-repo..."
 git filter-repo --invert-paths --force --paths-from-file "$TMPFILE"
 
-echo ""
-echo "Done. Git history has been rewritten."
-echo "Verify a path was purged with: git log --all --oneline -- <path>  (should print nothing)."
-echo "Note: remotes and remote-tracking refs are cleared by filter-repo by design."
-echo ""
+say ""
+say "done. history rewritten."
+say "note: filter-repo removes the origin remote (by design); other remotes are kept."
 
-if [[ ${#REMOTE_URLS[@]} -gt 0 ]]; then
-    echo "Re-add your remote(s) and force-push:"
-    ## Sort remotes for deterministic output
+if (( ${#REMOTE_URLS[@]} > 0 )); then
+    say ""
+    say "re-add remote(s) and force-push:"
     for remote in $(printf '%s\n' "${!REMOTE_URLS[@]}" | sort); do
-        echo "  git remote add $remote ${REMOTE_URLS[$remote]}"
-        echo "  git push --force --all $remote"
-        echo "  git push --force --tags $remote"
+        # Adding a remote that is still there fails, so only the removed one.
+        git remote get-url "$remote" >/dev/null 2>&1 \
+            || say "  git remote add $remote ${REMOTE_URLS[$remote]}"
+        say "  git push --force --all $remote"
+        say "  git push --force --tags $remote"
     done
-    echo ""
 fi
 
-echo "WARNING: Any automated sync scripts, CI pipelines, or backup jobs pointed"
-echo "at this remote will fail until you have manually force-pushed. They will"
-echo "not auto-recover — trigger them manually after the force-push completes."
+say ""
+log_warn "automated sync, CI, or backup jobs pointed at the remote will fail"
+log_warn "until you force-push. they will not auto-recover -- trigger manually."
 
 ```

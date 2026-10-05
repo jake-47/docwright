@@ -1,6 +1,6 @@
 # Qemu install script
 
-ThThe script that the [QEMU and Whonix guide](./FILENAME.md) has you run in steps 1 and 2. It checks whether your computer can run virtual machines at full speed, installs QEMU or updates it, and adds you to the kvm group if you need it. Hover over the code block and press the copy button to take all of it, then save it in your Downloads folder as `qemu-install.sh`. It is plain text, so read it before you run it; the comments at the top say what each command does. Run it as yourself, not with sudo, and start with `bash qemu-install.sh check`, which changes nothing.
+The script that the [QEMU and Whonix guide](./qemu-whonix.md) has you run in steps 1 and 2. It checks whether your computer can run virtual machines at full speed, installs QEMU or updates it, and adds you to the kvm group if you need it. Hover over the code block and press the copy button to take all of it, then save it in your Downloads folder as `qemu-install.sh`. It is plain text, so read it before you run it; the comments at the top say what each command does. Run it as yourself, not with sudo, and start with `bash qemu-install.sh check`, which changes nothing.
 
 ````
 #!/bin/bash

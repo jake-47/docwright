@@ -1,28 +1,14 @@
-/* Fixed theme: hide the picker, so the theme is not the reader's to choose in the
-   page. With LIGHT_THEME=true their browser's light/dark preference drives it;
-   otherwise the book is dark throughout. A saved theme would pin the book with no
-   control left to change it — theme/head.hbs clears it. */
+/* Fixed theme: no picker. theme/head.hbs clears a saved theme. */
 #mdbook-theme-toggle { display: none; }
 
-/* Self-hosted Charter (free, ~28KB/weight). custom.css is served from the book
-   root and CSS urls resolve against the stylesheet, so "fonts/x.woff2" finds the
-   copy mdBook makes of src/fonts/x.woff2 — copied verbatim, not content-hashed. */
+/* Self-hosted Charter; src/fonts/ is copied as is, not hashed. */
 @font-face{font-family:"Charter";src:url("fonts/charter_regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Charter";src:url("fonts/charter_italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
 @font-face{font-family:"Charter";src:url("fonts/charter_bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
 @font-face{font-family:"Charter";src:url("fonts/charter_bold_italic.woff2") format("woff2");font-weight:700;font-style:italic;font-display:swap}
 
-/* mdBook sets html{font-size:62.5%} -> 1rem = 10px. px is literal; rem pre-scaled.
-
-   --menu-bar-height is mdBook's own (50px). Everything that depends on the bar is
-   expressed in terms of it — by mdBook (the sticky hover placeholder's height, the
-   negative top margin on .page that pulls the bar to the viewport top, the icons'
-   and the title's line-height, :target's scroll-margin) and by this file (the
-   masthead band, the sidebar's scrollbox padding) — so raising it here raises all
-   of them together and the two columns stay level. 50px leaves a 24px serif title
-   about 13px of air above and below it, and the page scrolls under the bar, so that
-   13px is the whole clearance between the title and the body text passing beneath.
-   60px is the same title with room to breathe. */
+/* 1rem = 10px (mdBook's 62.5%). --menu-bar-height is mdBook's; everything tied
+   to the bar reads it, so 60px moves it all together. */
 :root{
   --serif: "Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;
   --content-max-width: 700px;
@@ -36,108 +22,34 @@ html{font-family:var(--serif);}
 .content h2{font-size:2.5rem;line-height:1.18;margin:3rem 0 .85rem;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
 .content h3{font-size:1.9rem;line-height:1.18;margin:2.25rem 0 .55rem;}
 
-/* Subtitle: <p class="mdb-subtitle"> on the line under a heading. Sits BELOW the
-   heading's rule; the heading itself is untouched, so its own H1/H2 rule stays
-   identical to a subtitle-less heading's. The :has() rule only trims the heading's
-   bottom MARGIN (not its rule) to a fixed .5rem, so H1 and H2 both leave the same
-   ~5px gap under the rule. */
+/* Subtitle: <p class="mdb-subtitle"> under a heading, below its rule. */
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
 .content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.5rem;}
 
-/* Blockquote, GitHub-style. Scoped to :not(.blockquote-tag) so mdBook's native
-   admonitions (> [!NOTE] etc., which ARE .blockquote-tag) keep their coloured accent.
-   padding:0 on the block edges plus zeroing the first child's top margin and the last
-   child's bottom margin is what keeps the rule flush with the text — without the
-   margin reset the inner <p> margins push the rule past the text, top and bottom. */
+/* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
+   rule stays flush with the text. */
 .content blockquote:not(.blockquote-tag){background:none;border-block:0;border-inline-start:3px solid var(--rule);padding:0 1em;color:var(--muted);}
 .content blockquote:not(.blockquote-tag) > :first-child{margin-block-start:0;}
 .content blockquote:not(.blockquote-tag) > :last-child{margin-block-end:0;}
 
-/* Aside: <aside>…</aside>, a digression callout — muted, 0.82em, a thin left rule.
-   mdBook does not parse markdown inside it; write emphasis or links as HTML. */
+/* Aside: a muted digression with a thin left rule. */
 .content aside{font-size:.82em;color:var(--muted);border-inline-start:2px solid var(--rule);padding-inline-start:1em;margin:1.15rem 0;}
 
-/* Footnotes, matched to the aside: they are the same kind of thing, a digression,
-   and every other subordinate voice here (blockquote, aside, .mdb-subtitle) is
-   already --muted. mdBook's general.css sets only font-size:0.9em, which against
-   this book's 1.9rem content is 17.1px — a 1.9px step Charter's x-height does not
-   read as deliberate. .content .footnote-definition is (0,2,0) over mdBook's
-   (0,1,0), and custom.css is its last stylesheet either way. The separator is
-   already there: mdBook emits a bare <hr> before the <ol>. */
+/* Footnotes, muted like the aside; mdBook draws the <hr> above them. */
 .content .footnote-definition{font-size:.82em;color:var(--muted);}
-/* --links equals --fg in both palettes, so a citation link or a ↩ backref inside a
-   muted note would be the brightest thing in it and invert the hierarchy. Muting is
-   safe because the affordance here is the underline (.content a above), not colour.
-   a:link/a:visited is (0,3,1) over mdBook's .content a:link (0,2,1). */
+/* Links in notes muted too: the underline marks them, not the colour. */
 .content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
 
-/* mdBook's own .content a is text-decoration:none, and --links carries the colour.
-   Only the underline is added here; the colour comes from the palette. Search
-   results use --links too, so without an underline they render as plain body text
-   with no affordance at all — give them the same one. */
+/* Underlined links (colour from --links), search results included. */
 .content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
 #mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
 
-/* The sidebar list is left alone. mdBook's own .chapter li.chapter-item is
-   line-height:1.5em; margin-block-start:0.6em — already in em, so it scales with
-   the 1.6rem set above, and it is what spaces the rule a SUMMARY '---' draws.
-   Overriding it in px-equivalent terms only tightens that rule against the text. */
-
-/* Palette. mdBook defines ~43 colour variables per theme; overriding only the page
-   and sidebar leaves blockquotes, tables, the search UI, icons and separators in the
-   stock blues, which show the moment a page has a table or quote — so this covers
-   every one that paints. Two rule weights: --rule-strong for H1/H2 hairlines and
-   separators, --rule for the rest. The five --blockquote-*-color admonition accents
-   are deliberately NOT overridden — they're semantic, and standing out is the point.
-
-   STRUCTURE. mdBook resolves the theme in JavaScript, not CSS: it bakes default-theme
-   into the served markup as <html class="light"> and an inline script in <body> swaps
-   the class after the stylesheets have already resolved. So on a dark-mode reader's
-   machine every navigation paints a full light frame first. That frame is what a
-   force-dark browser extension reads, and it then holds its inversion of THIS palette
-   over the dark one the swap installs — the page ends up part inverted-cream, part
-   extension grey.
-
-   That is a LIGHT_THEME=true problem only. Dark-only, book.toml pins default-theme
-   and preferred-dark-theme both to PREFERRED_DARK, so the served class is already
-   the dark one, nothing swaps, and the selector below collapses to that single
-   class with no media query under it at all.
-
-   With both palettes live, the dark block carries BOTH class names and comes first,
-   and the light block is gated behind the light media query and comes second:
-
-     html.<light>,html.<dark> { dark }      matches the served class too — the pre-swap
-                                            frame is already dark under a dark OS
-     @media (prefers-color-scheme: light)
-       html.<light> { light }               same specificity, later in the file, so it
-                                            wins wherever the query matches
-
-   Four states, all measured: OS dark before the swap -> dark; OS dark after -> dark;
-   OS light before -> light; OS light after -> light. No light frame ever paints under
-   a dark OS, and each palette is written once.
-
-   Both selectors are (0,1,1), which is what beats mdBook's own .<theme> at (0,1,0). A
-   bare html{...} would be (0,0,1) and lose to it, so the class must stay in both
-   selectors even though the media query alone would read as sufficient. The print
-   block at the bottom of this file has to clear the same (0,1,1) bar for the same
-   reason.
-
-   --sidebar-bg sits close to --bg deliberately: about 2 points of CIELAB lightness in
-   both modes, enough for the column to read as its own surface and little enough that
-   the page reads as one tone. It does NOT match the quote/code ground, which is a
-   heavier tint doing a different job. Nor can it go to zero: mdBook draws no border on
-   .sidebar, so this tint is the only boundary the column has, and .mobile-nav-chapters
-   takes its whole fill from the same variable.
-
-   --code-bg and --inline-bg are not mdBook variables: mdBook paints code backgrounds
-   from the highlight.js stylesheet, not a theme variable, so the palette can't reach
-   them. Both are repainted below. In light the code ground is the blockquote tint
-   (#f4f2e8); in dark it sits a step above it (#242420 over the #1b1b18 quote) because
-   at #1b1b18 the block barely parted from the #111 page.
-   Only the ground moves; the syntax token colours are left as the highlight theme sets
-   them — except comments: see --code-comment, repainted by its own rule further down.
-   --inline-bg is a separate, slightly stronger tint so a short inline pill reads
-   against both the page and the running text around it. */
+/* Palette: every colour variable mdBook paints, not just page and sidebar;
+   admonition accents left alone. With LIGHT_THEME=true the dark block names both
+   classes and comes first, the light one follows behind its media query, so no
+   light frame paints under a dark OS (guide: "Why the dark palette comes
+   first"). The class in each selector is load-bearing: html alone loses to
+   mdBook's .<theme>. --code-bg, --inline-bg and --code-comment are ours. */
 html.ayu{
   --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
@@ -152,58 +64,22 @@ html.ayu{
   --search-mark-bg:#5a4a24;--footnote-highlight:#5a4a24;--overlay-bg:rgba(10,10,8,.7);
 }
 
-/* Repaint the code block's ground from the palette. custom.css is the last
-   stylesheet mdBook links, after all three highlight sheets, and pre > code.hljs
-   (0,1,2) outranks their bare .hljs (0,1,0) anyway. Scoped to pre > : inline code is
-   repainted by its own rule below. When the line-number gutter is on it is painted the
-   same colour, so the block reads as one surface rather than as two columns with a
-   seam down the middle. */
+/* Code-block ground from the palette (mdBook paints it from the highlight sheet). */
 pre > code.hljs{background-color:var(--code-bg);}
 
-/* Comment tokens, from the palette. The ground above moved but the token colours
-   did not: they live in the highlight sheet, where ayu paints comments #5c6773 —
-   about 2.7:1 on the #242420 ground, under WCAG AA's 4.5:1 (coal and navy load
-   tomorrow-night, whose #969896 passes but is unified anyway). Only the
-   comment/quote classes are repainted; every other token stays the sheet's.
-   Fixed mode only, and that gate is load-bearing: in default mode --code-comment
-   is undefined, and var() with no fallback computes to INHERIT — the rule would
-   wipe the stock sheets' comment colour instead of leaving it alone. The print
-   palette resets the token with the rest. */
+/* Comment tokens from the palette: ayu's #5c6773 is about 2.7:1 on this ground.
+   Fixed mode only: undefined, var() would wipe the stock colour. */
 pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comment);}
 
-/* Inline code. mdBook paints NO ground on inline code: chrome.css gives it only
-   padding + radius (:not(pre) > .hljs) and a text colour (:not(pre):not(a) > .hljs),
-   so the pill's fill is left to whichever highlight sheet is live — #f6f7f6 (light) or
-   #191f26 (ayu), both off this palette and near-invisible on our grounds — and with
-   --inline-code-color set to --fg (as it was) the text carried no signal either.
-   book.js adds .hljs to every non-header <code> at load, so inline code is code.hljs
-   in the browser: repaint it here from the palette. Warm fill + the theme's own accent
-   text (ffb454/b5540a) + a hairline drawn as an inset shadow, which — unlike a border —
-   does not change the inline box's metrics. :not(pre) excludes block code (its parent
-   is <pre>); :not(a) leaves linked code to the link styling. code.hljs makes this
-   (0,1,3), over mdBook's own (0,1,2) and the bare .hljs (0,1,0); custom.css is last. */
+/* Inline code: mdBook paints no ground on it. Warm fill, accent text, and a
+   hairline as an inset shadow, which keeps the inline box's metrics. */
 :not(pre):not(a) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);}
 
-/* mdBook fills the mobile chapter buttons from --sidebar-bg. Those buttons sit on the
-   page ground, not in the sidebar, so a tint tuned to draw a column edge leaves them
-   nearly invisible at the widths where they appear (<=1080px, and <=1380px with the
-   sidebar open). Give them the blockquote ground instead — same specificity as
-   mdBook's own rule, and custom.css is last, so this wins. */
+/* Mobile chapter buttons sit on the page, so they take the quote ground. */
 .mobile-nav-chapters{background-color:var(--quote-bg);}
 
-/* print.css resets layout but not colour, and the UA drops backgrounds when
-   printing — so a reader whose OS is dark prints near-white ink onto white paper.
-   Force ink-on-paper for the print media regardless of the theme in force.
-
-   The selector must name the theme class(es) — the same set the palette named, so it
-   is written from the same variable. A media query does not raise specificity, so a
-   bare html{...} here is (0,0,1) and loses outright to the palette's (0,1,1) — the
-   override silently never applied, which is exactly the failure it exists to prevent.
-   Matching the palette's selector ties the specificity; being last in the file wins it.
-
-   Ink stays #111 here even though the screen palette softened its --fg. Butterick's
-   case for grey over black is about an emissive screen; paper reflects, and the
-   contrast it needs is the other way. */
+/* Print: ink on paper whatever the theme. Same selector as the palette, or
+   html alone loses on specificity and the override never applies. */
 @media print{
   html.ayu{
        --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;

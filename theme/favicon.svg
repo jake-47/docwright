@@ -3,5 +3,5 @@
     text{font-family:"Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;font-weight:700;fill:#191713}
     @media (prefers-color-scheme: dark){text{fill:#e8e6da}}
   </style>
-  <text x="50" y="68" text-anchor="middle" font-size="50">Dw</text>
+  <text x="50" y="75" text-anchor="middle" font-size="72">D</text>
 </svg>

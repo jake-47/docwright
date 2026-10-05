@@ -1,7 +1,7 @@
 # Git for writers
 
 > - **For:** writers who keep their work in Git, or are about to.
-> - **Before you start:** [Getting started with Git](./getting-started-with-git.md).
+> - **Before you start:** [Getting started with Git](./git-getting-started.md).
 > - **Reading time:** about 10 minutes.
 > - **You end with:** habits for committing prose, branches as a place to experiment, readable diffs for paragraphs, and a version-number scheme for documents readers come back to.
 

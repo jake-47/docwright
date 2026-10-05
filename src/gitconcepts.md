@@ -1,7 +1,7 @@
 # Git concepts
 
 > - **For:** knowledge workers who want to understand Git rather than memorise it.
-> - **Before you start:** [Getting started with Git](./getting-started-with-git.md).
+> - **Before you start:** [Getting started with Git](./git-getting-started.md).
 > - **Reading time:** about 69 minutes end to end. The sections stand alone; read the ones you need.
 > - **You end with:** the mental model behind commits, branches, staging, history rewriting and identity, and the habits that keep a history useful.
 

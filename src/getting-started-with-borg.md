@@ -36,7 +36,7 @@ brew install borgbackup
 
 ### On airgapped
 
-To install on a Debian-based airgapped computer, see [this guide](./unlisted/borg-airgap.md).
+To install on a Debian-based airgapped computer, see [this guide](./borg-airgap.md).
 
 Whichever route you took, run `borg --version`; if it prints a version number, you're ready.
 

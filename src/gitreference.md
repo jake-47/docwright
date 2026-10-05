@@ -1,7 +1,7 @@
 # Git reference
 
 > - **For:** anyone who knows what they want Git to do and needs the command.
-> - **Before you start:** [Getting started with Git](./getting-started-with-git.md).
+> - **Before you start:** [Getting started with Git](./git-getting-started.md).
 > - **Reading time:** about 42 minutes end to end, but it's a lookup: find your task and read that section.
 > - **You end with:** Git set up once, and the command for whatever you need to do next.
 

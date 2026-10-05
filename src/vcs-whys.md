@@ -51,4 +51,4 @@ As a bonus, you get tamper resistance. You control what change you allow in. And
 
 Each commit carries a summary and, if you do it right, a message describing why the file changed; so when others and your future self look back, they aren't baffled by why the change was made. Commit summaries and commit messages are embedded in every commit, along with the name and email you choose to provide (they don't have to be your real ones).
 
-Next, read [Getting started with Git](./getting-started-with-git.md), where you use these four ideas for the first time.
+Next, read [Getting started with Git](./git-getting-started.md), where you use these four ideas for the first time.

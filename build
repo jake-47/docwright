@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Builds the book into book/, then checks every internal link and anchor in it,
+# and stops, listing each broken one. The deploy workflow runs this same file.
+set -euo pipefail
+cd "$(dirname "$0")"
+for tool in mdbook lychee; do
+    [ -x "bin/$tool" ] || { echo "bin/$tool is missing: run bootstrap-mdbook.sh to install it" >&2; exit 1; }
+done
+./bin/mdbook build
+# print.html repeats every chapter; 404.html's <base href> points at the live site.
+rc=0
+report=$(./bin/lychee --offline --include-fragments --mode plain --no-progress \
+    --root-dir "$PWD/book" --exclude-path book/print.html --exclude-path book/404.html \
+    'book/**/*.html' 2>&1) || rc=$?
+if [ "$rc" -ne 0 ]; then
+    # lychee's report, less its summary line, which is written in emoji.
+    printf '%s\n' "$report" | grep -v ' Total (in ' >&2 || true
+    echo "stopped: broken links or anchors, listed above. fix them, then run ./build again." >&2
+    exit 1
+fi
+echo "links: every internal link and anchor resolves"

@@ -11,7 +11,7 @@ If all of this is new to you, read these six in order, about half an hour all to
 2. [Whys of backup](./backup-whys.md), 8 minutes. Why a backup comes first, and why it stays offline.
 3. [Getting started with Borg](./getting-started-with-borg.md), 6 minutes. Your first encrypted backup on a USB stick, and your first restore.
 4. [Whys of version control](./vcs-whys.md), 4 minutes. Keeping every draft without keeping every file.
-5. [Getting started with Git](./getting-started-with-git.md), 6 minutes. Your first commit, and your first old version brought back.
+5. [Getting started with Git](./git-getting-started.md), 6 minutes. Your first commit, and your first old version brought back.
 6. [The Choosing-the-OS TL;DR](./choosing-os.md#tldr), 5 minutes. The case for leaving Windows and macOS, and which Linux to pick.
 
 If you already know you're going to be leaving Windows or macOS, then start the move instead: read [Choosing the OS](./choosing-os.md) and come back for the rest once you've landed. Just never wipe a machine before you have copies of your files; on Windows, where Borg doesn't run, plain copies of your folder on two USB sticks will hold you until the move is done and the real backups begin.

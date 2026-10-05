@@ -86,6 +86,10 @@
 
 - [Bootstrap zola blog script](./boostrap-zola.md)
 
+- [Publish a docs site](./publish-docs.md)
+
+- [Bootstrap mkdocs script](./boostrap-mkdocs.md)
+
 # Outro
 
 - [Contribute](./contribute.md)

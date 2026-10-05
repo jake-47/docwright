@@ -3,7 +3,7 @@
 
 > - **For:** someone who has never used Borg.
 > - **Before you start:** a Linux or Mac machine, a USB stick or a folder to back up to, and the terminal (see [Terminal basics](./terminal-basics.md)).
-> - **Reading time:** about 6 minutes.
+> - **Reading time:** about 7 minutes.
 > - **You end with:** Borg installed, one encrypted backup made, and one restore done and checked.
 
 ## 1. Install Borg
@@ -15,26 +15,26 @@
 
 ### On Debian-based Linux
 
-```bash
+````bash
 sudo apt install borgbackup -y
-```
+````
 
 ### On macOS
 
 Install Homebrew:
 
-```bash
+````bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
+````
 
 When Homebrew finishes it prints a couple of lines starting with `eval` or `export` that tell you how to finish setup; copy those, paste them in, and press Enter. Then install Borg:
 
-```bash
+````bash
 brew analytics off
 brew install borgbackup
-```
+````
 
-### On airgapped
+### On an airgapped machine
 
 To install on a Debian-based airgapped computer, see [this guide](./borg-airgap.md).
 
@@ -60,18 +60,18 @@ Plug in your external drive or USB stick, and find the path to it.
 
 Name the repo anything you like, and run the command to create the repo (after editing the path and repo name to match yours):
 
-```bash
+````bash
 borg init --encryption=repokey /Volumes/backup1/borg
-```
+````
 
 On Linux that path should look something like `/media/john/backup1/borg`. And if you are testing Borg on your system, then it should look something like `~/Documents/borg`.
 
 ### 2.3. Enter the passphrase twice
 
-Pick a strong one. For tips on creating a secure passphrase, see [Creating passphrases](./creating-passphrase.md). When it asks whether to show the passphrase for verification, type `n`.
+Pick a strong one. For tips on creating a secure passphrase, see [Creating passphrases](./creating-passphrase.md). When it asks whether to show the passphrase for verification, type `n`. Borg then prints a block that starts `IMPORTANT: you will need both KEY AND PASSPHRASE to access this repo!`; on Borg 1.2 a paragraph about older Borg versions comes before it. Both are normal, and the repo is ready.
 
 > [!CAUTION]
-> Write this passphrase on paper and keep it somewhere away from the laptop. If you lose both the passphrase and the key, your backups are gone for good, with no reset.
+> Write this passphrase on paper and keep it somewhere away from the laptop. Borg needs both the key and the passphrase to open the repo. With `repokey` the key is stored in the repo itself, so the passphrase is the one you have to keep: lose it, and your backups are gone for good, with no reset.
 
 That's it. That's the whole one-time setup with Borg. From here on, unless you lose your drive, it's just one command per drive to back up (well, two if you count the `cd`); and two to restore. If you level up and start using scripts, then it's one command to back up to all your drives; and one command to restore from any one of them. See [Levelling up](./leveling-up-1.md) for details.
 
@@ -84,32 +84,30 @@ If you keep a second drive labelled `backup2`, set it up and back up the same wa
 
 Using the terminal, navigate to the folder that contains the folder you want to back up. Say the folder you want to back up is `mystuff` and it lives in your Documents folder, run:
 
-```bash
-cd ~/Documents
-borg create -s /Volumes/backup1/borg::{now} ~/Documents/./mystuff
-```
+````bash
+cd ~/Documents && borg create -s /Volumes/backup1/borg::{now} mystuff
+````
 
-Congratulations. You've successfully backed up your folder to your borg repo. You should see something like this.
+Borg asks `Enter passphrase for key` followed by the repo's path, here and every time it opens the repo; as with `sudo`, nothing shows while you type. Congratulations. You've successfully backed up your folder to your Borg repo. You should see something like this.
 
 ![Output of borg create: a stats table for the new archive, with original, compressed and deduplicated sizes](attachments/borg-create.png)
 
 > [!NOTE]
-> If you don't add the slashdot `/./` before the folder you are backing up, but run `create` with `~/Documents/mystuff`, Borg backs up the whole path, such that when you extract you get the whole tree `home/<user>/Documents/mystuff`. While if you use the slashdot hack, or even `cd` to the parent, then extract gives you just the folder you backed up.
+> If you run `create` with the full path, `~/Documents/mystuff`, Borg backs up the whole path, such that when you extract you get the whole tree `home/<user>/Documents/mystuff`. While if you `cd` to the parent and give just the folder's name, as above, then extract gives you just the folder you backed up. Borg 1.4 and newer can do the same from anywhere with the slashdot hack, `~/Documents/./mystuff`; older Borg, which Ubuntu 24.04 and Linux Mint 22 still ship, ignores the `/./` without a word.
 >
-> `{now}` names this backup with the date and time you make the backup, so each backup stays separate. If you would rather name it yourself, swap `{now}` for anything; e.g. `::archive`. Borg requires archive names within the same repository to be unique. If you try to create a new archive with an existing name, Borg will fail with an error similar to: `Archive already exists: <archive-name>`. This is by design because each archive is an immutable snapshot. Those who back up more than one machine commonly use `::{hostname}-{now}` so each machine's backups are labelled and sort together; for one folder on one machine, `{now}` is all you need.
+> `{now}` names this backup with the date and time you make the backup, so each backup stays separate. If you would rather name it yourself, swap `{now}` for anything; e.g. `::archive`. Borg requires archive names within the same repository to be unique. If you try to create a new archive with an existing name, Borg will fail with the error `Archive <archive-name> already exists`. This is by design because each archive is an immutable snapshot. Those who back up more than one machine commonly use `::{hostname}-{now}` so each machine's backups are labelled and sort together; for one folder on one machine, `{now}` is all you need.
 >
 > `-s` stands for stats, shown in the image above. You may remove that if you don't care about it.
 >
 > The first backup copies everything, so it takes a while: roughly two to three minutes for 10 GB to a fast external drive, and longer, ten minutes or more, to a cheap USB stick. After that Borg remembers what it already saved and only adds what changed, so every backup after the first is usually done in seconds to a minute.
 
 > [!TIP]
-> If you do not use the terminal a lot, the next time you want to make a backup, you do not have to retype the command: plug in the drive, wait for it to mount, open the terminal, press the up arrow until the `borg create` line appears, and press <kbd>Enter</kbd>.
+> If you do not use the terminal a lot, the next time you want to make a backup, you do not have to retype the command: plug in the drive, wait for it to mount, open the terminal, press the up arrow until the `borg create` line appears, and press <kbd>Enter</kbd>. The `cd` is on the same line, so it comes back with it; from any other folder Borg wouldn't find `mystuff` and would save an empty archive.
 
 > [!IMPORTANT]
 > Back up after every change you care about. You could also back up on a schedule you will actually keep, once a day or once a week, but definitely before you switch or wipe a laptop.
 >
-> Keep one of your drives somewhere else: at work, with family, or in a safe.
-> Two drives in the same drawer both die in the same fire or theft; the one stored elsewhere is the one that saves you.
+> Keep one of your drives somewhere else: at work, with family, or in a safe. Two drives in the same drawer both die in the same fire or theft; the one stored elsewhere is the one that saves you.
 
 ## 4. Restore
 
@@ -117,11 +115,11 @@ Congratulations. You've successfully backed up your folder to your borg repo. Yo
 
 First get the list of archives. From anywhere on the terminal, run the command:
 
-```bash
+````bash
 borg list /Volumes/backup1/borg
-```
+````
 
-This produces a list of every backup you have made, with the latest at the bottom. If you used `{now}` as your archive name, each line starts with a timestamp like `2026-05-09T19:15:31`. Usually only the latest archive is of concern; older ones matter only if the latest is damaged.
+This produces a list of every backup you have made, with the latest at the bottom. If you used `{now}` as your archive name, each line starts with a timestamp like `2026-05-09T19:15:31`. Usually the latest archive is the one you want; older ones matter when the latest is damaged, or when you deleted or changed a file before your last backup and want it back as it was.
 
 ![Output of borg list: one line per archive, named by timestamp](attachments/borg-list.png)
 
@@ -131,21 +129,21 @@ Copy the archive name (which in this case is the timestamp) of the backup you wa
 
 Navigate to wherever you want to extract your backup; e.g. `Downloads`. Then paste your timestamp in place of the one shown:
 
-```bash
+````bash
 cd ~/Downloads
 borg extract --progress /Volumes/backup1/borg::2026-05-09T19:15:31
-```
+````
 
-You should see your folder extracted to the extract location. Congratulations. And that's how easy it is to use Borg.
+`--progress` first prints `Calculating total archive size for the progress indicator`, then a running percentage. When it finishes, `ls` shows your folder, `mystuff`, in `Downloads`. Congratulations. And that's how easy it is to use Borg.
 
 > [!TIP]
-> If you want to extract just one file or folder from the archive, instead of extracting the whole archive, extract only the file using `borg extract repo::archive-name path/to/file`; for example `borg extract --progress /Volumes/backup1/borg::2026-05-09T19:15:31 test-file.md`.
+> If you want to extract just one file or folder from the archive, instead of extracting the whole archive, extract only the file using `borg extract repo::archive-name path/to/file`; for example `borg extract --progress /Volumes/backup1/borg::2026-05-09T19:15:31 mystuff/test-file.md`. The path is the one inside the archive, so it starts with the folder's name; `borg list /Volumes/backup1/borg::2026-05-09T19:15:31` shows every path.
 
 ## 5. Verify extracts
 
 You've learnt how to make a backup and restore it, all good, but that's not the same as being sure of what the archive holds rather than what you think it holds. Borg will not tell you that. A mistyped path, a folder you meant to include and did not, an exclude that caught more than you intended: each of those produces a clean backup but is quietly missing things. There is no warning, because from Borg's side nothing went wrong.
 
-So before you delete anything, or start relying on this, spend a few minutes checking. Do it straight after making an archive and extracting, while the source has not changed underneath you. Open the last saved file, and check if the contents are present.
+So before you delete anything, or start relying on this, spend a few minutes checking. Do it straight after making an archive and extracting, while the source has not changed underneath you. Open the last saved file, and check if the contents are present. To check every file at once, compare the restored folder with the original: `diff -r ~/Documents/mystuff ~/Downloads/mystuff`. If it prints nothing, every file came back exactly as it was; anything it prints is a file that's missing or different.
 
 If you have a spare or second machine, restore the backup there; or use a fresh user account, with nothing but the drive and the passphrase. That is the situation you are trying to guard yourself against, yet that is where many find out that the only copy of the passphrase they had was on the machine that died. So don't skip this step. Test it at least once while nothing is wrong, so you're confident of restoring from backup on a new system.
 

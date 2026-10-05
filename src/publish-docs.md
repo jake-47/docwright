@@ -44,10 +44,10 @@ You need:
 ## Quick start
 
 1. Save the script as `bootstrap-docs.sh`, in any folder, for example `~/Downloads`.
-   If the file you have is named `bootstrap-docs_v31.sh`, rename it there:
+   If the file you have is named `bootstrap-docs_v32.sh`, rename it there:
 
    ```bash
-   mv bootstrap-docs_v31.sh bootstrap-docs.sh
+   mv bootstrap-docs_v32.sh bootstrap-docs.sh
    ```
 
    `mv` prints nothing.
@@ -75,10 +75,10 @@ You need:
    It continues with one `wrote ...` line per plugin file, then one line naming the installed versions (yours may be newer):
 
    ```
-   [bootstrap] installed with uv: mkdocs-audience 0.4.0 (from ./plugins), mkdocs 1.6.1, mkdocs-material 9.7.7
+   [bootstrap] installed with uv: mkdocs-audience 0.4.1 (from ./plugins), mkdocs 1.6.1, mkdocs-material 9.7.7
    ```
 
-   Then come one `wrote ...` line for each remaining file.
+   Then comes one `wrote ...` line for each remaining file.
    Among them, these lines add the font:
 
    ```
@@ -315,7 +315,7 @@ audience-docs/
 ├── .gitignore                    keeps .venv/, dist/ and site/ out of Git
 ├── .venv/                        the project's Python environment
 ├── .github/workflows/build.yml   CI: builds and checks every audience
-├── bin/check-leaks.py            builds every audience, fails on any leak
+├── bin/check-leaks.py            builds every audience, fails on any leak or broken link
 ├── bin/serve                     previews one audience, or all of them
 ├── dist/                         the builds bin/check-leaks.py made, one per audience
 ├── mkdocs.yml                    site configuration
@@ -478,6 +478,10 @@ It covers keys, webhooks and rate limits.
 <!-- /audience -->
 ```
 
+A link to a heading inside a marker breaks too, in the builds that leave the heading out.
+MkDocs only notes that kind of break, so `bin/check-leaks.py` is what fails on it; see [Broken links](#broken-links).
+Put such a link inside a marker for the same audiences as the heading.
+
 Pages a build excludes are also dropped from that build's navigation, so their titles never appear in it.
 
 ### Markers inside code
@@ -628,9 +632,12 @@ None of them needs the environment activated.
 - **It finds a free port.**
   It uses port 8000, or the next free one up to 8020, and says so: `[serve] port 8000 is in use (another preview still running?); using 8001`.
 - **Warnings don't stop it.**
-  A broken link prints a `WARNING` line in the terminal, and the page still updates.
+  A link to a page or file that doesn't exist prints a `WARNING` line in the terminal, and the page still updates.
   Without this, MkDocs in strict mode refuses to start the preview while any warning exists, and freezes an open page until the warning is fixed.
   `bin/check-leaks.py` and CI still build in strict mode and fail on every warning.
+- **Some broken links don't print a warning.**
+  A link to an anchor that doesn't exist prints only an `INFO` line, and a link written in HTML prints nothing.
+  `bin/check-leaks.py` and CI fail on those too; see [Broken links](#broken-links).
 - **It watches `docs/` and `mkdocs.yml`.**
   After editing `overrides/` or the plugin, stop the preview and start it again.
 - **It hides the red warning notice** described in [The red warning notice](#the-red-warning-notice).
@@ -641,16 +648,50 @@ It reads `mkdocs.yml` and finds the pages the way MkDocs does, so it checks the 
 Before building, it fails if any page's tagging can't be trusted, or, with `untagged: error`, if a page names no audiences; see [Page frontmatter](#page-frontmatter).
 Then, for each audience, it fails if:
 
-- the build fails in strict mode, for example on a broken link
+- the build fails in strict mode, for example on a link to a page that doesn't exist
 - any file in the build holds a marker, or a comment that looks like one, which means a builder that ignored the plugin
 - a page source reached the build as a plain file; see [Files other than pages](#files-other-than-pages)
 - a page excluded for that audience was built
 - any page links to an excluded page, however the link is written, including a full address that starts with `SITE_URL`
 - the search index lists an excluded page
 - outside internal, the build holds a file from `docs/` that none of its pages or stylesheets uses; see [Files other than pages](#files-other-than-pages)
+- a link in the build leads to a page, file or anchor that isn't in it; see [Broken links](#broken-links)
 
 It works from the page frontmatter, `docs/` and the built files alone, without trusting the plugin.
 So it also catches a build tool that silently skipped the plugin.
+
+### Broken links
+
+MkDocs checks the links you write in Markdown as it builds.
+A link to a page or file that isn't there, including a page the build leaves out, prints a `WARNING`, which fails strict builds, the check and CI.
+A link to an anchor that isn't there prints only an `INFO` line.
+So do every absolute link, such as `/setup/`, and every link to a folder, such as `setup/`: MkDocs leaves both as written, whether or not they lead anywhere.
+It doesn't check links written in HTML, such as `<a href="setup.html">`, at all.
+
+`bin/check-leaks.py` then checks every link in each build's output, however it's written.
+Each link has to lead to a page or file in that build, and its anchor, the part after `#`, to an element with that id on the target page, such as a heading.
+A link to `#` or `#top` goes to the top of the page, so it always passes; MkDocs notes `#top` as a missing anchor, but the check doesn't.
+Full addresses, such as `https://example.com/setup/`, aren't checked, even one that starts with `SITE_URL`, and nor are `mailto:` and `tel:` links.
+
+A broken link fails the check in every build that has it.
+The line under the build names the page the link is on, the link as the built page has it, and what's missing.
+With a link to `#internal-note` added to the demo homepage, outside any marker:
+
+```
+[check-leaks] internal: built; 6 pages checked; clean
+[check-leaks] partner: built; 6 pages checked (3 excluded); BROKEN LINKS (1)
+    broken anchor: index.md -> #internal-note (no anchor 'internal-note' on this page in this build)
+[check-leaks] beta: built; 6 pages checked (3 excluded); BROKEN LINKS (1)
+    broken anchor: index.md -> #internal-note (no anchor 'internal-note' on this page in this build)
+[check-leaks] public: built; 6 pages checked (4 excluded); BROKEN LINKS (1)
+    broken anchor: index.md -> #internal-note (no anchor 'internal-note' on this page in this build)
+[check-leaks] FAILED: partner, beta, public. Do not publish these builds.
+```
+
+The heading "Internal note" is inside an internal marker, so only the internal build has the anchor; see [Linking to restricted pages](#linking-to-restricted-pages).
+
+A Markdown link shows as the address MkDocs wrote into the page, so on the homepage `[Overview](api/overview.md#endpoints)` shows as `api/overview/#endpoints`.
+To have the preview warn you about a missing page while you write, link to pages by their `.md` file, as in that example, rather than by a folder or an absolute path.
 
 ## The design
 
@@ -768,7 +809,7 @@ It recognises the folder from the committed `.bootstrap-docs` file, checks the s
 
 1. It installs `requirements.txt`.
 2. It runs `bin/check-leaks.py`.
-   While `WANT_LEAK_CHECK` is `false`, it only builds each audience in strict mode instead, with no leak check; the script rewrites the workflow on every run to match the setting.
+   While `WANT_LEAK_CHECK` is `false`, it only builds each audience in strict mode instead, with no leak check and only the link checks MkDocs makes itself (see [Broken links](#broken-links)); the script rewrites the workflow on every run to match the setting.
 3. It uploads `dist/public` as a downloadable bundle named `public`, which GitHub calls an artifact.
 
 It runs with read-only repository permissions, and uses the versions of the GitHub actions that run on Node 24.
@@ -786,24 +827,24 @@ The rules that matter:
 - Keep the repository private.
   It contains every audience's content.
 
-## Upgrading a project made by v30
+## Upgrading a project made by v31
 
 Run the script as usual, with the same `PROJECT_DIR` and `PROJECT_NAME`.
-It updates the plugin's five files, the stylesheet and `bin/serve`, and checks every audience.
+It updates two of its files, `bin/check-leaks.py` and `bin/serve`, and checks every audience.
 Among its lines:
 
 ```
-[bootstrap] updated in .venv with uv: mkdocs-audience 0.4.0 -> 0.4.1
-[bootstrap] updated docs/assets/styles/extra.css
+[bootstrap] updated bin/check-leaks.py
 [bootstrap] updated bin/serve
-[bootstrap] files this script owns: 0 written, 7 updated, 11 already up to date
+[bootstrap] files this script owns: 0 written, 2 updated, 16 already up to date
 ```
 
-Without uv, the first line reads `with pip`.
-The logo loses its white tile; nothing in `mkdocs.yml` needs to change.
+The check now fails on broken links that v31 passed: an anchor that doesn't exist, an absolute or folder-style link that leads nowhere, and a broken link written in HTML.
+If a page has one, the run stops before the preview, with lines like those in [Broken links](#broken-links).
+Fix what they list and run the script again.
 
-If v30 couldn't add Charter, this run tries again.
-If the download succeeds, these lines come between the stylesheet's line and `bin/serve`'s, and the count reads `5 written, 7 updated, 6 already up to date`:
+If v31 couldn't add Charter, this run tries again.
+If the download succeeds, these lines come before `bin/check-leaks.py`'s line, and the count reads `5 written, 2 updated, 11 already up to date`:
 
 ```
 [bootstrap] adding Charter: downloading it from practicaltypography.com, checking and correcting it
@@ -814,7 +855,43 @@ If the download succeeds, these lines come between the stylesheet's line and `bi
 [bootstrap] wrote docs/assets/fonts/LICENSE-Charter.txt
 ```
 
-If it fails again, the note shown in the [Quick start](#quick-start) appears instead, and the count reads `0 written, 7 updated, 6 already up to date`.
+If it fails again, the note shown in the [Quick start](#quick-start) appears instead, and the count reads `0 written, 2 updated, 11 already up to date`.
+
+Your marker reference page keeps its text; a new project's says more about links to headings inside markers and about what the check covers.
+
+If you edited one of the script's files, it stops first; see [Edits to the script's files](#edits-to-the-scripts-files).
+
+## Upgrading a project made by v30
+
+Run the script as usual, with the same `PROJECT_DIR` and `PROJECT_NAME`.
+It updates the plugin's five files, the stylesheet, `bin/check-leaks.py` and `bin/serve`, and checks every audience.
+Among its lines:
+
+```
+[bootstrap] updated in .venv with uv: mkdocs-audience 0.4.0 -> 0.4.1
+[bootstrap] updated docs/assets/styles/extra.css
+[bootstrap] updated bin/check-leaks.py
+[bootstrap] updated bin/serve
+[bootstrap] files this script owns: 0 written, 8 updated, 10 already up to date
+```
+
+Without uv, the first line reads `with pip`.
+The logo loses its white tile; nothing in `mkdocs.yml` needs to change.
+The check now fails on broken links that v30 passed; see [Upgrading a project made by v31](#upgrading-a-project-made-by-v31).
+
+If v30 couldn't add Charter, this run tries again.
+If the download succeeds, these lines come between the stylesheet's line and `bin/check-leaks.py`'s, and the count reads `5 written, 8 updated, 5 already up to date`:
+
+```
+[bootstrap] adding Charter: downloading it from practicaltypography.com, checking and correcting it
+[bootstrap] wrote docs/assets/fonts/charter_regular.woff2
+[bootstrap] wrote docs/assets/fonts/charter_italic.woff2
+[bootstrap] wrote docs/assets/fonts/charter_bold.woff2
+[bootstrap] wrote docs/assets/fonts/charter_bold_italic.woff2
+[bootstrap] wrote docs/assets/fonts/LICENSE-Charter.txt
+```
+
+If it fails again, the note shown in the [Quick start](#quick-start) appears instead, and the count reads `0 written, 8 updated, 5 already up to date`.
 
 If you edited one of the script's files, it stops first; see [Edits to the script's files](#edits-to-the-scripts-files).
 
@@ -822,16 +899,19 @@ If you edited one of the script's files, it stops first; see [Edits to the scrip
 
 Run the script as usual, with the same `PROJECT_DIR` and `PROJECT_NAME`.
 It keeps the font files, which v29 already corrected, and downloads nothing.
-It updates the plugin's five files, the stylesheet, the font licence and `bin/serve`.
+It updates the plugin's five files, the stylesheet, the font licence, `bin/check-leaks.py` and `bin/serve`.
 Among its lines:
 
 ```
 [bootstrap] updated in .venv with uv: mkdocs-audience 0.4.0 -> 0.4.1
 [bootstrap] updated docs/assets/styles/extra.css
 [bootstrap] updated docs/assets/fonts/LICENSE-Charter.txt
+[bootstrap] updated bin/check-leaks.py
 [bootstrap] updated bin/serve
-[bootstrap] files this script owns: 0 written, 8 updated, 10 already up to date
+[bootstrap] files this script owns: 0 written, 9 updated, 9 already up to date
 ```
+
+The check now fails on broken links that v29 passed; see [Upgrading a project made by v31](#upgrading-a-project-made-by-v31).
 
 If you edited one of the script's files, it stops first; see [Edits to the script's files](#edits-to-the-scripts-files).
 
@@ -878,6 +958,7 @@ Run the script as usual, with the same `PROJECT_DIR` and `PROJECT_NAME`:
    Tag each page listed, then run the script again.
    To keep v28's rule instead, under which an untagged page went to internal and public, add `untagged: public` to the plugin's settings in `mkdocs.yml`; see [Page frontmatter](#page-frontmatter).
    The demo pages are all tagged already.
+   The check also fails on broken links that v28 passed; see [Upgrading a project made by v31](#upgrading-a-project-made-by-v31).
 3. Nothing else needs changing.
    Your `mkdocs.yml` still says `primary: custom` and `accent: custom`, and `extra.css` gives those Material's teal and deep orange, so the site looks the same as a new one.
    To match a new project anyway, change them to `primary: teal` and `accent: deep orange` in all three palette entries.
@@ -887,11 +968,11 @@ An existing project doesn't get the demo's rota image: the script writes it only
 ## Upgrading a project made by v27
 
 v27 put the project in the folder you ran it from, kept no record of its files, and had a different theme.
-To bring a v27 project up to v31:
+To bring a v27 project up to v32:
 
 1. Set `PROJECT_DIR` in the CONFIG block to the folder that holds the project, which is the folder you ran v27 from.
    For example, if the project is `~/projects/audience-docs`, set `PROJECT_DIR="~/projects"`.
-   If you run v31 from that same folder with `PROJECT_DIR` unchanged, it makes a new project on your desktop instead, and prints a note saying so.
+   If you run v32 from that same folder with `PROJECT_DIR` unchanged, it makes a new project on your desktop instead, and prints a note saying so.
 2. Run `bash bootstrap-docs.sh`.
    It stops without changing anything, because v27 kept no record of which of its files you might have edited:
 
@@ -912,7 +993,7 @@ To bring a v27 project up to v31:
 
    It copies each file it replaces into `.bootstrap-docs-backup/`, writes the new theme, downloads its fonts, reinstalls the plugin, and records the script's files.
    The plugin line reads `[bootstrap] updated in .venv with uv: mkdocs-audience 0.2.0 -> 0.4.1`, or `with pip` without uv.
-   If any page names no audiences, the check that ends the run stops and lists them; see step 2 of [Upgrading a project made by v28](#upgrading-a-project-made-by-v28).
+   If any page names no audiences, or has a broken link, the check that ends the run stops and lists them; see step 2 of [Upgrading a project made by v28](#upgrading-a-project-made-by-v28) and [Broken links](#broken-links).
    Later runs need no `REGENERATE_OWNED`.
    If this run is interrupted, the next plain run stops at the files it hadn't reached yet; run the forced run again.
 4. The run prints this note, because v27's `mkdocs.yml` names no default audience:
@@ -1079,7 +1160,7 @@ Expected output: `[bootstrap] adding Charter: reading ~/Downloads/Charter 210112
 The downloaded file, or the one `CHARTER_ZIP` names, isn't the Charter release the script was written for, so it wasn't used, and no font was added.
 For a download, something between you and the site changed the file, or the site now serves another file at that address.
 Try again later.
-If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's [`font-charter`](https://github.com/Homebrew/homebrew-cask/blob/master/Casks/font/font-c/font-charter.rb) cask or the AUR's [`ttf-bitstream-charter`](https://aur.archlinux.org/packages/ttf-bitstream-charter) package.
+If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's `font-charter` cask or the AUR's `ttf-bitstream-charter` package; see [Sources](#sources).
 Don't change `CHARTER_ZIP_SHA256` to match the file you got: the checksum is what keeps a changed file out.
 
 **`[bootstrap] note: couldn't install fontTools, which corrects Charter's files (offline?).`**
@@ -1181,40 +1262,36 @@ Something in this build points at a page it shouldn't know about.
 The check always builds in strict mode, so MkDocs stops a Markdown link to an excluded page first, as a build failure.
 The checker's own messages catch what MkDocs doesn't check, such as a link written in raw HTML, or output checked with `--no-build`.
 
+**Checker: `broken link` or `broken anchor`**
+A link in this build leads to a page, file or anchor that isn't in it.
+The line names the page the link is on, the link as the built page has it, and what's missing: `not in this build`, `no anchor '...' on ... in this build`, or, for an absolute link that leaves the folder `SITE_URL` names, `outside the site`.
+Fix the link, or remove it.
+If the anchor is a heading inside a marker, put the link inside a marker for the same audiences; see [Linking to restricted pages](#linking-to-restricted-pages).
+
 **`syntax error: unexpected end of file`**, or **`here-document at line ... delimited by end-of-file`**
 The script file is incomplete, usually from a download that stopped early.
 Nothing was created.
 Download the script again.
 If only its first few lines arrived, it prints nothing at all; download it again then too.
 
-## What changed in v31
+## What changed in v32
 
-What changed in v30 is listed in the v30 guide.
+What changed in v31 is listed in the v31 guide.
 
-**Design**
+**Broken links**
 
-- **The logo has no tile.**
-  The header and the menu show the favicon's green bars on the teal itself, at half brightness so they stay visible: 3.2 to 1, where the favicon's own green is 1.4 to 1.
-  The browser-tab icon is unchanged.
-  In a project made by v27, whose `mkdocs.yml` still names Material's layers icon, the header shows that icon in white, where v29 and v30 showed a blank white square.
-- **No grey-blue box behind the copy button in the dark scheme.**
-  The copy button on code blocks, and keys written with `<kbd>`, use the theme's own greys in both schemes.
-- **The page `bin/serve all` opens has teal links**, orange on hover, as the site does, in place of underlined black.
-
-**Safety**
-
-- **A nav entry for a file a build leaves out fails the build.**
-  In v29 and v30, a `nav:` entry pointing at a PDF that no page in a build linked to was a broken link in that build, and nothing said so.
-  Now the build logs a warning, which fails strict builds, the check and CI; see [Files other than pages](#files-other-than-pages).
-- The plugin is 0.4.1, with 156 tests.
+- **The check fails on every broken link within the site, not only on the ones MkDocs warns about.**
+  In v31, the check, CI and the end of each run passed a link to an anchor that didn't exist, an absolute or folder-style link that led nowhere, and a broken link written in HTML.
+  MkDocs only notes the first three, at `INFO` level, and doesn't check the last.
+  Now the check follows every link in each build's output to a page or file in that build, and its anchor to an element on the target page; see [Broken links](#broken-links).
+  It lists them apart from leaks, under `BROKEN LINKS`, naming the page each one is on.
+- **The guide and `bin/serve` no longer say every broken link prints a warning in the preview.**
+  Only a link to a page or file that doesn't exist does; the guide now says what the others print.
+- **A new project's marker reference page** says that a link to a heading inside a marker breaks in the builds that leave the heading out, and that the check covers links.
 
 **Smaller changes**
 
-- New projects' `mkdocs.yml` no longer lists `content.heading.links` under `features`.
-  Material 9.7 has no such feature; the anchor link beside each heading comes from the `toc` extension's `permalink` setting, which stays.
-  In an existing project the line does nothing, and you can delete it.
-- The comment at the top of the script names everything the first run installs.
-- The guide says what the live preview prints while Charter is missing.
+- The Quick start shows the plugin version a new project gets, 0.4.1, where v31's guide showed 0.4.0.
 
 ## Known limitations
 
@@ -1252,5 +1329,7 @@ What changed in v30 is listed in the v30 guide.
   - The plugin recognises code only as a fenced block that starts at the left margin, or inline code in single backticks.
     A marker inside other code, such as a fence in a list item, an admonition or a blockquote, inline code in double backticks, or code indented four spaces, is acted on.
     The builds it doesn't match lose that part of the example, and the internal build shows the marker's HTML in the code.
+- **The check doesn't follow full addresses.**
+  A link written as a full address, such as `https://example.com/setup/`, isn't checked, even one that starts with `SITE_URL`, and nor is a link to another site.
 - **`~/Desktop` may not exist** on a desktop set up in another language, where the folder can have another name.
   Set `PROJECT_DIR` to the folder you want.

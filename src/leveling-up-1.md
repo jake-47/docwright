@@ -2,7 +2,7 @@
 
 > - **For:** Linux users who want encrypted backups to several USB drives from one command.
 > - **Before you start:** [Planning](./backup-planning.md), and the "What you need" list below.
-> - **Reading time:** about 23 minutes; the setup itself takes about fifteen.
+> - **Reading time:** about 24 minutes; the setup itself takes about fifteen.
 > - **You end with:** versioned, encrypted backups of the folders you name on every drive you name, run by one command, with the option of a schedule.
 
 *This is the first of two guides to borg-simple, a shell script that wraps [BorgBackup](https://www.borgbackup.org/). The command you type is `backup`. It makes encrypted, versioned backups of the folders you name, to every USB drive you name, from one command.*
@@ -22,7 +22,7 @@
 
 ## Terminology
 
-You will see these words in every message the tool prints, so it is worth ten minutes now.
+You will see these words in every message the tool prints, so it is worth a minute now.
 
 **Drive label.** When you plug a USB drive in, your system mounts it, which means it makes the contents appear at a path. On most desktop Linux that path is `/media/your-name/something`. That last part is the drive label. It is usually the name you gave the drive when you formatted it. `d1`, `d2`, `d3` are good labels because they are short and you will type them.
 
@@ -67,7 +67,7 @@ Borg is a good program, and you can drive it by hand; the last section shows you
 25. You don't have to rotate a passphrase on each drive separately and then remember to update your notes; `backup pass-change` rotates on every drive and rewrites the passphrase file.
 26. You don't have to `mv` a repo directory on four drives and then edit two files; `backup rename` does the directories, the config and the passphrase file, or refuses and changes nothing.
 27. You don't have to make sure two backups never overlap; the tool takes a lock and the second one says so and stops.
-28. You don't have to remember to lock down the passphrase file; the tool refuses to read one that anybody else on the machine can open.
+28. You don't have to remember to lock down the passphrase file; the tool tightens one that anybody else on the machine can open, and tells you when what was in it may already have been read.
 29. You don't have to worry about a debug session printing a passphrase into a log; the tool refuses to run under `bash -x` at all.
 30. You don't have to notice on your own that a mistyped filter backed up nothing; an archive that comes out empty is called out, and a repo whose allowlist matches everything is refused before anything is written.
 31. You don't have to take a stranger's word for any of this; every command it runs is in the last section, and you can do the whole job yourself.
@@ -89,7 +89,7 @@ set_pass photos    'a different long passphrase for photos'
 
 Give it any name you like. The tool works out whether it is plain text or GPG-encrypted by reading the file itself, not by looking at the name, so `~/.borg-pass` is as good as `~/.borg-pass.gpg`. Part 2 uses that: you encrypt this file in place and change nothing else.
 
-Two constraints on the path. It must be readable and writable by you alone, because the tool refuses a file that grants any access to group or other. And it must contain no spaces, quotes or backslashes, because borg runs the command that fetches your passphrase without a shell to unpick them.
+Two constraints on the path. It must be readable and writable by you alone; the tool tightens a file that grants any access to group or other back to 600 and warns you, and refuses one that someone else owns or that is a symlink. And it must contain no spaces, quotes or backslashes, because borg runs the command that fetches your passphrase without a shell to unpick them.
 
 In this guide, the file is plain text. Its only protection is its permissions and whatever disk encryption you have. Not a big deal but it is a real risk, and the subject of Part 2, and it is also the only arrangement that can run without you present.
 
@@ -131,7 +131,7 @@ Then check which version you got:
 borg --version
 ```
 
-It has to be 1.4 or newer, and below 2.0. The tool checks this itself on every command that uses borg and stops if it is outside that range, so you will find out immediately rather than at the worst possible moment. Debian trixie, Devuan Excalibur and their relatives ship 1.4. Debian bookworm and Devuan Daedalus ship 1.2.4, which is too old; `bookworm-backports` has 1.4 if you cannot move the whole machine.
+It has to be 1.4 or newer, and below 2.0. The tool checks this itself on every command that uses borg and stops if it is outside that range, so you will find out immediately rather than at the worst possible moment. Debian trixie, Devuan Excalibur, Ubuntu 26.04 and their relatives ship 1.4. Debian bookworm and Devuan Daedalus ship 1.2.4, which is too old; `bookworm-backports` has 1.4 if you cannot move the whole machine. Ubuntu 24.04 and Linux Mint 22 ship 1.2.8, also too old. There, remove it with `sudo apt remove borgbackup` and install Borg's own build the way [Borg on an airgapped machine](./borg-airgap.md) does, minus the USB stick; if you will run backups from cron, also put `PATH=/usr/local/bin:/usr/bin:/bin` on the first line of your crontab, because cron does not look in `/usr/local/bin`.
 
 This matters more than a version requirement usually does, so it is worth one paragraph. Borg 1.4 is the first version that understands the trick this tool uses to put a folder at the top of an archive under its own name. On 1.2 that trick is ignored without a word, every file is filed under its full path instead, and nothing at all goes wrong until the day you restore and get a nest of empty directories with your folder at the bottom. The full explanation is in [the last section](#doing-all-of-this-without-the-script).
 
@@ -181,7 +181,7 @@ Single quotes around the passphrase. If the passphrase itself contains a single 
 
 You must write the first line by hand. Later on, `backup init <repo> <path>...` will prompt you for a new repo's passphrase and append it here for you, but it will only do that if this file already exists.
 
-The `chmod 600` is not decoration. Without it the tool stops and tells you to run it.
+The `chmod 600` is not decoration. Without it, anyone on the machine can read the passphrases until the tool's first run tightens the file, and the tool then tells you to rotate them.
 
 ### Step 4: write the config
 
@@ -512,7 +512,7 @@ Borg wants to write a lock file even to read. When it cannot, this skips the loc
 borg key change-passphrase
 ```
 
-Once per drive. Every copy of a repo has its own key file, so a rotation that only reaches three of four drives leaves the fourth on the old passphrase.
+Once per drive. Every copy of a repo has its own key, so a rotation that only reaches three of four drives leaves the fourth on the old passphrase.
 
 **What you are giving up by doing it this way.** The commands above are all of it, and they are not hard. What the script adds is that it runs them for every repo and every drive from one invocation, never puts a passphrase on a command line or in an environment variable, gets the pattern anchoring right, does not stop because one drive is missing, refuses a filter that is not doing what you think, and tells you at the end what actually happened. None of that is magic, and none of it is required. The repositories are ordinary borg repositories either way, and any borg on any machine can open them.
 
@@ -522,7 +522,7 @@ Once per drive. Every copy of a repo has its own key file, so a rotation that on
 
 `borg <version> is too old` or `borg <version> is too new` The installed borg is outside the 1.4-to-below-2.0 range. See step 1. If it says too new, check whether `borgbackup-is-borgbackup2` is installed; that package repoints the `borg` command at the 2.x line.
 
-`<file> is reachable by group or other (mode N); run: chmod 600 <file>` The config or the passphrase file is readable by someone else. Run the command it gives you.
+`<file> was mode N, reachable by group or other; tightened it to 600` The config or the passphrase file could be opened by someone else, and the tool has closed it. If the next line says it was readable by them until now, rotate with `backup pass-change <repo>`. If the message says the file is a symlink or not owned by you, nothing was changed; fix that file by hand.
 
 `MOUNT_BASE '<path>' is not a directory` `MOUNT_BASE` is wrong. Check it with `ls /media/$USER`.
 

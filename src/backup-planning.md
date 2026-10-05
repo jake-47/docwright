@@ -35,7 +35,7 @@ Keep at least one copy offline; but aim for more. An online backup is convenient
 
 ### 4. Back up honourably
 
-Do not delete old backups. The instinct to prune old backups to save space is understandable but dangerous. Damage is not always immediately visible. A virus can quietly corrupt hundreds of files over weeks or months before you notice. By the time you discover the problem, your most recent backups may already contain the corrupted versions. An older backup may be the only path back to clean data. Keep old backups as long as storage allows.
+Do not delete old backups. The instinct to prune old backups to save space is understandable but dangerous. Damage is not always immediately visible. A virus can quietly corrupt hundreds of files over weeks or months before you notice. By the time you discover the problem, your most recent backups may already contain the corrupted versions. An older backup may be the only path back to clean data. Keep old backups as long as storage allows. When storage runs out, thin the old backups rather than cutting them off: keep recent ones daily and weekly, and one a month for good, so a copy from before the damage survives. Levelling up: Part 1 sets up exactly that rule.
 
 ### 5. Back up cautiously
 
@@ -49,8 +49,7 @@ With the principles in mind, you're now better equipped to build.
 
 Before you can protect your data, you need to know what you have. Make a list of every dataset in your care. Losing your baby photographs and your client database is a different matter entirely from losing your messaging-app history, and the differences decide how each kind should be handled.
 
-Ask three questions of it. First, how much harm would it do if it were disclosed? Your identity documents, financial records, and medical files are among the most sensitive things you own. What you read, what you write, and who you write to can sometimes reveal more about you than a formal record, and data you hold about other people is more sensitive still, because the harm of exposing it is not yours to discount.
-This question decides how carefully a thing is locked and where you are willing to keep it.
+Ask three questions of it. First, how much harm would it do if it were disclosed? Your identity documents, financial records, and medical files are among the most sensitive things you own. What you read, what you write, and who you write to can sometimes reveal more about you than a formal record, and data you hold about other people is more sensitive still, because the harm of exposing it is not yours to discount. This question decides how carefully a thing is locked and where you are willing to keep it.
 
 Second, how badly would you be hurt if it were lost, and could you ever get it back? Your photographs, your notes, and your letters exist nowhere else; lose them and they are gone. A film collection or your installed software can be downloaded again. The data that needs the most copies, kept in the most places, is the kind you could never recover, not simply the kind you use most. The question sorts your data into three tiers:
 - `High`: data you could never recover and whose loss would be devastating and irreversible; the photographs, records, and work that exist nowhere else.
@@ -67,7 +66,7 @@ Do all of this for whole groups of files, not file by file. You are sorting your
 
 ### 2. Take note of the special category
 
-The one category sits outside the three axes entirely. Your keys and secrets, SSH and GPG keys, two-factor seeds, wallet phrases, are not ordinary data that you merely lose or reveal; they are the keys to everything else. A leak cannot be undone and a loss has no recovery path, so they are kept and protected separately, offline, with more care than any other data you own.
+One category sits outside the three axes entirely. Your keys and secrets, SSH and GPG keys, two-factor seeds, wallet phrases, are not ordinary data that you merely lose or reveal; they are the keys to everything else. A leak cannot be undone and a loss has no recovery path, so they are kept and protected separately, offline, with more care than any other data you own.
 
 ### 3. Make folders
 
@@ -101,7 +100,7 @@ To see all of this in action, consider an ordinary inventory. Say you have a pho
 
 ### 4. Pick your storage
 
-You need physical drives that you own and control. Cloud storage is not a substitute. This topic has been addressed in [Whys of backup](./backup-whys.md). As for how many drives you need, a well-regarded framework for thinking about storage is the 3-2-1 rule: keep three copies of your important data, on at least two different storage devices, with at least one copy kept off-site. Two external drives stored in different places, combined with a local backup, satisfy this standard. The goal is to ensure that no single event can reach all your copies at once. The best long-term strategy, however, is to keep all your backups offline. Strong encryption isn't enough for maximum privacy and security. Where your data resides is also important.
+You need physical drives that you own and control. Cloud storage is not a substitute. This topic has been addressed in [Whys of backup](./backup-whys.md). As for how many drives you need, a well-regarded framework for thinking about storage is the 3-2-1 rule: keep three copies of your important data, on at least two different storage devices, with at least one copy kept off-site. Two external drives stored in different places, plus the original on your computer, satisfy this standard. The goal is to ensure that no single event can reach all your copies at once. The best long-term strategy, however, is to keep all your backups offline. Strong encryption isn't enough for maximum privacy and security. Where your data resides is also important.
 
 ### 5. Choose your backup tool
 

@@ -2,11 +2,11 @@
 
 # Bootstrap-mkdocs script
 
-script creates a MkDocs documentation project that builds one set of Markdown sources once per audience: **internal**, **partner**, **beta** and **public**. Every page says which audiences get it, as in `audiences: [public]`, and you can mark parts of a page with `<!-- audience: internal -->...<!-- /audience -->`; each build keeps or removes them. For more details, see [Publish a documentation site](./publish-docs.md).
+The script creates a MkDocs documentation project that builds one set of Markdown sources once per audience: **internal**, **partner**, **beta** and **public**. Every page says which audiences get it, as in `audiences: [public]`, and you can mark parts of a page with `<!-- audience: internal -->...<!-- /audience -->`; each build keeps or removes them. For more details, see [Publish a documentation site](./publish-docs.md).
 
 ````bash
 #!/usr/bin/env bash
-# bootstrap-docs, v31: create a multi-audience MkDocs documentation project,
+# bootstrap-docs, v32: create a multi-audience MkDocs documentation project,
 # check it, and open a live preview in your browser.
 #
 # Edit the CONFIG block below, save, then run:
@@ -31,7 +31,7 @@ script creates a MkDocs documentation project that builds one set of Markdown so
 #
 # The mkdocs-audience plugin is part of the project it creates
 # (plugins/mkdocs-audience/), so nothing has to be published first.
-# Guide: bootstrap-docs-guide_v31.md, which comes with this script.
+# Guide: bootstrap-docs-guide_v32.md, which comes with this script.
 
 # Under sh (dash) or zsh, the bash syntax below fails with cryptic errors.
 # This test is plain POSIX, so any shell can run it.
@@ -47,7 +47,7 @@ set -euo pipefail
 # nothing, instead of running part of the script.
 {
 
-SCRIPT_VERSION=31
+SCRIPT_VERSION=32
 
 # ===========================================================================
 # CONFIG: edit this block, save, then run the script
@@ -1097,6 +1097,9 @@ It covers keys and webhooks.
 <!-- /audience -->
 ```
 
+A link to a heading inside a marker breaks too, in the builds that leave the heading out.
+Put such a link inside a marker for the same audiences.
+
 ## Markers inside code
 
 Markers are left exactly as written inside a fenced code block that starts at the left margin, and inside inline code in single backticks, which is how this page shows them.
@@ -1111,7 +1114,7 @@ BD_EXAMPLES_TAIL_EOF
 bin/check-leaks.py
 ```
 
-It builds every audience and fails if a raw marker survived, an excluded page was built, any page or the search index points at an excluded page, or a build holds a file none of its pages uses.
+It builds every audience and fails if a raw marker survived, an excluded page was built, any page or the search index points at an excluded page, a build holds a file none of its pages uses, or a link in a build leads to a page, file or anchor that isn't in it.
 BD_EXAMPLES_CHECK_EOF
     fi
 }
@@ -3951,7 +3954,7 @@ BD_MAIN_HTML_EOF
 scaffold_leak_check() {
     write_owned bin/check-leaks.py <<'BD_CHECKER_EOF'
 #!/usr/bin/env python3
-"""Build every declared audience and verify nothing leaked into the wrong build.
+"""Build every declared audience; verify nothing leaked and no link is broken.
 
 First it reads every page's metadata, as MkDocs finds it, and stops if any
 page's tagging can't be trusted: frontmatter that isn't valid YAML, an
@@ -3971,8 +3974,15 @@ Then, for each audience declared in mkdocs.yml, it:
      isn't a page is used by the build: linked from one of its pages or
      stylesheets, or one of the files every build gets (assets/, CNAME,
      robots.txt, favicon.ico, hidden files)
+  8. checks that every link within the site resolves in the build, however
+     it's written: each URL a page points at (href, src, srcset, poster or
+     data) has to lead to a file in the output, a link to a folder to its
+     index.html, and a #fragment to an element with that id (or an <a> with
+     that name) on the target page; # and #top mean the top of the page. Full
+     URLs, even ones that start with site_url, and mailto:, tel:, javascript:
+     and data: URLs aren't checked.
 
-Checks 2 to 7 read only the built output, docs/ and the page frontmatter, so
+Checks 2 to 8 read only the built output, docs/ and the page frontmatter, so
 they also catch a builder that ignored the plugin (Zensical does this
 silently). To verify output from another builder, build each audience into
 DIST/<audience>/ yourself and run this script with --no-build.
@@ -3993,7 +4003,8 @@ Expected output when everything is clean (one line per audience, then a summary)
   [check-leaks] public: built; 6 pages checked (4 excluded); clean
   [check-leaks] all audiences clean
 (Those counts are for the default demo project; yours grow with your pages.)
-Exit status: 0 clean, 1 a build failed or something leaked, 2 configuration error.
+Exit status: 0 clean; 1 a build failed, something leaked or a link is broken;
+2 configuration error.
 """
 
 from __future__ import annotations
@@ -4264,18 +4275,22 @@ def output_forms(page: PurePosixPath, use_directory_urls: bool) -> tuple[str, se
 
 
 class _Hrefs(HTMLParser):
-    """Every href in a page, however it's quoted or cased, and every other URL
-    an element points at (src, srcset, poster, data)."""
+    """Every href in a page, however it's quoted or cased, every other URL an
+    element points at (src, srcset, poster, data), and every id a link's
+    #fragment can point at (id, and name on <a>)."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.hrefs: list[str] = []
         self.refs: list[str] = []
+        self.ids: set[str] = set()
 
     def handle_starttag(self, tag, attrs):
         for name, value in attrs:
             if not value:
                 continue
+            if name == "id" or (tag == "a" and name == "name"):
+                self.ids.add(value)
             if name == "href":
                 self.hrefs.append(value)
                 self.refs.append(value)
@@ -4317,10 +4332,71 @@ def resolve_href(base_dir: str, href: str, site_url: str) -> str | None:
     return None if resolved in (".", "") else resolved
 
 
-def verify(out: Path, audience: str, pages, settings) -> tuple[list[str], int]:
+def link_target(base_dir: str, ref: str, site_url: str) -> tuple[str, str] | None:
+    """Where a link within the site leads: (path in the build, fragment). The
+    path is "" for the page itself, and starts with "../" when the link leaves
+    the folder the site is served from. None for a full URL, or a mailto:,
+    tel:, javascript: or data: link, which aren't checked."""
+    parts = urlsplit(ref.strip())
+    if parts.scheme or parts.netloc:
+        return None
+    path, frag = unquote(parts.path), unquote(parts.fragment)
+    if path.startswith("/"):
+        root = urlsplit(site_url).path.strip("/") if site_url else ""
+        path = path.lstrip("/")
+        if root:
+            if not (path == root or path.startswith(root + "/")):
+                return "../" + path, frag
+            path = path[len(root):].lstrip("/")
+        return posixpath.normpath(path or "."), frag
+    if not path:
+        return "", frag
+    return posixpath.normpath(posixpath.join(base_dir, path)), frag
+
+
+def broken_links(out: Path, links: dict[str, list[str]], ids: dict[str, set[str]],
+                 sources: dict[str, str], skip: dict[str, str], site_url: str) -> list[str]:
+    """Every link within the site, on every page of one build, that leads
+    nowhere in that build: to no file or folder, or to an anchor no element on
+    the target page has. A link to an excluded page (in skip) is reported as a
+    leak instead."""
+    found: list[str] = []
+    for page, refs in links.items():
+        where = sources.get(page, page)
+        base = posixpath.dirname(page)
+        for ref in refs:
+            target = link_target(base, ref, site_url)
+            if target is None:
+                continue
+            path, frag = target
+            if path in skip:
+                continue
+            if path == ".." or path.startswith("../"):
+                served = urlsplit(site_url).path if site_url else ""
+                found.append(f"broken link: {where} -> {ref} (outside the site, which is "
+                             f"served from {served or '/'})")
+                continue
+            if path == "":
+                path = page
+            elif path == "." or (out / path).is_dir():
+                path = posixpath.join("" if path == "." else path, "index.html")
+            if not (out / path).is_file():
+                found.append(f"broken link: {where} -> {ref} (not in this build)")
+            elif frag and path in ids and frag not in ids[path] and frag.lower() != "top":
+                on = "this page" if path == page else sources.get(path, path)
+                found.append(f"broken anchor: {where} -> {ref} (no anchor '{frag}' on {on} "
+                             f"in this build)")
+    return sorted(set(found))
+
+
+def verify(out: Path, audience: str, pages, settings) -> tuple[list[str], list[str], int]:
     problems: list[str] = []
     excluded: dict[str, set[str]] = {}
     used: set[str] = set()
+    links: dict[str, list[str]] = {}
+    ids: dict[str, set[str]] = {}
+    # The page each built HTML file comes from, to name it in messages.
+    sources = {output_forms(page, settings["use_directory_urls"])[0]: page.as_posix() for page in pages}
     for page in pages:
         declared, _ = page_audiences(settings["docs_dir"] / page, settings["filename_convention"])
         if page_visible(audience, declared, settings["untagged"]):
@@ -4360,6 +4436,8 @@ def verify(out: Path, audience: str, pages, settings) -> tuple[list[str], int]:
         except Exception:
             problems.append(f"page unreadable as HTML: {rel}")
             continue
+        links[rel.as_posix()] = parser.refs
+        ids[rel.as_posix()] = parser.ids
         for href in parser.hrefs:
             target = resolve_href(base, href, settings["site_url"])
             if target in all_forms:
@@ -4394,7 +4472,8 @@ def verify(out: Path, audience: str, pages, settings) -> tuple[list[str], int]:
                 listed.add(loc)
                 problems.append(f"search index lists excluded page {all_forms[loc]}")
 
-    return sorted(set(problems)), len(excluded)
+    broken = broken_links(out, links, ids, sources, all_forms, settings["site_url"])
+    return sorted(set(problems)), broken, len(excluded)
 
 
 def build(audience: str, out: Path, config_file: Path, builder: str) -> bool:
@@ -4420,7 +4499,7 @@ def build(audience: str, out: Path, config_file: Path, builder: str) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build every audience and verify nothing leaked.")
+    parser = argparse.ArgumentParser(description="Build every audience; verify nothing leaked and no link is broken.")
     parser.add_argument("--config", default=None, help="path to mkdocs.yml (default: project root)")
     parser.add_argument("--dist", default=None, help="output root (default: <project>/dist)")
     parser.add_argument("--builder", default="mkdocs", help="build command: mkdocs (default) or properdocs")
@@ -4464,16 +4543,21 @@ def main() -> int:
                 failed.append(audience)
                 continue
             how = "built"
-        problems, n_excluded = verify(out, audience, pages, settings)
+        problems, broken, n_excluded = verify(out, audience, pages, settings)
         excluded_note = f" ({n_excluded} excluded)" if n_excluded else ""
         checked = f"{len(pages)} page{'' if len(pages) == 1 else 's'} checked"
+        found = []
         if problems:
-            log(f"{audience}: {how}; {checked}{excluded_note}; LEAK "
-                f"({len(problems)} problem{'' if len(problems) == 1 else 's'})")
-            for problem in problems[:20]:
+            found.append(f"LEAK ({len(problems)} problem{'' if len(problems) == 1 else 's'})")
+        if broken:
+            found.append(f"BROKEN LINKS ({len(broken)})")
+        if found:
+            log(f"{audience}: {how}; {checked}{excluded_note}; {'; '.join(found)}")
+            listed = problems + broken
+            for problem in listed[:20]:
                 print(f"    {problem}")
-            if len(problems) > 20:
-                print(f"    ... and {len(problems) - 20} more")
+            if len(listed) > 20:
+                print(f"    ... and {len(listed) - 20} more")
             failed.append(audience)
         else:
             log(f"{audience}: {how}; {checked}{excluded_note}; clean")
@@ -4504,9 +4588,12 @@ scaffold_serve() {
 # Serves on 127.0.0.1 only, so other machines can't reach it. Uses port 8000,
 # or the next free port up to 8020. Ctrl-C stops it.
 #
-# A live preview doesn't stop on warnings: a broken link prints a WARNING line
-# here and the page still updates. bin/check-leaks.py and CI build in strict
-# mode and fail on it, so fix every warning before you publish.
+# A live preview doesn't stop on warnings: a link to a page or file that
+# doesn't exist prints a WARNING line here, and the page still updates. Other
+# broken links print less: a missing anchor, an absolute or folder-style link
+# to nothing, or a link written in HTML prints an INFO line or nothing.
+# bin/check-leaks.py and CI fail on every broken link, so run it before you
+# publish.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

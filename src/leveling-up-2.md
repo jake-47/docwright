@@ -2,7 +2,7 @@
 
 > - **For:** Part 1 users who want the passphrase file encrypted at rest.
 > - **Before you start:** [Part 1](./leveling-up-1.md) working.
-> - **Reading time:** about 9 minutes.
+> - **Reading time:** about 10 minutes.
 > - **You end with:** a GPG-encrypted passphrase file, and no more unattended backups.
 
 *[Part 1](./leveling-up-1.md) left you with working backups and one weak point: the passphrases to every repo are sitting in a readable file in your home directory. This part encrypts that file with GPG.*
@@ -80,10 +80,12 @@ gpg --export-secret-keys you@example.com | paperkey --output secret-key-paper.tx
 
 `paperkey` strips out everything reconstructible from the public key, leaving a much smaller amount to print. The output is a hex dump with line numbers and a checksum on each line, so it can be typed back in and will tell you which line you got wrong. A printed key in a drawer survives things a USB stick does not.
 
-Rebuilding later needs the printout and the public key together:
+Rebuilding later needs the printout and the public key together. `paperkey` reads only the binary form of the public key, so the first line converts it back; given `public-key.asc` directly, it prints `unable to parse OpenPGP packets` and writes an empty file:
 
 ```console
-paperkey --pubring public-key.asc --secrets secret-key-paper.txt --output secret-key.asc
+gpg --dearmor --output public-key.gpg public-key.asc
+paperkey --pubring public-key.gpg --secrets secret-key-paper.txt --output secret-key.gpg
+gpg --import secret-key.gpg
 ```
 
 Two things a paper copy does not do. It does not remove the passphrase, so if the secret key was protected by one the rebuilt key is too; paper rescues you from a dead disk, not from a forgotten passphrase. And it is not self-contained, so store `public-key.asc` with the printout or there is nothing to rebuild against.
@@ -200,11 +202,12 @@ BORG_REPO=/media/john/d1/documents borg key change-passphrase
 BORG_REPO=/media/john/d2/documents borg key change-passphrase
 ```
 
-One call per drive, because every copy has its own key file, and then re-encrypt whatever file holds it. A rotation that reaches three drives out of four leaves the fourth on the old passphrase with nothing to tell you.
+One call per drive, because every copy has its own key, and then re-encrypt whatever file holds it. A rotation that reaches three drives out of four leaves the fourth on the old passphrase with nothing to tell you.
 
 **Re-encrypt the combined file after an edit.**
 
 ```console
+umask 077
 gpg --decrypt ~/.borg-pass > /dev/shm/pass.tmp
 # edit /dev/shm/pass.tmp
 gpg --encrypt --recipient you@example.com --output ~/.borg-pass.new /dev/shm/pass.tmp
@@ -213,7 +216,7 @@ mv ~/.borg-pass.new ~/.borg-pass
 shred -u /dev/shm/pass.tmp
 ```
 
-Decrypt to `/dev/shm`, which is memory rather than disk, and check the new file decrypts before replacing the old one. Those two habits are what the script's rotation does for you, and they are the two that people skip.
+The `umask 077` line makes every file this terminal creates from then on readable by you alone; without it, the decrypted copy in `/dev/shm` can be read by every account on the machine while you edit it. Decrypt to `/dev/shm`, which is memory rather than disk, and check the new file decrypts before replacing the old one. Those two habits are what the script's rotation does for you, and they are the two that people skip.
 
 ## When something looks wrong
 

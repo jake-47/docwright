@@ -2,7 +2,7 @@
 
 > - **For:** people who would rather not run a script they did not write.
 > - **Before you start:** [Getting started with Borg](./getting-started-with-borg.md): install, create a repository, back up, restore.
-> - **Reading time:** about 10 minutes.
+> - **Reading time:** about 11 minutes.
 > - **You end with:** the borg and gpg commands for several drives, filtering, retention, verification and restoring, with no script in between.
 
 *[Part 1](./leveling-up-1.md) and [Part 2](./leveling-up-2.md) hand your data to a shell script somebody else wrote. This page explains the same job without the script, for those who prefer to minimise trust.*
@@ -98,7 +98,7 @@ There is a fourth option, `BORG_PASSPHRASE_FD`, which has borg read from a file 
 
 ### Three things about the passcommand
 
-Borg runs it without a shell. Environment variables like `$HOME` are expanded, but `~` is not, so write the path out in full.
+Borg runs it without a shell, so it expands neither `~` nor `$HOME`; write the path out in full. (`$HOME` works only inside double quotes, where your shell fills it in before borg sees it.)
 
 It is split the way a shell splits a command line, so a quoted path with a space in it does survive. What does not survive is anything that needs a shell to mean anything: no pipes, no redirection, no command substitution. Put those inside `sh -c 'the whole thing'` and make that the passcommand.
 
@@ -131,7 +131,7 @@ A negative number means no limit, so `-1` keeps that tier forever. Rules are app
 There is no undo, so look before you leap:
 
 ```console
-borg prune -v --list --dry-run --keep-daily 7 --keep-weekly 4
+borg prune -v --list --dry-run --keep-daily 7 --keep-weekly 4 --keep-monthly -1
 ```
 
 Then the step that is easy to miss and makes the whole exercise pointless if you do:
@@ -215,10 +215,12 @@ gpg --export-secret-keys you@example.com | paperkey --output secret-key-paper.tx
 
 The default output is a hex dump with line numbers and a checksum on each line, meant to be printed and typed back in, and to tell you which line you mistyped when you do. `--output-type raw` also exists, but that is binary, for feeding a barcode or QR generator, and is not something you can print and read.
 
-Rebuilding needs the printout and the public key together:
+Rebuilding needs the printout and the public key together. `paperkey` reads only the binary form of the public key, so the first line converts it back; given `public-key.asc` directly, it prints `unable to parse OpenPGP packets` and writes an empty file:
 
 ```console
-paperkey --pubring public-key.asc --secrets secret-key-paper.txt --output secret-key.asc
+gpg --dearmor --output public-key.gpg public-key.asc
+paperkey --pubring public-key.gpg --secrets secret-key-paper.txt --output secret-key.gpg
+gpg --import secret-key.gpg
 ```
 
 Two things people assume about a paper copy that are not true.

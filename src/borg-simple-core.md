@@ -2,13 +2,13 @@
 
 # Borg-simple core
 
-This script is a smaller, bare-case version of the [Borg-simple script](./borg-simple.md), kept short so experts can review the core functions quickly. It reads the same `~/.borg-config` and the same passphrase file, plain or GPG, and it has exactly two commands: `backup`, which archives every repo in the config to its drives, and `extract <repo> <drive>`, which unpacks that repo's newest archive into the directory you are standing in. There is no retention, no in-place restore, no `init`, and no allowlist handling; a repo with an allowlist is skipped rather than guessed at. Hover over the code block and press the copy button to take all of it. (The script's own header says `borg-super-simple`, its original name.)
+This script is a smaller, bare-case version of the [Borg-simple script](./borg-simple.md), kept short so experts can review the core functions quickly. It reads the same `~/.borg-config` and the same passphrase file, plain or GPG, and it has exactly two commands: `backup`, which archives every repo in the config to its drives, and `extract <repo> <drive>`, which unpacks that repo's newest archive into the directory you are standing in. There is no retention, no in-place restore, no `init` command (though `backup` creates a repo that isn't on a mounted drive yet), and no allowlist handling; a repo with an allowlist is skipped rather than guessed at. Hover over the code block and press the copy button to take all of it. (The script's own header says `borg-super-simple`, its original name.)
 
 ---
 
 ````bash
 #!/bin/bash
-# borg-super-simple, v9
+# borg-super-simple, v10
 
 set -euo pipefail
 case $- in *x*) printf 'refusing to run under set -x\n' >&2; exit 1 ;; esac
@@ -36,7 +36,7 @@ _abs() { case "$1" in /) printf '/\n' ;; /*) printf '%s\n' "${1%/}" ;;
 
 repo_name()       { CUR="$1"; REPOS+=("$1"); ARCH["$1"]=1; }
 backup_data()     { local p; for p in "$@"; do SRC[$CUR]+="$(_abs "$p")"$'\n'; done; }
-backup_drives()   { DRIVES[$CUR]="$*"; }
+backup_drives()   { if [[ "${1:-}" == all ]]; then DRIVES[$CUR]="$ALL_DRIVES"; else DRIVES[$CUR]="$*"; fi; }
 exclude()         { local g; for g in "$@"; do EXCL[$CUR]+="$g"$'\n'; done; }
 include_only()    { ALLOW[$CUR]=1; }
 include_only_in() { ALLOW[$CUR]=1; }

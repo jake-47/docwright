@@ -735,3 +735,130 @@ A passphrase-protected SSH key on disk is the baseline for any serious setup. If
 These are orthogonal. You can use a YubiKey without Tor, Tor without signing, signing without a YubiKey. The natural progression is: passphrase keys (current), then signing (cheap to add, no hardware needed), then hardware tokens (real cost, real benefit), then Tor (situational, depends on what metadata you're protecting).
 
 What experts actually do depends on what they're protecting. Bitcoin Core release maintainers sign with GPG subkeys on YubiKeys, work over SSH on regular Internet (release attribution is the threat, not network metadata). Tor developers work over Tor inside Whonix (network metadata is the threat, signing is sometimes a separate concern). For most contributors, a passphrase-protected SSH key plus commit signing (when the project requires it) is the realistic ceiling.
+
+## Tooling worth knowing about
+
+You don't need any of these to start. Knowing they exist means you can reach for them when you're ready.
+
+1. `git-delta`. Replaces `less` as Git's pager with syntax-highlighted, optionally side-by-side output. Configure with `git config --global core.pager delta`. Useful when you're reading diffs in the terminal; read-only, so for editing while diffing see the [vim](#seeing-file-changes-in-vim) and [VSCodium](#seeing-file-changes-in-vscodium) sections.
+2. `tig`. Terminal-based Git history viewer. Faster than any GUI once you're comfortable, and it works over SSH where a GUI can't. Navigate commits with arrow keys, see diffs inline, stage interactively.
+3. `lazygit`. Terminal UI for most Git operations. Many long-time command-line users find it more efficient than raw Git or a full GUI. Commit, rebase, cherry-pick, stash, branch management, all with single keystrokes.
+4. `gh`. The official GitHub CLI. Create PRs, review them, manage issues, clone your own repos by name, all from the terminal. Its manual is at [cli.github.com/manual](https://cli.github.com/manual/).
+
+These are what experienced users accumulate over years. None is necessary on day one. Don't install them defensively. Install them when you feel the specific friction they remove.
+
+## Slow down before destructive commands
+
+The instinct when a Git command gives you an unexpected state is to run more commands trying to "fix" it. That's how people actually lose work: not from the original problem, but from frantic recovery attempts.
+
+Stop. Read the output. Understand what state you're in. Look up what the recovery actually requires. Then proceed deliberately.
+
+Ninety-nine percent of Git "disasters" are recoverable if you don't panic. A small percentage become unrecoverable because someone force-pushed or hard-reset in a moment of frustration without reading the reflog first.
+
+The commands that actually destroy work, in order of danger:
+
+1. `git push --force` (without `--force-with-lease`). Overwrites remote history unconditionally.
+2. `git reset --hard` when uncommitted work exists. Throws away the working directory without warning.
+3. `git clean -fdx`. Deletes untracked files, including ignored ones.
+4. `git rebase` mid-resolution when confused. Produces states that require careful manual surgery to unwind.
+
+When in doubt, make a backup branch first. `git branch backup-before-i-try-this` costs nothing and buys you a trivial way to undo whatever you're about to do.
+
+## What Git silently discards
+
+Git's storage model is lower-level than its surface commands suggest. Several high-level operations look like they're recording something, but the recording happens by inference at read time, or doesn't happen at all. The common pattern: the user assumes Git is preserving intent; Git is actually preserving snapshots, and reconstructs intent later by heuristic. Most of the footguns that catch experienced users belong to this category.
+
+### Renames
+
+The clearest case. There is no rename operation in Git's object model. A commit stores trees of blobs: snapshots, not operations. When you run `git mv old.js new.js`, Git records `old.js` as deleted and `new.js` as added, identical to `rm old.js && cp something new.js`. The rename intent is thrown away at commit time.
+
+This means `git log --follow` and every rename-aware diff are post-hoc heuristics. Each invocation re-infers the rename from scratch by comparing content similarity across the delete/add pair. There is no stored fact to look up: just a guess from content.
+
+Git's default similarity threshold for rename detection is 50%. `--follow` uses that threshold. So `--follow` traces through a rename fine as long as the file's similarity score stays above 50%; below that, it loses the thread entirely. The practical implication: keep rename commits content-pure. If you must edit a file at the same time you rename it, do the rename in one commit and the edit in a separate one. A rename-only commit has 100% similarity and is bulletproof for `--follow`; a rename-plus-substantial-edit commit risks dropping below 50% and silently breaking history traversal for that file forever afterward.
+
+The reference doc has a `prepare-commit-msg` hook that inspects every commit as it is being prepared, normal or amend, and warns when it contains a rename below 60% similarity (10 points above the danger floor). See [One-time setup](./gitreference.md#one-time-setup) there.
+
+This is a known and longstanding criticism of Git's design: renames would need to be first-class objects in the commit format to record intent reliably, not inferred from diffs. The burden falls on the user to keep renames content-pure so the heuristic can recover what the tool discarded.
+
+### Other things in the same category
+
+Several other footguns are variants of the same pattern: Git's model is lower-level than users expect, so what feels like a high-level operation either discards information at commit time or relies on inference that can fail silently.
+
+1. Amending a pushed commit rewrites history for everyone else. `--amend` doesn't alter the previous commit; it replaces it entirely with a new one that has a different hash. If the original was already pushed, anyone who pulled it now has a diverged history. The rule: only amend commits that haven't been pushed.
+
+2. `git add .` and `git commit -a` stage everything indiscriminately. Easy to commit debug code, credentials, build artifacts, or unrelated changes by accident. The discipline is `git add <file>` explicitly, and reviewing `git diff --staged` before every commit. The staging area was designed to give you control over what's in the next commit; bypassing it gives up the safety it provides.
+
+3. Merge vs rebase is a permanent, often-invisible choice about what history looks like. A merge commit preserves topology: you can see that work happened in parallel. A rebase rewrites commits as if they were always linear, discarding that topology. Most users pick one out of habit without realising the choice is irreversible once pushed.
+
+4. `.gitignore` doesn't untrack files already tracked. The ignore patterns only filter the untracked set. If you committed a file and then added it to `.gitignore`, Git keeps tracking it. You have to `git rm --cached <file>` to stop tracking; and if the file contained credentials, the secret is still in history unless you also rewrite history (see [Purging files from history](./gitreference.md#purging-files-from-history) in the reference).
+
+5. `git reset --hard` and `git clean -fd` are not symmetric with `git stash`. Reset hard and clean destroy uncommitted working-tree changes permanently. The reflog saves committed history but cannot recover what was never committed. The default assumption that "Git always has a recovery path" only holds for committed work.
+
+6. Submodules are not automatically updated on pull. A repo with submodules cloned without `--recurse-submodules` has empty submodule directories until you run `git submodule update --init --recursive`. People spend hours debugging missing files before discovering this.
+
+The common thread is the same one the rename case makes vivid. Git stores snapshots and hashes, not intentions. Every high-level operation that looks like it's recording semantics (rename, track, ignore, amend) either discards the semantics at commit time or infers them after the fact. Knowing this in advance prevents the class of mistake that comes from assuming the tool is doing more than it actually is.
+
+## Three things to keep in mind
+
+Three framings worth holding across years of use. Not commands, not mechanics. Principles about how to learn Git, what you get out of using it, and how to evaluate advice about it.
+
+### Mental model before commands
+
+Start by internalising the object model (blobs, trees, commits, refs) and the branches-as-pointers idea. Once those are solid, specific commands become obvious in shape: what they do, why the flags exist, what they cost. The reverse path, memorising commands first and hoping the model assembles itself from fragments, takes longer and produces worse intuition. It also makes recovery from unfamiliar states harder, because you're pattern-matching to commands rather than reasoning about what's actually in the repo. Everything in this document is structured around that priority: model first, mechanics second.
+
+### Commit messages are a prose practice
+
+Every commit message forces a small compression: what changed, why, for whom. Over years the practice sharpens your prose in general, because compressing a thought into a summary line is exactly the skill long-form prose depends on. Writers who version their work get this benefit twice: the prose they commit improves, and the messages about the prose improve too. Treat the summary line the way a copy editor treats a headline: one line, specific, load-bearing. Treat the body the way you treat a good paragraph: context first, reasoning second, caveats last. This is work you were going to do anyway as a writer. Git just gives it a daily occasion.
+
+### AI advice on Git has a known asymmetry
+
+AI answers about Git are usually smooth, syntactically correct, sometimes elegant, and can still miss what a practitioner who has lived with a particular failure mode for five years knows. The gap is widest on judgment calls (when to rebase vs merge, when to sign commits, when to force-push, when to rewrite history) and on edge cases that only surface after thousands of hours of real use. Weight AI advice accordingly: fine for mechanics and syntax, less reliable for "should I." For judgment calls and high-stakes operations, cross-check against practitioner sources: Pro Git, kernel mailing list threads, Bitcoin Core maintainer posts, Tim Pope's essay, the `man` page. The AI gives you a plausible answer quickly; practitioner sources give you the answer that survived contact with real projects over real time. Both are useful. Don't confuse them.
+
+## Where Git came from
+
+Git's design makes more sense once you know what it was reacting against.
+
+Version control before Git was overwhelmingly centralised: one authoritative copy of the history lived on a server, and your working copy was a client of it. The lineage ran through RCS, then CVS, then Subversion.
+
+RCS (Revision Control System, Walter Tichy, around 1982) versioned one file at a time on a single machine, locking a file so only one person could edit it at once. CVS (Concurrent Versions System) grew out of RCS: Dick Grune's 1986 shell scripts, rewritten in C by Brian Berliner around 1989. CVS added a network server and concurrent editing, and it became the de facto standard for open-source projects through the 1990s. But it inherited RCS's core limitation: it tracked each file's revisions separately, with no notion of a project-wide snapshot, no atomic commit (an interrupted commit could leave the repository half-written), and no real way to follow a file across a rename.
+
+Subversion (CollabNet, begun 2000, 1.0 in February 2004) was built explicitly as "CVS done right." It fixed the worst of it: commits became atomic and repository-wide, with a single revision number advancing across the whole tree. But it stayed centralised: the server still held the only complete history, every commit needed the network, and branching and merging remained heavyweight. At the moment Git appeared, Subversion was the rising standard and CVS the fading one.
+
+The immediate trigger was something else. The Linux kernel had, from 2002, been using BitKeeper, a proprietary distributed system offered to kernel developers free of charge. Distributed meant each developer held a full copy of the history rather than renting access to a central one, and the kernel community valued that enough to depend on a closed tool. In April 2005 the arrangement collapsed: after Andrew Tridgell wrote a tool to interoperate with BitKeeper's protocol, BitMover treated it as a breach of the gratis licence and withdrew free access. The kernel was left without version control it was willing to use.
+
+Linus Torvalds wrote the first version of Git that same month, April 2005, and had it self-hosting within days. The design was a direct response to the whole lineage above. Distributed, because BitKeeper had shown the value and the central-server model had shown the cost: every clone is a full, independent copy of the history (developed in [Remotes and the distributed model](#remotes-and-the-distributed-model)). Snapshot-based and atomic, because CVS's per-file, non-atomic model was the thing to escape: a commit records the entire tree at once (developed in [How commits actually work](#how-commits-actually-work)). Content-addressed and cryptographically chained, because trust across thousands of contributors required history to be tamper-evident rather than merely stored (developed in the object-model sections, and in the Torvalds talk under [Further reading](#further-reading)). Fast at branching and merging, because a kernel-sized project lives or dies by how cheaply work can diverge and rejoin.
+
+Much of what the rest of this document treats as fundamental was, originally, a deliberate correction of something a prior system did badly.
+
+## Closing: deliberate practice
+
+Git rewards deliberate practice and punishes casual use. The people whose repositories you admire (Torvalds, the Bitcoin Core maintainers, whoever) didn't arrive at their practices by being naturally gifted. They arrived by making mistakes early, thinking carefully about what went wrong, adjusting their habits, and being consistent over years.
+
+Every piece of advice in this document is really a variant of "take it seriously, even when the stakes feel low, because the habits you build on small projects are the habits you'll have on consequential ones."
+
+You won't look back in twenty years and thank anyone for any specific command. You'll thank them, if they've done their job, for conveying that Git is a craft; that the craft is mostly about clarity and discipline rather than cleverness; and that the small investments in doing it well early are what make the later years pleasant rather than painful.
+
+Consistency over cleverness, across time, is the whole game.
+
+### Honest caveats on best practice
+
+Some edges of "best practice" in Git are contested. The pull-rebase-versus-merge debate. The squash-versus-preserve-history debate. The when-to-rewrite-history debate. Reasonable, experienced people disagree.
+
+Don't take any of this as dogma. Take it as a strong starting position that will serve you well, and adjust over time as you develop your own views through experience. The framework matters more than any specific rule within it.
+
+### A floor, not a ceiling
+
+This document is deliberately not comprehensive. It covers the object model and the habits that pay off over years, and it stops there, because the goal was never to memorise every command but to push you toward seeing what Git actually is underneath. Everything here rests on one fact: a repository is a small content-addressed database of blobs, trees, and commits, and the everyday commands are a convenience layer over reading and writing those objects. Once that graph is something you can hold in your head, the commands that used to feel dangerous stop being dangerous, because you are reasoning about what is actually stored rather than pattern-matching to remembered incantations. That fluency is what makes someone the person a team runs to when history gets tangled. The single best hour you can spend toward it is Tim Berglund's "Git From the Bits Up" (in [Further reading](#further-reading) below), which takes Git apart to the raw objects and rebuilds a commit by hand from plumbing alone. Watch it, then do it yourself once; the day it clicks is the day Git stops being a pile of commands and becomes a database you happen to drive from a command line.
+
+## Further reading
+
+1. Pro Git by Scott Chacon and Ben Straub, free at [git-scm.com/book](https://git-scm.com/book). Read it once in your first year and once again after a few years of real use. Different sections will matter at different stages. For the object model specifically, the ["Git Internals" chapter](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects) walks through building a commit from `git hash-object`, `git write-tree`, and `git commit-tree` by hand.
+2. ["A Note About Git Commit Messages"](https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html) by Tim Pope (2008). Short. Internalise and move on.
+3. `git help <command>`. The manual pages are dense but accurate. The ability to read them directly, rather than relying on Stack Overflow answers of uncertain quality, is a long-term advantage.
+4. "Git for Ages 4 and Up" by Michael Schwern (linux.conf.au 2013; [recording](https://www.youtube.com/watch?v=1ffBJ4sVUb4)). Schwern builds a Git repository out of children's construction toys while running the equivalent commands, so the talk shows what is actually happening inside Git rather than teaching the command surface. Blobs, trees, commits, branches, the staging area, remotes, and rebase all become physical objects you can see. The gentlest on-ramp to the object model; watch it first if the graph has never clicked.
+5. "Version Control (Git)" by MIT's The Missing Semester of Your CS Education (Lecture 6, 2020; ~1h25m; [recording](https://www.youtube.com/watch?v=2sjqTHE0zok); [notes and exercises](https://missing.csail.mit.edu/2020/version-control/)). The lecture deliberately teaches Git's data model before the command interface, a repository as a content-addressed store of blobs, trees, and commits forming a DAG, and then derives the everyday commands from it. The fullest free lecture in the data-model-first tradition; watch it once you want the whole model laid out end to end.
+6. "Tech Talk: Linus Torvalds on git" (Google Tech Talk, 2007; [recording](https://www.youtube.com/watch?v=4XpnKHJAok8)). Torvalds, who wrote Git, explains at Google why it is built the way it is: distributed rather than centralised, content-addressed and cryptographically chained so history is tamper-evident, and optimised for merging and trust across a large contributor base. Not a tutorial but the design-rationale talk that explains the why behind the model the other talks teach; also a candid window into the priorities that shaped the tool.
+7. "Git From the Bits Up" by Tim Berglund (JAXConf, 2013; ~55 min; [recording](https://www.youtube.com/watch?v=MYP56QJpDr4)). An advanced talk, explicitly not for beginners, that takes Git apart to its raw objects and rebuilds a commit by hand using low-level plumbing. The canonical "see the object graph" talk; watch it once you are comfortable with the daily workflow.
+8. "git: not just for source code anymore" by Josh Triplett (linux.conf.au, January 2013; [recording](https://www.youtube.com/watch?v=3-vAh9uDItY)). Triplett, a longtime Linux kernel and Debian developer, makes the case that Git is a general-purpose, tamper-evident versioning engine that just happens to be famous for code: the same blobs, trees, and commits version configs, server state, datasets, and entire wikis. Worth watching once to see how much of "Git is for code" was convention rather than design.
+
+Start now. Be consistent. The value compounds.

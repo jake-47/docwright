@@ -77,7 +77,7 @@ Put your own name and the address you copied in place of `Your Name` and `Your E
 
 ### Step 2: save the script and read it
 
-Open the page for [zola-blog-setup.sh](bootstrap-zola.md) and copy the whole script (on a code block, the copy button at its top right copies all of it). Paste it into a new file in your text editor, and save that file as `zola-blog-setup.sh` in your Downloads folder. Any other folder works too, but this guide assumes Downloads. Where you keep the script doesn't decide where the blog goes: the settings do, and by default it's a folder called `myblog` on your Desktop.
+Open the page for [zola-blog-setup.sh](./bootstrap-zola.md) and copy the whole script (on a code block, the copy button at its top right copies all of it). Paste it into a new file in your text editor, and save that file as `zola-blog-setup.sh` in your Downloads folder. Any other folder works too, but this guide assumes Downloads. Where you keep the script doesn't decide where the blog goes: the settings do, and by default it's a folder called `myblog` on your Desktop.
 
 Read the script before you run it, or have someone you trust read it: it downloads a program and connects your blog to GitHub. If you don't read shell scripts, paste it into an AI model you trust and ask what it does. About half of the script is the text of the files it writes. It downloads only from GitHub, installs nothing outside your home folder, and never asks for your password.
 

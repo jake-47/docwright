@@ -5,7 +5,7 @@
 
 The **sidebar** lists every chapter of the site. The **menu button** (three horizontal bars) at the top left opens and closes it, and so does the <kbd>b</kbd> key. Click any chapter to open it. On a narrow window, a phone especially, the sidebar starts closed; the menu button brings it up.
 
-The **menu bar** along the top holds the icons described below. Clicking the site's name in the middle takes you back to the top of the page.
+The **menu bar** along the top holds the icons described below. Clicking anywhere on the bar (other than on the icons), takes you back to the top of the page.
 
 The <kbd>←</kbd> and <kbd>→</kbd> keys move you to the previous and next chapter; the large arrow buttons at the sides of the page do the same. <kbd>↑</kbd> and <kbd>↓</kbd> scroll the page, and <kbd>PgUp</kbd>, <kbd>PgDn</kbd>, <kbd>Space</kbd> and <kbd>Shift</kbd>+<kbd>Space</kbd> scroll a whole screen at a time. Press <kbd>?</kbd> any time for the full list of keys.
 

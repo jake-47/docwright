@@ -1,4 +1,4 @@
-# Backup Planning
+# Backup planning
 
 > - **For:** someone whose first backup works and who wants a plan that survives a crisis.
 > - **Before you start:** [Getting started with Borg](./getting-started-with-borg.md).

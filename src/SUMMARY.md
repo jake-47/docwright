@@ -4,17 +4,17 @@
 
 - [Welcome to Docwright](./welcome.md)
 
-- [Using the Site](./site-usage.md)
+- [Using the site](./site-usage.md)
 
 # Backup
 
-- [Backup Overview](./backup-overview.md)
+- [Backup overview](./backup-overview.md)
 
 - [Whys of backup](./backup-whys.md)
 
 - [Getting started with Borg](./getting-started-with-borg.md)
 
-- [Backup Planning](./backup-planning.md)
+- [Backup planning](./backup-planning.md)
 
 - [Levelling up: Part 1](./leveling-up-1.md)
 
@@ -26,15 +26,15 @@
 
 - [Manual Borg and GPG](./manual-borg-gpg.md)
 
-- [Borg airgapped](./borg-airgap.md)
+- [Borg on airgapped](./borg-airgap.md)
 
-- [Creating passphrase](./creating-passphrase.md)
+- [Creating passphrases](./creating-passphrase.md)
 
 - [Terminal basics](./terminal-basics.md)
 
 # Version control
 
-- [Version control Overview](./vcs-overview.md)
+- [Version-control overview](./vcs-overview.md)
 
 - [Whys of version control](./vcs-whys.md)
 
@@ -92,15 +92,15 @@
 
 - [Publish a book: Mdbook guide](./publish-book.md)
 
-- [Bootstrap mdbook script](./boostrap-mdbook.md)
+- [Bootstrap mdbook script](./bootstrap-mdbook.md)
 
 - [Publish a blog: Zola guide](./publish-blog.md)
 
-- [Bootstrap zola blog script](./boostrap-zola.md)
+- [Bootstrap zola blog script](./bootstrap-zola.md)
 
 - [Publish a docs site: Mkdocs guide](./publish-docs.md)
 
-- [Bootstrap mkdocs script](./boostrap-mkdocs.md)
+- [Bootstrap mkdocs script](./bootstrap-mkdocs.md)
 
 # Outro
 

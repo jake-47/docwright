@@ -1,4 +1,4 @@
-# Borg on an airgapped machine
+# Borg on airgapped
 
 > - **For:** installing Borg on a machine that never touches a network.
 > - **Before you start:** an online machine to download on, and a USB stick.

@@ -1,6 +1,6 @@
 # Publish a documentation site
 
-This is the guide to the [bootstrap-mkdocs](./boostrap-mkdocs.md) script. The script carries the plugin, the theme, the demo pages, the leak checker, the preview command and the CI workflow inside it, and writes them out when you run it. Its first run downloads the theme's typeface, Charter; see [The design](#the-design).
+This is the guide to the [bootstrap-mkdocs](./bootstrap-mkdocs.md) script. The script carries the plugin, the theme, the demo pages, the leak checker, the preview command and the CI workflow inside it, and writes them out when you run it. Its first run downloads the theme's typeface, Charter; see [The design](#the-design).
 
 ## What it does
 
@@ -1079,7 +1079,7 @@ Expected output: `[bootstrap] adding Charter: reading ~/Downloads/Charter 210112
 The downloaded file, or the one `CHARTER_ZIP` names, isn't the Charter release the script was written for, so it wasn't used, and no font was added.
 For a download, something between you and the site changed the file, or the site now serves another file at that address.
 Try again later.
-If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's `font-charter` cask or the AUR's `ttf-bitstream-charter` package; see [Sources](#sources).
+If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's [`font-charter`](https://github.com/Homebrew/homebrew-cask/blob/master/Casks/font/font-c/font-charter.rb) cask or the AUR's [`ttf-bitstream-charter`](https://aur.archlinux.org/packages/ttf-bitstream-charter) package.
 Don't change `CHARTER_ZIP_SHA256` to match the file you got: the checksum is what keeps a changed file out.
 
 **`[bootstrap] note: couldn't install fontTools, which corrects Charter's files (offline?).`**

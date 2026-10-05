@@ -1,7 +1,7 @@
 # Publish a book or knowledge base
 <p class="mdb-subtitle">A minimal mdBook on GitHub Pages like this one</p>
 
-The [bootstrap-mdbook script](./boostrap-mdbook.md) scaffolds an mdBook book, installs and version-pins the mdBook binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. The published site has the usual mdBook furniture — left-sidebar table of contents, built-in search, print/PDF view — with no analytics or tracking. In its default (`fixed`) theme mode it also ships a reading theme: self-hosted Charter, a ~700px measure, a warm dark palette, hairlines under H1/H2, inked-and-underlined links, and a sidebar masthead that behaves like the menu bar. The theme is dark for every reader out of the box; set `LIGHT_THEME=true` to add the light counterpart and let each reader's browser preference choose.
+The [bootstrap-mdbook script](./bootstrap-mdbook.md) scaffolds an mdBook book, installs and version-pins the mdBook binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. The published site has the usual mdBook furniture — left-sidebar table of contents, built-in search, print/PDF view — with no analytics or tracking. In its default (`fixed`) theme mode it also ships a reading theme: self-hosted Charter, a ~700px measure, a warm dark palette, hairlines under H1/H2, inked-and-underlined links, and a sidebar masthead that behaves like the menu bar. The theme is dark for every reader out of the box; set `LIGHT_THEME=true` to add the light counterpart and let each reader's browser preference choose.
 
 It is a one-shot bootstrapper. It seeds the project once; after that you own the files and edit `src/` directly. Re-running is the *update* path (new mdBook release, changed toggles), and it regenerates the script-owned files — see "Re-running vs. hand edits."
 
@@ -33,15 +33,15 @@ There are three ways to build a site like this one. They differ only in how the 
    bash bootstrap-mdbook.sh
    ```
 
-The preview opens on a free local port the script picks and prints (`http://127.0.0.1:<port>`); Ctrl-C stops it. Re-launch later with:
+Before the preview opens, the script runs `./build`, which builds the book and checks every link and anchor in it. If any is broken, the run stops there and lists them, with no preview (see "The link check"); fix them and run the script again. Otherwise the preview opens on a free local port the script picks and prints (`http://127.0.0.1:<port>`); Ctrl-C stops it. Re-launch it later, checking first, with:
 
 ```bash
-cd <project> && ./bin/mdbook serve --open -n 127.0.0.1 -p <port>
+cd <project> && ./build && ./bin/mdbook serve --open -n 127.0.0.1 -p <port>
 ```
 
-A second book alongside the first just needs a different `-p` port.
+To preview a book with known breaks anyway, run the `./bin/mdbook serve` part on its own. A second book alongside the first just needs a different `-p` port.
 
-Before each push, run `./build` in the book's folder. It builds the book, checks every link and anchor inside it, and stops on a broken one, listing it. See "The link check."
+Before each push, run `./build` in the book's folder: the deploy runs the same check and stops on the same breaks.
 
 Audit it first. Network-wise it fetches only from `github.com` (the mdBook and lychee release tarballs) and installs `curl` via `apt` if missing. Only when `HEADING_NUMBERS=true` does it additionally install `build-essential` and the Rust toolchain (via `rustup`) to compile the `mdbook-numbering` preprocessor; that path adds a few minutes to the first run.
 
@@ -56,7 +56,7 @@ Into the project folder (`PROJECT_DIR/BOOK_NAME`):
 - `theme/fonts/fonts.css` — written in `fixed` mode. **Script-owned.**
 - `theme/favicon.svg` — written from `src/logo.svg` if that exists, otherwise drawn from `FAVICON_TEXT` (any mode). **Script-owned while either source is set**; it is never deleted, only overwritten. See "The favicon."
 - `README.md` — title, plus a live-site link if `GIT_REPO_URL` is set. **Script-owned.**
-- `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each one. The deploy workflow runs the same file. **Script-owned.**
+- `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each by the file and line it's written on. The script runs it before the preview, and the deploy workflow runs the same file. **Script-owned.** If the book already has a `build` the script didn't write, the run stops before changing anything, so yours is never overwritten: move it aside (`mv build build.own`) and run again.
 - `.github/workflows/deploy.yml` — the Pages deploy workflow; it also stamps the build/version/per-page dates and runs `./build` before deploying. **Script-owned.**
 - `bin/mdbook` + `bin/.mdbook.sha256`, `bin/lychee` — the pinned binaries, and mdBook's digest. `bin/` is gitignored.
 - `.gitignore` — ignores `bin/` and `book/`.
@@ -84,13 +84,15 @@ Edit these at the top of the script.
 - `SIDEBAR_MASTHEAD` — `text` (default), `none`, or `image`. What fills the sidebar band opposite the menu bar. See "The sidebar masthead."
 - `FAVICON_TEXT` — what `theme/favicon.svg` draws when there is no `src/logo.svg` to copy. `"auto"` (default) takes the first alphanumeric character of `BOOK_TITLE` (`m` for `mybook`); any other string is drawn as typed, first three characters, case preserved; `""` draws nothing and leaves mdBook's own bundled icon alone. `src/logo.svg` always wins. See "The favicon."
 
+**Upgrading from v46 or earlier:** re-run, then commit the new `build`. The deploy runs the copy in the repo, so until it's committed a failed deploy still shows lychee's old report.
+
 **Upgrading from v44 or earlier:** re-run, then commit the new `build` file along with the workflow. The workflow now runs `./build`, so a push without it fails the build step.
 
 **Upgrading from v41 or earlier:** the folder used to be named for `BOOK_TITLE`; it is now `BOOK_NAME`. If your book's folder isn't `mybook`, set `BOOK_NAME` to the folder's name before the first v42 run. If that name has a space or another character `BOOK_NAME` refuses, stop the preview and rename the folder first (`mv "My Notes" my-notes`); git and the book are unaffected by the move. Skip this and the run doesn't find your book: it starts a fresh one in `PROJECT_DIR/mybook`, or, if a book already lives there, regenerates that book's script-owned files from the wrong settings, and its `origin` too when `GIT_REPO_URL` is set (its `src/` survives). The run's output tells you which happened: an update prints `regenerated book.toml; src/ preserved`, a fresh start `wrote book.toml, src/SUMMARY.md, …`.
 
 ## Re-running vs. hand edits
 
-A re-run re-resolves the current mdBook release, refreshes `bin/mdbook`, installs `bin/lychee` if it is missing or another version, re-pins the workflow, and regenerates every **script-owned** file above from the toggles. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent). A re-run also clears `theme/head.hbs` and `theme/fonts/fonts.css` and writes back only what the current settings call for, so switching `THEME_MODE` or `LIGHT_THEME` never leaves a stale override behind — in particular, never a `fixed`-mode `head.hbs` in a `default`-mode book, where it would stop the picker remembering any choice. (Building by hand: on a switch to `default`, delete `theme/fonts/fonts.css`, and replace `theme/head.hbs` with the one in "Light and dark in `default` mode", or delete it too if you also set `LIGHT_THEME=true`.)
+A re-run re-resolves the current mdBook release, refreshes `bin/mdbook`, installs `bin/lychee` if it is missing or another version, re-pins the workflow, and regenerates every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent). A re-run also clears `theme/head.hbs` and `theme/fonts/fonts.css` and writes back only what the current settings call for, so switching `THEME_MODE` or `LIGHT_THEME` never leaves a stale override behind — in particular, never a `fixed`-mode `head.hbs` in a `default`-mode book, where it would stop the picker remembering any choice. (Building by hand: on a switch to `default`, delete `theme/fonts/fonts.css`, and replace `theme/head.hbs` with the one in "Light and dark in `default` mode", or delete it too if you also set `LIGHT_THEME=true`.)
 
 So: edit `src/` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `build`, the workflow, or `README.md` do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run. To bump mdBook while keeping such hand edits, see "Update mdBook" (the manual path).
 
@@ -419,7 +421,7 @@ It is a **deployed-site** feature, for the same reason the footer is: the dates 
 
 ## The link check
 
-`./build`, in the book's folder, builds the book and then runs [lychee](https://github.com/lycheeverse/lychee) over it, and **stops on any broken internal link or `#anchor`**, listing each one under the page that holds it. Run it before you push. The deploy workflow runs the same `./build`, so a break that slips through still stops the deploy rather than shipping, and the live site keeps its last good build.
+`./build`, in the book's folder, builds the book and then runs [lychee](https://github.com/lycheeverse/lychee) over it, and **stops on any broken internal link or `#anchor`**, listing each by the Markdown file and line it's written on. The script runs it before it opens the preview and stops there on a break; run it yourself before each push. The deploy workflow runs the same `./build`, so a break that slips through still stops the deploy rather than shipping, and the live site keeps its last good build.
 
 ```bash
 ./build
@@ -428,20 +430,19 @@ It is a **deployed-site** feature, for the same reason the footer is: the dates 
 On a clean book it prints mdBook's three `INFO` lines, then `links: every internal link and anchor resolves`, and exits 0. On a broken one it prints the same `INFO` lines, then the breaks, and exits 1:
 
 ```text
-Issues found in 1 input. Find details below.
+src/chapter_1.md:165: #paragraph
+    no such anchor on this page; did you mean #paragraphs?
+src/chapter_1.md:165: ./gone.md
+    there's no src/gone.md
 
-[book/chapter_1.html]:
-[ERROR] file:///home/you/Desktop/mybook/book/gone.html (at 309:17) | File not found. Check if file exists and path is correct
-[ERROR] file:///home/you/Desktop/mybook/book/chapter_1.html#no-such-heading (at 309:52) | Cannot find fragment
-
-stopped: broken links or anchors, listed above. fix them, then run ./build again.
+stopped: 2 broken links or anchors, listed above. fix them, then run ./build again.
 ```
 
-The bracketed line names the page with the bad link, and each `[ERROR]` line names the target that's missing. `(at 309:17)` is a position in the built HTML, not in your Markdown, so look for the link's text in the chapter instead. A break in the book's first chapter is listed twice, because `index.html` is a copy of it. If `./build` says `bin/mdbook is missing` or `bin/lychee is missing`, run the script: it installs both.
+Each break takes two lines. The first says where the link is written: the file under `src/`, the line, and the link as you wrote it, so `src/chapter_1.md:165: ./gone.md` is line 165 of `chapter_1.md`. The second says what's wrong: no such page (or a chapter that isn't in `SUMMARY.md`), or no such anchor on the page it points to. For an anchor, `did you mean` names a heading on that page whose anchor shares most of its words, when one does. A link that comes from another file through mdBook's include directive is listed under the chapter that includes it, with no line number. If lychee itself fails, `./build` shows lychee's own output instead. If `./build` says `bin/mdbook is missing` or `bin/lychee is missing`, run the script: it installs both.
 
 The check is offline: it tests the book's own pages and anchors and does **not** fetch outside addresses, so a dead link to another site doesn't stop it. `print.html` (every chapter again) and `404.html` (its `<base href>` points at the live site) are skipped as inputs; links *to* them are still checked. The usual causes of a break are a renamed or deleted chapter still linked from another, a `#anchor` whose heading text changed (mdBook makes the id from the heading's words), or a relative path that works on disk but not once mdBook has laid out the site.
 
-lychee is pinned like mdBook: `LYCHEE_VERSION` and `LYCHEE_SHA256` near the top of the script name the release and its tarball's digest. The script installs it into `bin/` and the workflow installs the same bytes, each checked against that digest first. To move to a newer release, change both; the release publishes a `.sha256` beside the tarball.
+lychee is pinned like mdBook: `LYCHEE_VERSION` and `LYCHEE_SHA256` near the top of the script name the release and its tarball's digest. The script installs it into `bin/` and the workflow installs the same bytes, each checked against that digest first. To move to a newer release, change both; the release publishes a `.sha256` beside the tarball. `./build` reads lychee's report, so then break a link on purpose and check that `./build` still lists it by file and line.
 
 ## Push to GitHub
 
@@ -1141,8 +1142,9 @@ The build and link check. `./build` builds the book, runs lychee over it, and st
 
 ```bash
 #!/usr/bin/env bash
-# Builds the book into book/, then checks every internal link and anchor in it,
-# and stops, listing each broken one. The deploy workflow runs this same file.
+# Builds the book into book/, checks every internal link and anchor in it, and
+# stops on a broken one, listing each by the file and line it's written on. The
+# deploy workflow runs this same file.
 set -euo pipefail
 cd "$(dirname "$0")"
 for tool in mdbook lychee; do
@@ -1154,13 +1156,188 @@ rc=0
 report=$(./bin/lychee --offline --include-fragments --mode plain --no-progress \
     --root-dir "$PWD/book" --exclude-path book/print.html --exclude-path book/404.html \
     'book/**/*.html' 2>&1) || rc=$?
-if [ "$rc" -ne 0 ]; then
-    # lychee's report, less its summary line, which is written in emoji.
+if [ "$rc" -eq 0 ]; then
+    echo "links: every internal link and anchor resolves"
+    exit 0
+fi
+
+# lychee names each break by the built page and the address it resolved to.
+# The rest turns that into the Markdown file and line, the link as written, and
+# what's wrong. Fields are split by \037, since any of them can be empty.
+us=$'\037'
+
+# One line per break: page and target (both under book/), anchor, lychee's
+# reason. LC_ALL=C makes %XX decode to bytes, which reassemble as UTF-8.
+breaks=$(printf '%s\n' "$report" | LC_ALL=C ROOT_P="$(pwd -P)/book/" ROOT_L="$PWD/book/" awk '
+    function unhex(s,   out, i, c) {
+        out = ""
+        for (i = 1; i <= length(s); i++) {
+            c = substr(s, i, 1)
+            if (c == "%" && substr(s, i + 1, 2) ~ /^[0-9A-Fa-f][0-9A-Fa-f]$/) {
+                c = tolower(substr(s, i + 1, 2)); i += 2
+                c = sprintf("%c", (index(hex, substr(c, 1, 1)) - 1) * 16 + index(hex, substr(c, 2, 1)) - 1)
+            }
+            out = out c
+        }
+        return out
+    }
+    function in_book(p) {
+        if (index(p, ENVIRON["ROOT_P"]) == 1) return substr(p, length(ENVIRON["ROOT_P"]) + 1)
+        if (index(p, ENVIRON["ROOT_L"]) == 1) return substr(p, length(ENVIRON["ROOT_L"]) + 1)
+        return p
+    }
+    BEGIN { hex = "0123456789abcdef" }
+    /^\[.*\]:$/ { page = substr($0, 2, length($0) - 3); sub(/^book\//, "", page); next }
+    /^\[ERROR\] / {
+        url = $2; frag = ""
+        if ((i = index(url, "#")) > 0) { frag = unhex(substr(url, i + 1)); url = substr(url, 1, i - 1) }
+        sub(/^file:\/\//, "", url)
+        i = index($0, " | ")
+        print page "\037" in_book(unhex(url)) "\037" frag "\037" (i ? substr($0, i + 3) : "")
+    }' | sort -u)
+
+# Nothing to map (lychee itself failed): show its report as it is, less its
+# summary line, which is in emoji.
+if [ -z "$breaks" ]; then
     printf '%s\n' "$report" | grep -v ' Total (in ' >&2 || true
-    echo "stopped: broken links or anchors, listed above. fix them, then run ./build again." >&2
+    echo "stopped: lychee failed (exit $rc); its output is above." >&2
     exit 1
 fi
-echo "links: every internal link and anchor resolves"
+
+# SRC: the file a built page comes from: NAME.md for NAME.html, a folder's
+# README.md or index.md for its index.html, SUMMARY.md for toc.html. Without
+# src/README.md or src/index.md, the root index.html is a copy of the first
+# chapter (COPY=1). A page with no source stays book/NAME.
+source_of() {
+    local p=$1 f
+    SRC='' COPY=''
+    case $p in
+        toc.html) SRC=src/SUMMARY.md ;;
+        index.html|*/index.html)
+            for f in "src/${p%index.html}README.md" "src/${p%index.html}readme.md" "src/${p%.html}.md"; do
+                [ -f "$f" ] && { SRC=$f; break; }
+            done
+            if [ -z "$SRC" ] && [ "$p" = index.html ]; then
+                f=$(awk 'match($0, /\]\([^)]*\.md\)/) { f = substr($0, RSTART + 2, RLENGTH - 3); sub(/^\.\//, "", f); print f; exit }' src/SUMMARY.md 2>/dev/null || true)
+                [ -z "$f" ] || [ ! -f "src/$f" ] || { SRC=src/$f; COPY=1; }
+            fi ;;
+        *.html) [ ! -f "src/${p%.html}.md" ] || SRC=src/${p%.html}.md ;;
+    esac
+    [ -n "$SRC" ] || { [ -f "src/$p" ] && SRC=src/$p || SRC=book/$p; }
+    return 0
+}
+
+re_esc() { printf '%s' "$1" | sed 's/[]\\.*$^+?(){}|[]/\\&/g'; }
+
+# Where file $1 writes the link: "line<TAB>link as written" per line. $2 matches
+# the target's file name, $3 its anchor; with $4, the link may be the anchor
+# alone. Inline, reference and HTML links count; code spans and fenced blocks
+# don't, as lychee skips them too.
+written() {
+    LC_ALL=C NAME_RE=$2 FRAG_RE=$3 SELF=$4 awk '
+        BEGIN {
+            q = sprintf("%c", 39)
+            lead = "(\\]\\(<?|\\]:[ \t]*<?|(href|src)=[\"" q "])"
+            path = "([^]()<>\"" q " \t]*/)?" ENVIRON["NAME_RE"]
+            if (ENVIRON["SELF"] != "") path = "(" path ")?"
+            if (ENVIRON["FRAG_RE"] != "") path = path "#" ENVIRON["FRAG_RE"]
+            end = "[)>\"" q " \t\r]"
+            re = lead path "(" end "|$)"
+        }
+        /^[ \t]*([`][`][`]|~~~)/ { fence = !fence; next }
+        fence { next }
+        {
+            line = $0
+            gsub(/`[^`]*`/, "", line)
+            if (match(line, re)) {
+                s = substr(line, RSTART, RLENGTH)
+                match(s, "^" lead); s = substr(s, RLENGTH + 1)
+                sub(end "$", "", s)
+                print FNR "\t" s
+            }
+        }' "$1"
+}
+
+# The heading anchor on built page $1 sharing the most words with anchor $2,
+# if it shares two thirds of them. Words under three letters and numbers don't
+# count; a word matches one it starts, or that starts it (rename, renames).
+closest() {
+    { grep -o '<h[1-6][^>]* id="[^"]*"' "book/$1" || true; } | sed 's/.* id="//; s/"$//' |
+    LC_ALL=C WANT=$2 awk '
+        function words(s, out,   n, i, k, part) {
+            n = split(s, part, "-"); k = 0
+            for (i = 1; i <= n; i++)
+                if (length(part[i]) > 2 && part[i] !~ /^[0-9]+$/ && part[i] !~ /^(and|the|for|with|from|into|that|this|what|how|why|when|are|was|not|its|you|your)$/)
+                    out[++k] = part[i]
+            return k
+        }
+        BEGIN { need = words(ENVIRON["WANT"], want) }
+        need {
+            k = words($0, have); hit = 0; split("", used)
+            for (i = 1; i <= need; i++)
+                for (j = 1; j <= k; j++)
+                    if (!(j in used) && (index(have[j], want[i]) == 1 || index(want[i], have[j]) == 1)) { hit++; used[j] = 1; break }
+            if (hit * 3 >= need * 2 && (hit > best || (hit == best && k - hit < fewest))) { best = hit; fewest = k - hit; pick = $0 }
+        }
+        END { if (pick != "") print pick }'
+}
+
+# Per break: the source file, each line the link is on, and why it's broken;
+# then sorted by file and line, each printed once.
+printf '%s\n' "$breaks" | while IFS=$us read -r page target frag reason; do
+    source_of "$page"; src=$SRC copy=$COPY
+    self=
+    [ -z "$frag" ] || [ "$target" != "$page" ] || self=1
+    name=${target##*/}
+    [ -z "$self" ] || name=${src##*/}
+    case $name in
+        *.html|*.md) name_re="$(re_esc "${name%.*}")[.](md|html)" ;;
+        *) name_re="$(re_esc "$name")/?" ;;
+    esac
+    case $reason in
+        "Cannot find fragment"*)
+            if [ -n "$self" ]; then why="no such anchor on this page"
+            else source_of "$target"; why="no such anchor in $SRC"; fi
+            hint=$(closest "$target" "$frag")
+            [ -z "$hint" ] || why="$why; did you mean #$hint?" ;;
+        "File not found"*)
+            md=src/${target%.html}.md
+            case $target in
+                /*) why="it points outside the book" ;;
+                README.html|*/README.html|readme.html|*/readme.html)
+                    why="mdBook builds README.md as index.html; write index.md in place of README.md" ;;
+                *.html) if [ -f "$md" ]; then why="$md isn't listed in src/SUMMARY.md, so the book has no page for it"
+                        else why="there's no $md"; fi ;;
+                *) why="there's no src/$target" ;;
+            esac ;;
+        *) why=$reason ;;
+    esac
+    found=
+    if [ -f "$src" ]; then found=$(written "$src" "$name_re" "$(re_esc "$frag")" "$self"); fi
+    if [ -n "$found" ]; then
+        while IFS=$'\t' read -r line link; do
+            printf '%s\n' "$src$us$line$us$link$us$why$us$copy"
+        done <<< "$found"
+    else
+        if grep -q '[{][{][[:space:]]*#[a-z_]*include' "$src" 2>/dev/null; then
+            why="$why (the link isn't in this file's own text; look in the files it includes)"
+        else
+            why="$why (couldn't find the link in this file's text)"
+        fi
+        printf '%s\n' "$src$us$us$target${frag:+#$frag}$us$why$us$copy"
+    fi
+done | LC_ALL=C sort -t "$us" -k1,1 -k2,2n -k3,3 -k4,4 -k5,5 | LC_ALL=C awk -F "$us" '
+    BEGIN { print "" }
+    !seen[$1 FS $2 FS $3 FS $4]++ {
+        printf "%s%s: %s\n    %s%s\n", $1, ($2 != "" ? ":" $2 : ""), $3, $4,
+            ($5 != "" ? " (on index.html, the copy of this chapter at the site root)" : "")
+        n++
+    }
+    END {
+        printf "\nstopped: %d broken link%s or anchor%s, listed above. fix %s, then run ./build again.\n",
+            n, (n == 1 ? "" : "s"), (n == 1 ? "" : "s"), (n == 1 ? "it" : "them")
+    }' >&2
+exit 1
 ```
 
 ### 14. `.github/workflows/deploy.yml`

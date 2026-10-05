@@ -2,15 +2,11 @@
 
 # Borg-simple script
 
-**To devs and reviewers**: 
-This script is about 3129 lines long and the result of vibe-coding with Opus 4.7, 4.8, 5, a few times with Fable 5, and about 200 iterations (for real).
-Anthropic helped but also exasperates; I can't wait to upgrade my rig and install Qwen or something.
-Anyway I've tested all the user-facing functions, and they work.
-I'm not a coder, so please review this script if you can.
+This page carries the whole of borg-simple, the script the [Levelling up](./leveling-up-1.md) guides set up and configure. Hover over the code block and press the copy button to take all of it, then save it as `backup.sh` the way Part 1, step 1 shows.
 
-If this is too long, then please consider reviewing the [core part of the script](./borg-super-simple.md) which contains only the core functions for easy review.
-Hopefully, there's nothing malicious.
-I've been using the simple script for my daily backup-workflow.
+**To devs and reviewers**: This script is about 3,100 lines long and the result of vibe-coding with Opus 4.7, 4.8, 5, a few times with Fable 5, and about 200 iterations (for real). Anthropic helped but also exasperates; I can't wait to upgrade my rig and install Qwen or something. Anyway I've tested all the user-facing functions, and they work. I'm not a coder, so please review this script if you can.
+
+If this is too long, then please consider reviewing the [core part of the script](./borg-simple-core.md), which contains only the core functions for easy review. Hopefully, there's nothing malicious. I've been using the simple script for my daily backup-workflow.
 
 ---
 

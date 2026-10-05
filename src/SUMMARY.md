@@ -4,27 +4,29 @@
 
 - [Welcome to Docwright](./welcome.md)
 
-- [Using the Site](./usage-docwright.md)
+- [Using the Site](./site-usage.md)
 
 # Backup
 
-- [Overview](./backup-overview.md)
+- [Backup Overview](./backup-overview.md)
 
 - [Whys of backup](./backup-whys.md)
 
 - [Getting started with Borg](./getting-started-with-borg.md)
 
-- [Planning](./backup-planning.md)
+- [Backup Planning](./backup-planning.md)
 
-- [Leveling up: Part 1](./leveling-up-1.md)
+- [Levelling up: Part 1](./leveling-up-1.md)
 
-- [Leveling up: Part 2](./leveling-up-2.md)
+- [Levelling up: Part 2](./leveling-up-2.md)
 
 - [Borg-simple script](./borg-simple.md)
 
 - [Borg-simple core](./borg-simple-core.md)
 
 - [Manual Borg and GPG](./manual-borg-gpg.md)
+
+- [Borg airgapped](./borg-airgap.md)
 
 - [Creating passphrase](./creating-passphrase.md)
 
@@ -44,9 +46,9 @@
 
 - [Overview](./system-security-overview.md)
 
-- [Landscape](./security-landscape.md)
-
 - [Choosing the OS](./choosing-os.md)
+
+- [Landscape](./security-landscape.md)
 
 - [Choosing encryption tools](./choosing-encryption-tools.md)
 
@@ -95,5 +97,3 @@
 - [Contribute](./contribute.md)
 
 - [About](./about.md)
-
-- [Borg airgapped](./unlisted/borg-airgap.md)

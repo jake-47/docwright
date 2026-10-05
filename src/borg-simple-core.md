@@ -2,10 +2,7 @@
 
 # Borg-simple core
 
-This script is a smaller, bare-case version of the [Borg-simple script](./borg-simple.md).
-It has only two functions: archive one folder to one drive, or extract one repo from one drive.
-The main motivation is that experts can review quickly the core functions.
-It has no repo list, no retention, no in-place restore, no config file.
+This script is a smaller, bare-case version of the [Borg-simple script](./borg-simple.md), kept short so experts can review the core functions quickly. It reads the same `~/.borg-config` and the same passphrase file, plain or GPG, and it has exactly two commands: `backup`, which archives every repo in the config to its drives, and `extract <repo> <drive>`, which unpacks that repo's newest archive into the directory you are standing in. There is no retention, no in-place restore, no `init`, and no allowlist handling; a repo with an allowlist is skipped rather than guessed at. Hover over the code block and press the copy button to take all of it. (The script's own header says `borg-super-simple`, its original name.)
 
 ---
 

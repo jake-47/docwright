@@ -1,7 +1,7 @@
 // Script-owned. MDB_REPO comes from GIT_REPO_URL; the deploy workflow stamps the
 // other four. MDB_PAGE_DATES stays a quoted string until stamped, so an unstamped
 // file still parses.
-var MDB_REPO = "";
+var MDB_REPO = "https://github.com/jake-47/docwright";
 var MDB_VERSION = "__MDB_BUILD_VERSION__";
 var MDB_UPDATED = "__MDB_BUILD_DATE__";
 var MDB_SHA = "__MDB_BUILD_SHA__";

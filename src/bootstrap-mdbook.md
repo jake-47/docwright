@@ -8,7 +8,7 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v49
+# bootstrap-mdbook.sh, v50
 #
 # Bootstraps an mdBook book at PROJECT_DIR/BOOK_NAME, pins mdBook (version and
 # tarball sha256) into a first-party GitHub Pages workflow, and opens a live
@@ -38,7 +38,8 @@ THEME_MODE="fixed"                        # "fixed" (default): the reading theme
 LIGHT_THEME=false                         # false: dark for every reader; true: light allowed
 PREFERRED_LIGHT="light"                   # fixed mode with LIGHT_THEME=true only
 PREFERRED_DARK="ayu"                      # coal, navy or ayu
-GIT_REPO_URL=""                           # https://github.com/user/repo; "" = local only
+GIT_REPO_URL=""                           # https://github.com/user/repo; "" = the book's
+                                          # origin remote, if that is on github.com
 CODE_LINE_NUMBERS=true                    # numbers language-fenced blocks of 10+ lines
 SIDEBAR_MASTHEAD="text"                   # "text", "none", or "image" (src/logo.svg)
 FAVICON_TEXT="auto"                       # "auto" (the title's first letter), up to 3
@@ -114,6 +115,30 @@ esc_xml() {
     printf '%s' "$s"
 }
 
+# GIT_REPO_URL left empty is read from the book's origin remote, so a fresh copy
+# of the script run on an existing book keeps its edit links, site-url and
+# commit links. Only a github.com remote counts, in its ssh or https form; the
+# result takes the shape validate_config enforces. Runs after ensure_git_remote,
+# which has returned early, so origin is read and never rewritten here.
+derive_repo_url() {
+    [ -z "$GIT_REPO_URL" ] || return 0
+    [ -d ".git" ] || return 0
+    local url rest
+    url=$(git remote get-url origin 2>/dev/null) || return 0
+    case "$url" in
+        git@github.com:*)       rest="${url#git@github.com:}" ;;
+        ssh://git@github.com/*) rest="${url#ssh://git@github.com/}" ;;
+        https://github.com/*)   rest="${url#https://github.com/}" ;;
+        *) warn "GIT_REPO_URL is empty and origin ($url) isn't a github.com remote this script reads; set GIT_REPO_URL to get the edit links, site-url and commit links"
+           return 0 ;;
+    esac
+    rest="${rest%/}"
+    rest="${rest%.git}"
+    repo_path_ok "$rest" || { warn "GIT_REPO_URL is empty and origin ($url) doesn't read as user/repo; set GIT_REPO_URL"; return 0; }
+    GIT_REPO_URL="https://github.com/${rest}"
+    say "GIT_REPO_URL is empty; using origin: ${GIT_REPO_URL}"
+}
+
 # Pages URL and site-url from GIT_REPO_URL; both empty without one. site-url lets
 # the 404 page find its assets at any depth. A user site (user.github.io)
 # publishes at the root. A custom domain is set by hand.
@@ -123,8 +148,6 @@ derive_pages() {
     [ -n "$GIT_REPO_URL" ] || return 0
     local rest user repo
     rest="${GIT_REPO_URL#https://github.com/}"
-    rest="${rest%/}"
-    rest="${rest%.git}"
     user="${rest%%/*}"
     repo="${rest##*/}"
     if [ "$repo" = "${user}.github.io" ]; then
@@ -141,12 +164,13 @@ derive_pages() {
 main() {
     [ $# -eq 0 ] || die "this script takes no arguments; got: $*"
     validate_config
-    derive_pages
     check_build_file
     mkdir -p "$BOOK_DIR/bin"
     cd "$BOOK_DIR"
     init_git_repo
     ensure_git_remote
+    derive_repo_url
+    derive_pages
     ensure_curl
     # One version for the local binary, the workflow and the digest check.
     MDBOOK_VERSION=$(get_latest_mdbook_version)
@@ -227,12 +251,27 @@ validate_config() {
         *) die "PREFERRED_DARK must be a dark theme, one of: $MDBOOK_DARK_THEMES (got: $PREFERRED_DARK)" ;;
     esac
 
-    # Everything downstream assumes https github.com.
+    # Everything downstream assumes https://github.com/user/repo, and nothing past
+    # the repo: a trailing / or .git (GitHub's Clone button gives both) is dropped,
+    # and anything else there would end up inside the edit links and site-url.
     case "$GIT_REPO_URL" in
         "") ;;
         *$'\n'*|*$'\r'*) die "GIT_REPO_URL must not contain newlines or carriage returns" ;;
-        https://github.com/*/*) ;;
+        https://github.com/*)
+            GIT_REPO_URL="${GIT_REPO_URL%/}"
+            GIT_REPO_URL="${GIT_REPO_URL%.git}"
+            repo_path_ok "${GIT_REPO_URL#https://github.com/}" \
+                || die "GIT_REPO_URL must be exactly https://github.com/user/repo (nothing after the repo), got: $GIT_REPO_URL" ;;
         *) die "GIT_REPO_URL must be an https github.com URL (https://github.com/user/repo), got: $GIT_REPO_URL" ;;
+    esac
+}
+
+# True when $1 is exactly user/repo: one slash, something on each side of it.
+repo_path_ok() {
+    case "$1" in
+        */*/*|/*|*/) return 1 ;;
+        */*) return 0 ;;
+        *) return 1 ;;
     esac
 }
 
@@ -369,13 +408,12 @@ init_git_repo() {
 }
 
 # origin from GIT_REPO_URL, in its ssh form; added or updated, never pushed.
+# Empty, it leaves origin alone, for derive_repo_url to read.
 ensure_git_remote() {
     [ -d ".git" ] || return 0
     [ -n "$GIT_REPO_URL" ] || return 0
     local rest ssh
     rest="${GIT_REPO_URL#https://}"       # github.com/user/repo
-    rest="${rest%/}"                      # strip any trailing slash
-    rest="${rest%.git}"                   # strip any trailing .git
     ssh="git@${rest%%/*}:${rest#*/}.git"
     if git remote get-url origin >/dev/null 2>&1; then
         if git remote set-url origin "$ssh"; then say "updated origin -> $ssh"; else warn "could not update origin"; fi
@@ -601,12 +639,12 @@ html{font-family:var(--serif);}
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
 .content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
 
-/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
-   adds, when there; one rule closes it, under whichever comes last. */
-.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+/* Title block: the H1 and its subtitle, when there; one rule closes it. The
+   "Last updated" line custom.js adds hangs under the rule, before the text. */
+.content h1:has(+ .mdb-subtitle){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
 .content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
-.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
-.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1:has(+ .mdb-updated),.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;}
+.content .mdb-updated{margin-block-end:2.4rem;}
 
 /* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
    rule stays flush with the text. */
@@ -739,7 +777,7 @@ EOF
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
 /* The per-page "Last updated <when>" line custom.js inserts under the chapter
-   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   H1, set like a date line. Fixed mode hangs it under the title block's rule;
    default mode mixes a muted colour from its theme's own. */
 .content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 

@@ -44,12 +44,12 @@ html{font-family:var(--serif);}
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
 .content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
 
-/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
-   adds, when there; one rule closes it, under whichever comes last. */
-.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+/* Title block: the H1 and its subtitle, when there; one rule closes it. The
+   "Last updated" line custom.js adds hangs under the rule, before the text. */
+.content h1:has(+ .mdb-subtitle){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
 .content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
-.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
-.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1:has(+ .mdb-updated),.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;}
+.content .mdb-updated{margin-block-end:2.4rem;}
 
 /* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
    rule stays flush with the text. */
@@ -144,7 +144,7 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
 /* The per-page "Last updated <when>" line custom.js inserts under the chapter
-   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   H1, set like a date line. Fixed mode hangs it under the title block's rule;
    default mode mixes a muted colour from its theme's own. */
 .content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 

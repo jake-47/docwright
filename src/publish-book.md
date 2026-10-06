@@ -18,7 +18,7 @@ There are three ways to build a site like this one. They differ only in how the 
    cd mybook
    ```
 
-   Replace `REPLACE_WITH_REPO_URL` with the repository URL. One catch: a clone carries *that* repo's URL baked into `book.toml` (`site-url`, `git-repository-url`, `edit-url-template`), `README.md`, and `custom.js` (`MDB_REPO`), and its `origin` points at the reference repo. Repoint `origin` at *your own* empty repo, and update those repo values to yours — the simplest way is to delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set (it regenerates `book.toml` and `custom.js`, and writes a new `README.md` because there is none, in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match), or edit the four spots by hand. Fonts, tagging, and Pages are then the same as the paths below.
+   Replace `REPLACE_WITH_REPO_URL` with the repository URL. One catch: a clone carries *that* repo's URL baked into `book.toml` (`site-url`, `edit-url-template`), `README.md`, and `custom.js` (`MDB_REPO`), and its `origin` points at the reference repo. Point them at *your own* empty repo — the simplest way is to delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set: it repoints `origin`, regenerates `book.toml` and `custom.js`, and writes a new `README.md` because there is none. It does that in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match. (Or repoint `origin` yourself with `git remote set-url origin git@github.com:USER/REPO.git` and run the script with `GIT_REPO_URL` empty: it reads the repo from `origin`.) Editing the four spots by hand works too. Fonts, tagging, and Pages are then the same as the paths below.
 
 2. **Run the script.** The rest of this guide, from "Run it" on. Edit the toggles, run it once with no arguments, and it installs mdBook, writes every file, and opens a preview. Re-running is the update path.
 
@@ -50,12 +50,12 @@ Audit it first. Network-wise it fetches only from `github.com` (the mdBook and l
 Into the project folder (`PROJECT_DIR/BOOK_NAME`):
 
 - `book.toml` — mdBook config, seeded from the toggles. **Script-owned.**
-- `src/SUMMARY.md`, `src/about.md`, `src/chapter_1.md` — starter content, written only if `src/SUMMARY.md` doesn't already exist. **Yours** thereafter.
+- `src/SUMMARY.md`, `src/about.md`, `src/chapter_1.md`, `src/demo.svg` — starter content (the SVG is the demo chapter's picture), written only if `src/SUMMARY.md` doesn't already exist. **Yours** thereafter.
 - `custom.css`, `custom.js` — the theme and behaviours. **Script-owned.**
 - `theme/head.hbs` — written in `fixed` mode, and in `default` mode while `LIGHT_THEME` is false, with a different job in each (see "Light and dark in `default` mode"). **Script-owned.**
 - `theme/fonts/fonts.css` — written in `fixed` mode. **Script-owned.**
 - `theme/favicon.svg` — written from `src/logo.svg` if that exists, otherwise drawn from `FAVICON_TEXT` (any mode). **Script-owned while either source is set**; it is never deleted, only overwritten. See "The favicon."
-- `README.md` — title, plus a live-site link if `GIT_REPO_URL` is set, written only if there's no `README.md` yet. **Yours** thereafter.
+- `README.md` — title, plus a live-site link if the book knows its repo (`GIT_REPO_URL`, or `origin`), written only if there's no `README.md` yet. **Yours** thereafter.
 - `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each by the file and line it's written on. The script runs it before the preview, and the deploy workflow runs the same file. **Script-owned.** If the book already has a `build` the script didn't write, the run stops before changing anything, so yours is never overwritten: move it aside (`mv build build.own`) and run again.
 - `.github/workflows/deploy.yml` — the Pages deploy workflow; it also stamps the build/version/per-page dates and runs `./build` before deploying. **Script-owned.**
 - `bin/mdbook` + `bin/.mdbook.sha256`, `bin/lychee` — the pinned binaries, and mdBook's digest. `bin/` is gitignored.
@@ -79,10 +79,12 @@ Edit these at the top of the script.
 - `THEME_MODE` — `"fixed"` (default) writes the reading theme and hides the theme picker, so the reader has no in-page control over the theme. `"default"` leaves mdBook's stock theming and its picker in place, and writes none of the reading-theme CSS palette; with `LIGHT_THEME=false`, the default, the picker offers only the dark themes. (The value literally named `default` is deliberately not the default.)
 - `LIGHT_THEME` — `false` (default) gives no reader a light theme, in either theme mode. In `fixed` mode the book is dark whatever the browser or OS is set to: only the dark palette is written, and `book.toml` pins both theme keys to `PREFERRED_DARK`. In `default` mode the same two keys are pinned and the picker offers only the dark themes. `true` in `fixed` mode writes the light palette as well, and the reader's `prefers-color-scheme` chooses between the two — their browser or OS setting is the only switch, since the picker stays hidden; `true` in `default` mode leaves mdBook's stock picker as it ships. See "Light and dark" and "Light and dark in `default` mode."
 - `PREFERRED_LIGHT` / `PREFERRED_DARK` — the light and dark themes. Defaults `light` and `ayu`. Both must be one of mdBook's five built-ins — `light`, `rust`, `coal`, `navy`, `ayu` — and `PREFERRED_DARK` must be one of the three dark ones, `coal`, `navy` or `ayu`; the script rejects anything else. `PREFERRED_DARK` is used in `fixed` mode, and in `default` mode while `LIGHT_THEME=false`. `PREFERRED_LIGHT` is used only in `fixed` mode with `LIGHT_THEME=true`.
-- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only; the script rejects other forms). Wires the edit (pencil) icon in the top bar, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link when the README is first written, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`. Left empty: the icon and `site-url` are omitted, and the README is just the title; set it later and the README stays as it is, so add the link yourself, or delete `README.md` and re-run. No repo icon is written — see "The top-bar icons."
+- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only, and nothing after the repo; a trailing `/` or `.git`, as GitHub's Clone button gives, is dropped). Wires the edit (pencil) icon in the top bar, links the sidebar footer's commit hash, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link when the README is first written, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`. Left empty, the script reads it from the book's `origin` remote when that is on github.com, and says so (`GIT_REPO_URL is empty; using origin: …`), so a fresh copy of the script run on an existing book keeps those links; `origin` itself is then left as it is. With no such remote the pencil and `site-url` are omitted, the hash is plain text, and the README is just the title; set it later and the README stays as it is, so add the link yourself, or delete `README.md` and re-run. No repo icon is written — see "The top-bar icons."
 - `CODE_LINE_NUMBERS` — `true` (default) numbers language-fenced code blocks of ten lines or more. See "Code line numbers."
 - `SIDEBAR_MASTHEAD` — `text` (default), `none`, or `image`. What fills the sidebar band opposite the menu bar. See "The sidebar masthead."
 - `FAVICON_TEXT` — what `theme/favicon.svg` draws when there is no `src/logo.svg` to copy. `"auto"` (default) takes the first alphanumeric character of `BOOK_TITLE` (`m` for `mybook`); any other string is drawn as typed, first three characters, case preserved; `""` draws nothing and leaves mdBook's own bundled icon alone. `src/logo.svg` always wins. See "The favicon."
+
+**Upgrading from v49 or earlier:** re-run, then commit. The `Last updated` line moves from above the title's rule to under it, and a book whose `GIT_REPO_URL` was left empty picks its repo up from `origin`: if a re-run with a fresh copy of the script had dropped the pencil, the footer's commit link and `site-url`, this run puts them back and prints `GIT_REPO_URL is empty; using origin: …`.
 
 **Upgrading from v48 or earlier:** nothing to do. The `README.md` already there stays as it is from now on, and it's yours to edit.
 
@@ -109,7 +111,7 @@ So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand 
 - **A 60px menu bar** (mdBook ships 50px), giving a 24px serif title room to breathe above the body text that scrolls under it.
 - **A full palette.** mdBook defines ~43 colour variables per theme; the script overrides every one that paints — not just the page and sidebar, but blockquotes, tables, the search UI, icons, the separator, and the code-block ground. Without this, the first table or blockquote on a page shows the stock theme's blues. With `LIGHT_THEME=true` the dark palette is the base and the light one is gated behind `prefers-color-scheme: light` — see "Why the dark palette comes first" below.
 - **A sidebar that sits close to the page.** `--sidebar-bg` is about two points of CIELAB lightness off `--bg` in both modes: enough for the column to read as its own surface, little enough that the page reads as one tone rather than two panels. It does not match the blockquote/code ground, which is a heavier tint doing a different job. It cannot go to zero either — mdBook draws no border on `.sidebar`, so this tint is the only boundary the column has.
-- **One hairline closing each chapter's title block** — the H1, its subtitle, and the `Last updated` line the deployed site adds — under whichever comes last. Headings below the title draw none unless you write `---` straight after one. A chapter's `---` and a `SUMMARY.md` `---` separator take the same weight and colour (mdBook draws those two differently by default). See "Headings and rules."
+- **One hairline closing each chapter's title block** — the H1 and its subtitle, when it has one — with the `Last updated` line the deployed site adds hanging under the rule. Headings below the title draw none unless you write `---` straight after one. A chapter's `---` and a `SUMMARY.md` `---` separator take the same weight and colour (mdBook draws those two differently by default). See "Headings and rules."
 - **Headings that sit close to their own text.** Each heading's margins scale with its own size, and whatever follows a heading starts right under it. H3 is a step above the text; H4 to H6 are text size, told apart by style: bold italic, italic, muted italic.
 - **Inked, underlined links** (mdBook's default is undecorated), including search results. A link in the text turns blue once followed; footnote numbers, the links in notes and heading anchors keep their colour, and in print every link is ink.
 - **Nested numbered lists count `1.1`, `1.2`.** Number each level the ordinary way (`1.`, `2.`, `3.`), indented under the item above, and the stylesheet draws `2.1`, `2.2`. A list that starts at another number keeps the browser's own numbers, because a stylesheet counter can't read where a list starts.
@@ -180,7 +182,7 @@ No `theme/fonts/fonts.css` in `default` mode: it keeps mdBook's stock fonts.
 
 ### The top-bar icons
 
-With `GIT_REPO_URL` set, the top bar carries a print icon and a pencil that opens the current page in GitHub's web editor (it auto-forks for readers without write access). It does **not** carry a repository icon, though mdBook offers one: the icon would sit beside the pencil and lead to the same repository the sidebar footer's commit link already reaches, and two icons to one destination is one too many.
+With a repo known to the book (`GIT_REPO_URL`, or an `origin` on github.com), the top bar carries a print icon and a pencil that opens the current page in GitHub's web editor (it auto-forks for readers without write access). The pencil exists only when `book.toml` carries `edit-url-template`, which the script writes from that URL, so a book built without one has no pencil, on any page; `print.html` and the 404 page never have one, since neither comes from a single source file. It does **not** carry a repository icon, though mdBook offers one: the icon would sit beside the pencil and lead to the same repository the sidebar footer's commit link already reaches, and two icons to one destination is one too many.
 
 The script leaves `git-repository-url` out of `book.toml` to drop it. mdBook gates the repo icon and the pencil on independent conditions in its template, so omitting that one key removes the repo icon and leaves the pencil untouched — no CSS hiding, nothing overridden. Add the key back by hand if you want the icon, but remember `book.toml` is script-owned: the next re-run regenerates it without.
 
@@ -266,7 +268,7 @@ Finally, `theme/favicon.svg` is script-owned but **never deleted** — only over
 
 ## Headings and rules
 
-In `fixed` mode a chapter's title is one block: the H1, the subtitle under it if there is one, and the `Last updated` line the deployed site adds. One hairline closes the block, under whichever of the three comes last, so on a local build it sits under the subtitle and on the live site under the date.
+In `fixed` mode a chapter's title is one block: the H1, and the subtitle under it if there is one. One hairline closes the block, under whichever of the two comes last. The `Last updated` line the deployed site adds hangs under that rule, before the text, like a dateline.
 
 Below the title, headings draw no rules. A `---` divides the page, with space above and below it; written on the line straight after a heading, it underlines that heading instead:
 
@@ -292,9 +294,9 @@ To hang a subtitle under a heading, put a marked paragraph on the line below it:
 Body text starts here.
 ```
 
-mdBook passes block-level HTML through verbatim, so the `<p>` renders as-is. The starter `chapter_1.md` includes one as an example (delete the line if you don't want it). It's styled in `fixed` mode only.
+mdBook passes block-level HTML through verbatim, so the `<p>` renders as-is. The starter `chapter_1.md` includes one as an example (delete the line if you don't want one). It's styled in `fixed` mode only.
 
-Under the chapter's H1 the subtitle is part of the title block, and the block's rule sits below it — or below the `Last updated` line, on the deployed site (see "Headings and rules"). Under any other heading it is the muted italic alone; a `---` after it, with a blank line between them, draws a rule under the pair.
+Under the chapter's H1 the subtitle is part of the title block, and the block's rule sits below it; on the deployed site the `Last updated` line follows under the rule (see "Headings and rules"). Under any other heading it is the muted italic alone; a `---` after it, with a blank line between them, draws a rule under the pair.
 
 One caveat: **markdown syntax inside the `<p>` is not parsed.** `**bold**` stays literal. If a subtitle needs emphasis or a link, write it as HTML (`<em>`, `<a>`). (If you need markdown-in-subtitle often, a `<span class="mdb-subtitle">` on its own line *does* get its markdown parsed, but the span is inline and can't take the block rule directly — the `<p>` form is the default for that reason.)
 
@@ -421,7 +423,7 @@ The name is literal and reserved: `src/unlisted/` and nothing else. A directory 
 
 ## The version line
 
-The foot of the sidebar can show a build stamp reading `<version> · updated <when> · <sha>`, with the SHA linking to the commit on GitHub. The `<when>` is relative — "3 hours ago", "yesterday", then the plain date once it is older than three days — with the exact build timestamp shown on hover; see "The last-updated line" for the formatter it shares with the per-page line. **This is stamped by the deploy workflow, not the script** — so:
+The foot of the sidebar can show a build stamp reading `<version> · updated <when> · <sha>`, with the SHA linking to the commit on GitHub when the book knows its repo (`GIT_REPO_URL`, or an `origin` on github.com), and plain text otherwise. The `<when>` is relative — "3 hours ago", "yesterday", then the plain date once it is older than three days — with the exact build timestamp shown on hover; see "The last-updated line" for the formatter it shares with the per-page line. **This is stamped by the deploy workflow, not the script** — so:
 
 - On a **local** `mdbook serve` / `build`, nothing stamps it and the line does not appear at all. That's expected; it's not a bug. (The fields are literal `__MDB_BUILD_*__` placeholders locally, and the JS shows a field only once it's been substituted.)
 - On the **deployed** site, the updated time and short SHA always appear. The **version** is the git tag: `git describe --tags` names the tag on the built commit, or the nearest reachable tag plus a commit count — `v1.2` on the tagged commit, `v1.2+5` five commits later. So tagging once per release (not once per commit) still stamps a version on every build, and no build claims a tag it isn't.
@@ -436,7 +438,7 @@ The workflow fires on tag pushes as well as branch pushes (`tags: ['v*']`), so t
 
 ## The last-updated line
 
-Each chapter carries a **`Last updated <when>`** line under its H1 (below the subtitle when there is one), set like a date line: italic, a little smaller than the text, and muted. In `fixed` mode it is the last line of the title block, so the title's rule sits under it. The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1 --format=%aI` over every file in `src/` and stamps the result into `custom.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it.
+Each chapter carries a **`Last updated <when>`** line under its title, set like a date line: italic, a little smaller than the text, and muted. In `fixed` mode it hangs under the title block's rule, before the text. The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1 --format=%aI` over every file in `src/` and stamps the result into `custom.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it. The home page is a copy of the first chapter and finds its source only through the edit link, so it carries the line only when the book knows its repo.
 
 Like the footer, it is **relative** — rendered by one shared formatter: under an hour reads "just now", then "N hours ago" for the rest of the same calendar day, then "yesterday", "two days ago", "three days ago", and from four days out the plain local date (`YYYY-MM-DD`). It is computed once at load — no ticking clock — and the element's `title` carries the exact ISO timestamp, so hovering shows the precision the words drop. A time in the future (clock skew) clamps to "just now".
 
@@ -478,7 +480,7 @@ One time:
    git push -u origin main
    ```
 
-   (use your `DEPLOY_BRANCH` if you changed it). If you left `GIT_REPO_URL` empty, add the remote first: `git remote add origin git@github.com:user/repo.git`.
+   (use your `DEPLOY_BRANCH` if you changed it). If you left `GIT_REPO_URL` empty, add the remote first — `git remote add origin git@github.com:user/repo.git` — then re-run the script and commit, so the book picks the repo up from `origin` (the pencil, `site-url` and the footer's commit link; see `GIT_REPO_URL` under "The toggles").
 3. **Enable Pages once, by hand:** Settings → Pages → Source → **GitHub Actions**. The workflow does *not* enable Pages for you (it can't — `actions/configure-pages` can only enable Pages with a stored personal access token, which this script won't ask you to keep).
 4. **Let release tags deploy, once:** Settings → Environments → **github-pages**. GitHub limits that environment to your default branch, so it lists one rule, `main` (or your `DEPLOY_BRANCH`). Click **Add deployment branch or tag rule**, set Ref type to **Tag**, enter `v*`, and click **Add rule**. If it says **No restriction** instead, there's nothing to add. The workflow can't do this for you either: changing an environment's rules takes administration access to the repo, which a workflow's token can't be given.
 
@@ -747,12 +749,12 @@ html{font-family:var(--serif);}
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
 .content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
 
-/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
-   adds, when there; one rule closes it, under whichever comes last. */
-.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+/* Title block: the H1 and its subtitle, when there; one rule closes it. The
+   "Last updated" line custom.js adds hangs under the rule, before the text. */
+.content h1:has(+ .mdb-subtitle){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
 .content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
-.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
-.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1:has(+ .mdb-updated),.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;}
+.content .mdb-updated{margin-block-end:2.4rem;}
 
 /* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
    rule stays flush with the text. */
@@ -847,7 +849,7 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
 /* The per-page "Last updated <when>" line custom.js inserts under the chapter
-   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   H1, set like a date line. Fixed mode hangs it under the title block's rule;
    default mode mixes a muted colour from its theme's own. */
 .content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 

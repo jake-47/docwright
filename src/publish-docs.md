@@ -1160,7 +1160,7 @@ Expected output: `[bootstrap] adding Charter: reading ~/Downloads/Charter 210112
 The downloaded file, or the one `CHARTER_ZIP` names, isn't the Charter release the script was written for, so it wasn't used, and no font was added.
 For a download, something between you and the site changed the file, or the site now serves another file at that address.
 Try again later.
-If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's `font-charter` cask or the AUR's `ttf-bitstream-charter` package; see [Sources](#sources).
+If it persists, compare `CHARTER_URL` and `CHARTER_ZIP_SHA256` in the script with the address and checksum in Homebrew's `font-charter` cask or the AUR's `ttf-bitstream-charter` package.
 Don't change `CHARTER_ZIP_SHA256` to match the file you got: the checksum is what keeps a changed file out.
 
 **`[bootstrap] note: couldn't install fontTools, which corrects Charter's files (offline?).`**

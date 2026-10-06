@@ -8,5 +8,3 @@ additional-js = ["custom.js"]
 additional-css = ["custom.css"]
 default-theme = "ayu"
 preferred-dark-theme = "ayu"
-site-url = "/docwright/"
-edit-url-template = "https://github.com/jake-47/docwright/edit/main/{path}"

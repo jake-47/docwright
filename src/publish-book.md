@@ -1,7 +1,7 @@
 # Publish a book or knowledge base
 <p class="mdb-subtitle">A minimal mdBook on GitHub Pages like this one</p>
 
-The [bootstrap-mdbook script](./bootstrap-mdbook.md) scaffolds an mdBook book, installs and version-pins the mdBook binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. The published site has the usual mdBook furniture — left-sidebar table of contents, built-in search, print/PDF view — with no analytics or tracking. In its default (`fixed`) theme mode it also ships a reading theme: self-hosted Charter, a ~700px measure, a warm dark palette, hairlines under H1/H2, inked-and-underlined links, and a sidebar masthead that behaves like the menu bar. The theme is dark for every reader out of the box; set `LIGHT_THEME=true` to add the light counterpart and let each reader's browser preference choose.
+The [bootstrap-mdbook script](./bootstrap-mdbook.md) scaffolds an mdBook book, installs and version-pins the mdBook binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. The published site has the usual mdBook furniture — left-sidebar table of contents, built-in search, print/PDF view — with no analytics or tracking. In its default (`fixed`) theme mode it also ships a reading theme: self-hosted Charter, a ~700px measure, a warm dark palette, one hairline closing each chapter's title, inked-and-underlined links, and a sidebar masthead that behaves like the menu bar. The theme is dark for every reader out of the box; set `LIGHT_THEME=true` to add the light counterpart and let each reader's browser preference choose.
 
 It is a one-shot bootstrapper. It seeds the project once; after that you own the files and edit `src/` directly. Re-running is the *update* path (new mdBook release, changed toggles), and it regenerates the script-owned files — see "Re-running vs. hand edits."
 
@@ -18,7 +18,7 @@ There are three ways to build a site like this one. They differ only in how the 
    cd mybook
    ```
 
-   Replace `REPLACE_WITH_REPO_URL` with the repository URL. One catch: a clone carries *that* repo's URL baked into `book.toml` (`site-url`, `git-repository-url`, `edit-url-template`), `README.md`, and `custom.js` (`MDB_REPO`), and its `origin` points at the reference repo. Repoint `origin` at *your own* empty repo, and update those repo values to yours — the simplest way is to run the script with your `GIT_REPO_URL` set (it regenerates exactly those files, in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match), or edit the four spots by hand. Fonts, tagging, and Pages are then the same as the paths below.
+   Replace `REPLACE_WITH_REPO_URL` with the repository URL. One catch: a clone carries *that* repo's URL baked into `book.toml` (`site-url`, `git-repository-url`, `edit-url-template`), `README.md`, and `custom.js` (`MDB_REPO`), and its `origin` points at the reference repo. Repoint `origin` at *your own* empty repo, and update those repo values to yours — the simplest way is to delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set (it regenerates `book.toml` and `custom.js`, and writes a new `README.md` because there is none, in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match), or edit the four spots by hand. Fonts, tagging, and Pages are then the same as the paths below.
 
 2. **Run the script.** The rest of this guide, from "Run it" on. Edit the toggles, run it once with no arguments, and it installs mdBook, writes every file, and opens a preview. Re-running is the update path.
 
@@ -55,7 +55,7 @@ Into the project folder (`PROJECT_DIR/BOOK_NAME`):
 - `theme/head.hbs` — written in `fixed` mode, and in `default` mode while `LIGHT_THEME` is false, with a different job in each (see "Light and dark in `default` mode"). **Script-owned.**
 - `theme/fonts/fonts.css` — written in `fixed` mode. **Script-owned.**
 - `theme/favicon.svg` — written from `src/logo.svg` if that exists, otherwise drawn from `FAVICON_TEXT` (any mode). **Script-owned while either source is set**; it is never deleted, only overwritten. See "The favicon."
-- `README.md` — title, plus a live-site link if `GIT_REPO_URL` is set. **Script-owned.**
+- `README.md` — title, plus a live-site link if `GIT_REPO_URL` is set, written only if there's no `README.md` yet. **Yours** thereafter.
 - `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each by the file and line it's written on. The script runs it before the preview, and the deploy workflow runs the same file. **Script-owned.** If the book already has a `build` the script didn't write, the run stops before changing anything, so yours is never overwritten: move it aside (`mv build build.own`) and run again.
 - `.github/workflows/deploy.yml` — the Pages deploy workflow; it also stamps the build/version/per-page dates and runs `./build` before deploying. **Script-owned.**
 - `bin/mdbook` + `bin/.mdbook.sha256`, `bin/lychee` — the pinned binaries, and mdBook's digest. `bin/` is gitignored.
@@ -71,7 +71,7 @@ Edit these at the top of the script.
 
 - `PROJECT_DIR` — parent folder the book is created in (e.g. `$HOME/Desktop`). A leading `~` and relative paths are resolved for you.
 - `BOOK_NAME` — the project folder's name, under `PROJECT_DIR` (default `mybook`). Readers never see it. ASCII letters, digits, `.`, `_` and `-` only, not starting with `.` or `-`: the characters GitHub allows in a repository name, so the folder and the repo can share a name, and nothing in it expands when you paste the `cd` line the script prints at the end. The repo's own name and the Pages URL still come from `GIT_REPO_URL`.
-- `BOOK_TITLE` — the title readers see, written to `book.toml` and used for the masthead, the drawn favicon, `README.md` and the starter About page. Apostrophes, quotes and `/` are safe; it must not contain a newline. Change it and re-run, and the same book is retitled in place; `src/about.md`, being yours, keeps the title it was written with.
+- `BOOK_TITLE` — the title readers see, written to `book.toml` and used for the masthead, the drawn favicon, `README.md` and the starter About page. Apostrophes, quotes and `/` are safe; it must not contain a newline. Change it and re-run, and the same book is retitled in place; `src/about.md` and `README.md`, being yours, keep the title they were written with.
 - `BOOK_AUTHOR` — author, written to `book.toml`.
 - `DEPLOY_BRANCH` — git default branch, and the branch whose pushes trigger CI (default `main`).
 - `HEADING_NUMBERS` — `true` adds automatic in-page heading numbers (H2–H6) via the `mdbook-numbering` preprocessor (pinned to `0.5.0`). This path also installs Rust and compiles the preprocessor. Default `false`.
@@ -79,10 +79,14 @@ Edit these at the top of the script.
 - `THEME_MODE` — `"fixed"` (default) writes the reading theme and hides the theme picker, so the reader has no in-page control over the theme. `"default"` leaves mdBook's stock theming and its picker in place, and writes none of the reading-theme CSS palette; with `LIGHT_THEME=false`, the default, the picker offers only the dark themes. (The value literally named `default` is deliberately not the default.)
 - `LIGHT_THEME` — `false` (default) gives no reader a light theme, in either theme mode. In `fixed` mode the book is dark whatever the browser or OS is set to: only the dark palette is written, and `book.toml` pins both theme keys to `PREFERRED_DARK`. In `default` mode the same two keys are pinned and the picker offers only the dark themes. `true` in `fixed` mode writes the light palette as well, and the reader's `prefers-color-scheme` chooses between the two — their browser or OS setting is the only switch, since the picker stays hidden; `true` in `default` mode leaves mdBook's stock picker as it ships. See "Light and dark" and "Light and dark in `default` mode."
 - `PREFERRED_LIGHT` / `PREFERRED_DARK` — the light and dark themes. Defaults `light` and `ayu`. Both must be one of mdBook's five built-ins — `light`, `rust`, `coal`, `navy`, `ayu` — and `PREFERRED_DARK` must be one of the three dark ones, `coal`, `navy` or `ayu`; the script rejects anything else. `PREFERRED_DARK` is used in `fixed` mode, and in `default` mode while `LIGHT_THEME=false`. `PREFERRED_LIGHT` is used only in `fixed` mode with `LIGHT_THEME=true`.
-- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only; the script rejects other forms). Wires the edit (pencil) icon in the top bar, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`. Left empty: the icon and `site-url` are omitted, and the README is just the title. No repo icon is written — see "The top-bar icons."
+- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only; the script rejects other forms). Wires the edit (pencil) icon in the top bar, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link when the README is first written, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`. Left empty: the icon and `site-url` are omitted, and the README is just the title; set it later and the README stays as it is, so add the link yourself, or delete `README.md` and re-run. No repo icon is written — see "The top-bar icons."
 - `CODE_LINE_NUMBERS` — `true` (default) numbers language-fenced code blocks of ten lines or more. See "Code line numbers."
 - `SIDEBAR_MASTHEAD` — `text` (default), `none`, or `image`. What fills the sidebar band opposite the menu bar. See "The sidebar masthead."
 - `FAVICON_TEXT` — what `theme/favicon.svg` draws when there is no `src/logo.svg` to copy. `"auto"` (default) takes the first alphanumeric character of `BOOK_TITLE` (`m` for `mybook`); any other string is drawn as typed, first three characters, case preserved; `""` draws nothing and leaves mdBook's own bundled icon alone. `src/logo.svg` always wins. See "The favicon."
+
+**Upgrading from v48 or earlier:** nothing to do. The `README.md` already there stays as it is from now on, and it's yours to edit.
+
+**Upgrading from v47 or earlier:** re-run. H2s no longer draw a rule of their own; to keep one under a particular heading, write `---` on the line after it (see "Headings and rules").
 
 **Upgrading from v46 or earlier:** re-run, then commit the new `build`. The deploy runs the copy in the repo, so until it's committed a failed deploy still shows lychee's old report.
 
@@ -92,9 +96,9 @@ Edit these at the top of the script.
 
 ## Re-running vs. hand edits
 
-A re-run re-resolves the current mdBook release, refreshes `bin/mdbook`, installs `bin/lychee` if it is missing or another version, re-pins the workflow, and regenerates every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent). A re-run also clears `theme/head.hbs` and `theme/fonts/fonts.css` and writes back only what the current settings call for, so switching `THEME_MODE` or `LIGHT_THEME` never leaves a stale override behind — in particular, never a `fixed`-mode `head.hbs` in a `default`-mode book, where it would stop the picker remembering any choice. (Building by hand: on a switch to `default`, delete `theme/fonts/fonts.css`, and replace `theme/head.hbs` with the one in "Light and dark in `default` mode", or delete it too if you also set `LIGHT_THEME=true`.)
+A re-run re-resolves the current mdBook release, refreshes `bin/mdbook`, installs `bin/lychee` if it is missing or another version, re-pins the workflow, and regenerates every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent), and so is `README.md` (written only when there's none). A re-run also clears `theme/head.hbs` and `theme/fonts/fonts.css` and writes back only what the current settings call for, so switching `THEME_MODE` or `LIGHT_THEME` never leaves a stale override behind — in particular, never a `fixed`-mode `head.hbs` in a `default`-mode book, where it would stop the picker remembering any choice. (Building by hand: on a switch to `default`, delete `theme/fonts/fonts.css`, and replace `theme/head.hbs` with the one in "Light and dark in `default` mode", or delete it too if you also set `LIGHT_THEME=true`.)
 
-So: edit `src/` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `build`, the workflow, or `README.md` do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run. To bump mdBook while keeping such hand edits, see "Update mdBook" (the manual path).
+So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `build` or the workflow do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run. To bump mdBook while keeping such hand edits, see "Update mdBook" (the manual path).
 
 ## The reading theme (fixed mode)
 
@@ -105,8 +109,10 @@ So: edit `src/` freely and re-run whenever you like. But **hand edits to `book.t
 - **A 60px menu bar** (mdBook ships 50px), giving a 24px serif title room to breathe above the body text that scrolls under it.
 - **A full palette.** mdBook defines ~43 colour variables per theme; the script overrides every one that paints — not just the page and sidebar, but blockquotes, tables, the search UI, icons, the separator, and the code-block ground. Without this, the first table or blockquote on a page shows the stock theme's blues. With `LIGHT_THEME=true` the dark palette is the base and the light one is gated behind `prefers-color-scheme: light` — see "Why the dark palette comes first" below.
 - **A sidebar that sits close to the page.** `--sidebar-bg` is about two points of CIELAB lightness off `--bg` in both modes: enough for the column to read as its own surface, little enough that the page reads as one tone rather than two panels. It does not match the blockquote/code ground, which is a heavier tint doing a different job. It cannot go to zero either — mdBook draws no border on `.sidebar`, so this tint is the only boundary the column has.
-- **Hairlines under H1 and H2**, and the same weight/colour on a chapter's `---` rule and a `SUMMARY.md` `---` separator (mdBook draws those two differently by default).
-- **Inked, underlined links** (mdBook's default is undecorated), including search results.
+- **One hairline closing each chapter's title block** — the H1, its subtitle, and the `Last updated` line the deployed site adds — under whichever comes last. Headings below the title draw none unless you write `---` straight after one. A chapter's `---` and a `SUMMARY.md` `---` separator take the same weight and colour (mdBook draws those two differently by default). See "Headings and rules."
+- **Headings that sit close to their own text.** Each heading's margins scale with its own size, and whatever follows a heading starts right under it. H3 is a step above the text; H4 to H6 are text size, told apart by style: bold italic, italic, muted italic.
+- **Inked, underlined links** (mdBook's default is undecorated), including search results. A link in the text turns blue once followed; footnote numbers, the links in notes and heading anchors keep their colour, and in print every link is ink.
+- **Nested numbered lists count `1.1`, `1.2`.** Number each level the ordinary way (`1.`, `2.`, `3.`), indented under the item above, and the stylesheet draws `2.1`, `2.2`. A list that starts at another number keeps the browser's own numbers, because a stylesheet counter can't read where a list starts.
 - **A repainted code-block ground.** mdBook paints code backgrounds from the highlight.js stylesheet, not a theme variable, so the palette can't reach it; the script repaints it (`--code-bg`) onto the same raised tint blockquotes use, leaving the syntax token colours untouched.
 - **Inline code with a ground of its own.** mdBook paints none — it gives inline `<code>` padding and a radius and leaves the fill to whichever highlight sheet is live, which is off this palette either way. The script gives it a warm fill (`--inline-bg`), the theme's accent for the text, and a hairline drawn as an inset shadow so the pill's metrics don't shift.
 
@@ -258,6 +264,23 @@ Either source **replaces mdBook's bundled `favicon.svg` and drops its `favicon.p
 
 Finally, `theme/favicon.svg` is script-owned but **never deleted** — only overwritten. Removing `src/logo.svg`, or setting `FAVICON_TEXT=""`, stops the file being *regenerated*; it does not remove the one already there, and the site goes on serving the last mark written. That is deliberate: a stale favicon does no harm beyond being out of date, and clearing it on every run would destroy a favicon a hand-built or hand-edited tree had put there, which no re-run could give back. To actually clear it, clear both sources and then delete `theme/favicon.svg` by hand.
 
+## Headings and rules
+
+In `fixed` mode a chapter's title is one block: the H1, the subtitle under it if there is one, and the `Last updated` line the deployed site adds. One hairline closes the block, under whichever of the three comes last, so on a local build it sits under the subtitle and on the live site under the date.
+
+Below the title, headings draw no rules. A `---` divides the page, with space above and below it; written on the line straight after a heading, it underlines that heading instead:
+
+```markdown
+## Setting up
+---
+
+Body text starts here.
+```
+
+Under a heading that has a subtitle, put the `---` after the subtitle, with a blank line between them, and it underlines the two together. The blank line matters: the subtitle's `<p>` starts an HTML block that runs to the next blank line, so a `---` straight under it is printed as three dashes.
+
+Don't write one under the chapter's H1: the title block has its rule already, and a `---` there draws a second.
+
 ## Subtitles
 
 To hang a subtitle under a heading, put a marked paragraph on the line below it:
@@ -271,7 +294,7 @@ Body text starts here.
 
 mdBook passes block-level HTML through verbatim, so the `<p>` renders as-is. The starter `chapter_1.md` includes one as an example (delete the line if you don't want it). It's styled in `fixed` mode only.
 
-When the subtitle sits directly under an H1 or H2, the heading and its subtitle **share one hairline** instead of drawing two — the rule moves onto the subtitle and the heading's own rule is removed. A bare heading keeps its rule; an H3 (no rule of its own) and any other position get only the muted italic, no rule.
+Under the chapter's H1 the subtitle is part of the title block, and the block's rule sits below it — or below the `Last updated` line, on the deployed site (see "Headings and rules"). Under any other heading it is the muted italic alone; a `---` after it, with a blank line between them, draws a rule under the pair.
 
 One caveat: **markdown syntax inside the `<p>` is not parsed.** `**bold**` stays literal. If a subtitle needs emphasis or a link, write it as HTML (`<em>`, `<a>`). (If you need markdown-in-subtitle often, a `<span class="mdb-subtitle">` on its own line *does* get its markdown parsed, but the span is inline and can't take the block rule directly — the `<p>` form is the default for that reason.)
 
@@ -409,11 +432,11 @@ To cut a release tag:
 git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
 ```
 
-The workflow fires on tag pushes as well as branch pushes (`tags: ['v*']`), so the tag alone deploys and stamps. A repo with no tag yet shows just the date and commit; add the first tag and the version appears from then on.
+The workflow fires on tag pushes as well as branch pushes (`tags: ['v*']`), so the tag alone deploys and stamps, once step 4 of "Push to GitHub" lets tags deploy. Without that rule the tag's run builds, then stops at its deploy job with `Tag "v0.2.0" is not allowed to deploy to github-pages due to environment protection rules`, and the live site keeps its last build; add the rule, then re-run the failed job from the Actions tab. A repo with no tag yet shows just the date and commit; add the first tag and the version appears from then on.
 
 ## The last-updated line
 
-Each chapter carries a small **`Last updated <when>`** line under its H1 (below the subtitle when there is one). The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1 --format=%aI` over every file in `src/` and stamps the result into `custom.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it.
+Each chapter carries a **`Last updated <when>`** line under its H1 (below the subtitle when there is one), set like a date line: italic, a little smaller than the text, and muted. In `fixed` mode it is the last line of the title block, so the title's rule sits under it. The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1 --format=%aI` over every file in `src/` and stamps the result into `custom.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it.
 
 Like the footer, it is **relative** — rendered by one shared formatter: under an hour reads "just now", then "N hours ago" for the rest of the same calendar day, then "yesterday", "two days ago", "three days ago", and from four days out the plain local date (`YYYY-MM-DD`). It is computed once at load — no ticking clock — and the element's `title` carries the exact ISO timestamp, so hovering shows the precision the words drop. A time in the future (clock skew) clamps to "just now".
 
@@ -456,7 +479,10 @@ One time:
    ```
 
    (use your `DEPLOY_BRANCH` if you changed it). If you left `GIT_REPO_URL` empty, add the remote first: `git remote add origin git@github.com:user/repo.git`.
-3. **Enable Pages once, by hand:** Settings → Pages → Source → **GitHub Actions**. The workflow does *not* enable Pages for you (it can't — `actions/configure-pages` can only enable Pages with a stored personal access token, which this script won't ask you to keep). This is the one manual step; after it, every push deploys automatically.
+3. **Enable Pages once, by hand:** Settings → Pages → Source → **GitHub Actions**. The workflow does *not* enable Pages for you (it can't — `actions/configure-pages` can only enable Pages with a stored personal access token, which this script won't ask you to keep).
+4. **Let release tags deploy, once:** Settings → Environments → **github-pages**. GitHub limits that environment to your default branch, so it lists one rule, `main` (or your `DEPLOY_BRANCH`). Click **Add deployment branch or tag rule**, set Ref type to **Tag**, enter `v*`, and click **Add rule**. If it says **No restriction** instead, there's nothing to add. The workflow can't do this for you either: changing an environment's rules takes administration access to the repo, which a workflow's token can't be given.
+
+After these two settings, every push to `main` (or your `DEPLOY_BRANCH`) and every `v*` tag deploys automatically.
 
 The workflow runs with a least-privilege token (`contents: read`, plus `pages: write` and `id-token: write` for the deploy), so no other repo permission changes are needed. Pages itself requires a **public** repo, or a paid plan for a **private** one; an org-owned repo also needs Pages allowed by org policy.
 
@@ -652,7 +678,7 @@ Read "The favicon" above before you rely on this: the letters will not be in Cha
 
 ### 9. `custom.css`
 
-The reading theme. In brief, it: hides the theme picker; sets the serif stack, the ~700px measure, and a 60px menu bar; styles headings with hairlines under H1/H2, the subtitle, blockquotes, asides, and underlined links; defines the full light/dark **palette** (mdBook paints ~43 variables per theme — overriding only page and sidebar leaves tables, quotes, search, and icons in the stock blues); repaints the code-block ground (`--code-bg`), the inline-code pill (`--inline-bg`) and the comment token (`--code-comment`, so comments clear WCAG AA on the dark ground), all of which live in a highlight sheet the palette can't otherwise reach; forces ink-on-paper for print; holds the two columns' first lines level; draws the sidebar separator/part rules; styles the sidebar footer, the per-page last-updated line and the print-back link that `custom.js` injects; the text masthead; and the line-number gutter.
+The reading theme. In brief, it: hides the theme picker; sets the serif stack, the ~700px measure, and a 60px menu bar; styles headings (one hairline closing the chapter's title block, and a `---` straight after a heading as its underline), the subtitle, blockquotes, asides, nested numbered lists, and underlined links that turn blue once followed; defines the full light/dark **palette** (mdBook paints ~43 variables per theme — overriding only page and sidebar leaves tables, quotes, search, and icons in the stock blues); repaints the code-block ground (`--code-bg`), the inline-code pill (`--inline-bg`) and the comment token (`--code-comment`, so comments clear WCAG AA on the dark ground), all of which live in a highlight sheet the palette can't otherwise reach; forces ink-on-paper for print; holds the two columns' first lines level; draws the sidebar separator/part rules; styles the sidebar footer, the per-page last-updated line and the print-back link that `custom.js` injects; the text masthead; and the line-number gutter.
 
 The palette is written for the theme name(s) in `book.toml`. Dark-only — the file below — that is one name, `ayu`, appearing twice: in the palette selector and again in the `@media print` selector. Rename the theme and you must rename both, or the palette applies to nothing.
 
@@ -661,7 +687,7 @@ For a book with both palettes, three things change together: `default-theme = "l
 ```css
 @media (prefers-color-scheme: light){
 html.light{
-  --bg:#fdfcf7;--fg:#191713;--links:#191713;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
+  --bg:#fdfcf7;--fg:#191713;--links:#191713;--visited:#295a8e;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
   --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
   --sidebar-bg:#f8f6ee;--sidebar-fg:#3a3a34;--sidebar-active:#b5540a;
   --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
@@ -695,13 +721,38 @@ html.light{
 html{font-family:var(--serif);}
 .sidebar{font-size:1.6rem;}
 .content{font-size:1.9rem;line-height:1.55;}
-.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0 .4em;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h2{font-size:2.5rem;line-height:1.18;margin:3rem 0 .85rem;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h3{font-size:1.9rem;line-height:1.18;margin:2.25rem 0 .55rem;}
 
-/* Subtitle: <p class="mdb-subtitle"> under a heading, below its rule. */
+/* Headings: margins in em of each one's own size; H4 to H6 at text size, told
+   apart by style, never smaller than the text. No rules under them but the
+   title block's, and a --- written straight after one. */
+.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h2{font-size:2.5rem;line-height:1.18;margin:1.5em 0 .4em;}
+.content h3{font-size:2.15rem;line-height:1.18;margin:1.18em 0 .29em;}
+.content h4{font-size:1em;line-height:1.18;font-style:italic;margin:1.4em 0 .3em;}
+.content h5{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;margin:1.3em 0 .3em;}
+.content h6{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;color:var(--muted);margin:1.1em 0 .3em;}
+.content h6 .header:is(:link,:visited){color:inherit;}
+
+/* What follows a heading starts right under it, as does the first line inside
+   a quote or aside there: its own top margin would beat the heading's smaller
+   bottom one. A heading after a heading keeps its space above. */
+.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6),.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6) > :first-child{margin-block-start:0;}
+
+/* A --- straight after a heading, or after its subtitle, underlines it rather
+   than dividing the page. */
+.content main :is(h2,h3,h4,h5,h6):has(+ hr),.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle:has(+ hr){margin-block-end:.3em;}
+.content main :is(h2,h3,h4,h5,h6) + hr,.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle + hr{margin-block:0 1.6rem;}
+
+/* Subtitle: <p class="mdb-subtitle"> straight under a heading. */
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
-.content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.5rem;}
+.content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
+
+/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
+   adds, when there; one rule closes it, under whichever comes last. */
+.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+.content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
+.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
 
 /* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
    rule stays flush with the text. */
@@ -717,18 +768,33 @@ html{font-family:var(--serif);}
 /* Links in notes muted too: the underline marks them, not the colour. */
 .content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
 
-/* Underlined links (colour from --links), search results included. */
+/* Underlined links (colour from --links), search results included. Followed,
+   a link in the text takes --visited (:visited can change colours only); a
+   footnote number keeps its colour, and a link in a note stays muted (above). */
 .content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
 #mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
+.content main a:visited{color:var(--visited);}
+.content .footnote-reference a:visited{color:var(--links);}
+
+/* A numbered list inside a numbered list counts 1.1, 1.2.1 (Markdown has no
+   "1.1"). A counter can't read <ol start>, so a list Markdown restarted keeps
+   the browser's own numbers rather than wrong ones. */
+.content main ol{counter-reset:outline;}
+.content main ol > li{counter-increment:outline;}
+.content main ol ol > li{list-style:none;position:relative;}
+.content main ol ol > li::before{content:counters(outline,".");position:absolute;inset-inline-end:100%;padding-inline-end:.25em;}
+.content main ol[start] ol > li,.content main ol ol[start] > li{list-style:revert;}
+.content main ol[start] ol > li::before,.content main ol ol[start] > li::before{content:none;}
 
 /* Palette: every colour variable mdBook paints, not just page and sidebar;
    admonition accents left alone. With LIGHT_THEME=true the dark block names both
    classes and comes first, the light one follows behind its media query, so no
    light frame paints under a dark OS (guide: "Why the dark palette comes
    first"). The class in each selector is load-bearing: html alone loses to
-   mdBook's .<theme>. --code-bg, --inline-bg and --code-comment are ours. */
+   mdBook's .<theme>. Ours, not mdBook's: --muted, --rule, --rule-strong,
+   --inline-bg, --inline-border, --code-bg, --code-comment, --visited. */
 html.ayu{
-  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
+  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--visited:#94b9dc;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
   --sidebar-bg:#161613;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
@@ -759,7 +825,7 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
    html alone loses on specificity and the override never applies. */
 @media print{
   html.ayu{
-       --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
+       --bg:#fff;--fg:#111;--links:#111;--visited:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;--code-comment:#555;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
@@ -780,8 +846,10 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 .sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
-/* The per-page "Last updated <when>" line custom.js inserts under the chapter H1. */
-.content .mdb-updated{margin-block:.6rem 0;font-size:.75em;color:var(--muted,#999);}
+/* The per-page "Last updated <when>" line custom.js inserts under the chapter
+   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   default mode mixes a muted colour from its theme's own. */
+.content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}
@@ -1122,7 +1190,7 @@ book/
 
 ### 12. `README.md`
 
-Repo-root readme. Without a repo it's just the title (**change** it to yours):
+Repo-root readme. The script writes it once, on the first run; after that it's yours. Without a repo it's just the title (**change** it to yours):
 
 ```markdown
 # mybook

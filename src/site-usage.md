@@ -16,7 +16,6 @@ This is not unique to Docwright, but in case you didn't know: <kbd>Alt</kbd>+<kb
 | Icon | What it does |
 |------|--------------|
 | <i class="fas fa-bars"></i> Three bars | Opens and closes the sidebar. Same as <kbd>b</kbd>. |
-| <i class="fas fa-paintbrush"></i> Paintbrush | Switches between the site's colour themes. Your pick is remembered for your next visit. |
 | <i class="fas fa-magnifying-glass"></i> Magnifying glass | Opens the search bar. Same as <kbd>s</kbd> or <kbd>/</kbd>. |
 | <i class="fas fa-print"></i> Printer | Lays the whole site out as one long page, for printing or saving as a PDF. To print only the page you're reading, press <kbd>Ctrl</kbd>+<kbd>p</kbd> instead. |
 | <i class="fas fa-pencil"></i> Pencil | Opens the source of this page on GitHub, so you can suggest a fix if you spot a mistake. |

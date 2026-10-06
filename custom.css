@@ -18,13 +18,38 @@
 html{font-family:var(--serif);}
 .sidebar{font-size:1.6rem;}
 .content{font-size:1.9rem;line-height:1.55;}
-.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0 .4em;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h2{font-size:2.5rem;line-height:1.18;margin:3rem 0 .85rem;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h3{font-size:1.9rem;line-height:1.18;margin:2.25rem 0 .55rem;}
 
-/* Subtitle: <p class="mdb-subtitle"> under a heading, below its rule. */
+/* Headings: margins in em of each one's own size; H4 to H6 at text size, told
+   apart by style, never smaller than the text. No rules under them but the
+   title block's, and a --- written straight after one. */
+.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h2{font-size:2.5rem;line-height:1.18;margin:1.5em 0 .4em;}
+.content h3{font-size:2.15rem;line-height:1.18;margin:1.18em 0 .29em;}
+.content h4{font-size:1em;line-height:1.18;font-style:italic;margin:1.4em 0 .3em;}
+.content h5{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;margin:1.3em 0 .3em;}
+.content h6{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;color:var(--muted);margin:1.1em 0 .3em;}
+.content h6 .header:is(:link,:visited){color:inherit;}
+
+/* What follows a heading starts right under it, as does the first line inside
+   a quote or aside there: its own top margin would beat the heading's smaller
+   bottom one. A heading after a heading keeps its space above. */
+.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6),.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6) > :first-child{margin-block-start:0;}
+
+/* A --- straight after a heading, or after its subtitle, underlines it rather
+   than dividing the page. */
+.content main :is(h2,h3,h4,h5,h6):has(+ hr),.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle:has(+ hr){margin-block-end:.3em;}
+.content main :is(h2,h3,h4,h5,h6) + hr,.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle + hr{margin-block:0 1.6rem;}
+
+/* Subtitle: <p class="mdb-subtitle"> straight under a heading. */
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
-.content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.5rem;}
+.content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
+
+/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
+   adds, when there; one rule closes it, under whichever comes last. */
+.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+.content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
+.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
 
 /* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
    rule stays flush with the text. */
@@ -40,18 +65,33 @@ html{font-family:var(--serif);}
 /* Links in notes muted too: the underline marks them, not the colour. */
 .content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
 
-/* Underlined links (colour from --links), search results included. */
+/* Underlined links (colour from --links), search results included. Followed,
+   a link in the text takes --visited (:visited can change colours only); a
+   footnote number keeps its colour, and a link in a note stays muted (above). */
 .content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
 #mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
+.content main a:visited{color:var(--visited);}
+.content .footnote-reference a:visited{color:var(--links);}
+
+/* A numbered list inside a numbered list counts 1.1, 1.2.1 (Markdown has no
+   "1.1"). A counter can't read <ol start>, so a list Markdown restarted keeps
+   the browser's own numbers rather than wrong ones. */
+.content main ol{counter-reset:outline;}
+.content main ol > li{counter-increment:outline;}
+.content main ol ol > li{list-style:none;position:relative;}
+.content main ol ol > li::before{content:counters(outline,".");position:absolute;inset-inline-end:100%;padding-inline-end:.25em;}
+.content main ol[start] ol > li,.content main ol ol[start] > li{list-style:revert;}
+.content main ol[start] ol > li::before,.content main ol ol[start] > li::before{content:none;}
 
 /* Palette: every colour variable mdBook paints, not just page and sidebar;
    admonition accents left alone. With LIGHT_THEME=true the dark block names both
    classes and comes first, the light one follows behind its media query, so no
    light frame paints under a dark OS (guide: "Why the dark palette comes
    first"). The class in each selector is load-bearing: html alone loses to
-   mdBook's .<theme>. --code-bg, --inline-bg and --code-comment are ours. */
+   mdBook's .<theme>. Ours, not mdBook's: --muted, --rule, --rule-strong,
+   --inline-bg, --inline-border, --code-bg, --code-comment, --visited. */
 html.ayu{
-  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
+  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--visited:#94b9dc;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
   --sidebar-bg:#161613;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
@@ -82,7 +122,7 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
    html alone loses on specificity and the override never applies. */
 @media print{
   html.ayu{
-       --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
+       --bg:#fff;--fg:#111;--links:#111;--visited:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;--code-comment:#555;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
@@ -103,8 +143,10 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 .sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
-/* The per-page "Last updated <when>" line custom.js inserts under the chapter H1. */
-.content .mdb-updated{margin-block:.6rem 0;font-size:.75em;color:var(--muted,#999);}
+/* The per-page "Last updated <when>" line custom.js inserts under the chapter
+   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   default mode mixes a muted colour from its theme's own. */
+.content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}

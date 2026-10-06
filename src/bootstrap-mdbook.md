@@ -8,202 +8,53 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v43 — bootstrap an mdBook project and deploy it to
-# GitHub Pages. Linux x86_64 only.
+# bootstrap-mdbook.sh, v49
 #
-# Installs the current mdBook release, writes a ready-to-edit book under
-# PROJECT_DIR/BOOK_NAME, wires a first-party GitHub Pages deploy workflow pinned to
-# that mdBook version and its exact bytes, and opens a live preview. After the first
-# push, enable Pages once by hand: Settings -> Pages -> Source -> "GitHub Actions"
-# (the workflow cannot; configure-pages needs a stored PAT this script won't ask for).
+# Bootstraps an mdBook book at PROJECT_DIR/BOOK_NAME, pins mdBook (version and
+# tarball sha256) into a first-party GitHub Pages workflow, and opens a live
+# preview. Re-running is the update path: the script-owned files regenerate;
+# src/ and README.md are written once and never touched. Linux x86_64 only.
 #
-# The mdBook version is pinned: CI verifies the tarball's sha256 against the digest
-# installed here, so a new/re-pointed release never changes your published book.
-# Re-running is the update path — it re-pins everything and leaves src/ untouched;
-# book.toml, theme/, custom.css, custom.js and the workflow are script-owned and
-# regenerate, so hand edits to them do not survive a re-run (see guide).
+#   bash bootstrap-mdbook.sh    create or update the book, check it, preview it
+#   ./build                     in the book: build it, and stop on a broken link
 #
-# GIT_REPO_URL (an https github.com URL) wires the edit-page icon, site-url (so the
-# 404 page resolves assets at any depth), the README link, and the git 'origin'
-# remote. Left empty, the icon and site-url are omitted. No repo icon is written: it
-# duplicates the commit link the sidebar footer already carries.
-#
-# Fixed theme mode ships a reading theme (self-hosted Charter, ~700px measure, warm
-# ink on a near-black ground, inked-underlined links, hairlines under H1/H2) and a
-# palette covering every colour mdBook paints. It is dark for every reader unless
-# LIGHT_THEME is true, which writes the light counterpart as well and lets the
-# reader's browser or OS light/dark preference choose between the two. Drop the four Charter woff2 into
-# src/fonts/ and re-run to enable the face; until then a serif fallback renders and no
-# @font-face is emitted. Fixed mode also writes theme/: head.hbs clears a stale saved
-# theme (picker hidden; localStorage shared across one github.io origin), and
-# fonts/fonts.css drops mdBook's Open Sans + Source Code Pro (~493KB) it doesn't use.
-#
-# Default theme mode keeps mdBook's own themes and picker. LIGHT_THEME applies there
-# too and means the same thing: false (the default) gives no reader a light theme.
-# Both theme keys are pinned to PREFERRED_DARK, custom.js removes the Light and Rust
-# rows from the picker, and theme/head.hbs clears a light choice saved earlier.
-# Coal, Navy, Ayu and Auto stay, and a choice among them still sticks.
-#
-# Every book loads custom.js: 'b' toggles the sidebar (listed in mdBook's '?' popup),
-# off-site links open in a new tab, print.html gets a back link, code blocks that
-# overflow sideways are keyboard-scrollable (tabindex="0" on exactly those, re-checked
-# on resize), and a sidebar-footer line shows the build ("<version> · updated <when> ·
-# <sha>"). The version is git-describe (v1.2 on the tag, v1.2+5 five commits later).
-# <when>, here and in the per-page "Last updated <when>" line each chapter carries
-# under its H1, is a relative time — "3 hours ago", "yesterday", then the plain date —
-# computed once at load, with the exact timestamp on the element's title attribute.
-# The build time and the per-page dates (each chapter source's last commit) are
-# stamped by the workflow, so a local build shows no footer line and no dates. See
-# guide.
-#
-# CI link-checks the built book (lychee, offline, anchors included) after the build
-# and before the deploy, so a broken internal link or #fragment fails the deploy
-# instead of shipping; the live site keeps serving the last good build. print.html
-# (every chapter again) and 404.html (its <base href> is the site-url) are excluded
-# as inputs. lychee is pinned by version and digest like mdBook; see internals.
-#
-# CODE_LINE_NUMBERS (default on) numbers language-fenced code blocks of 10+ lines with
-# a gutter beside <code> (never inside it, so the copy button stays exact).
-#
-# SIDEBAR_MASTHEAD (none | text | image) fills the sidebar band opposite the menu bar.
-# "text" = BOOK_TITLE in the menu-bar title's face, sticky, with a hairline on scroll;
-# "image" = src/logo.svg masked into the band; "none" = the title stays in the bar.
-#
-# FAVICON_TEXT is the second source for theme/favicon.svg, which is written in every
-# theme and masthead mode. src/logo.svg, present, is copied verbatim and always wins;
-# failing that, FAVICON_TEXT is drawn as letters ("auto" = the first alphanumeric of
-# BOOK_TITLE, "" = nothing, leaving mdBook's bundled icon). A drawn mark is not in
-# Charter and cannot be — a favicon is fetched as an image, and an image loads no
-# @font-face. See guide.
-#
-# src/unlisted/ is a reserved directory. A chapter listed from there is published and
-# reachable, but its sidebar row is hidden and the prev/next links into it are removed
-# (so the arrow keys skip it too), and book.toml drops the whole directory from the
-# search index. No toggle and no per-page edit: the path is the whole convention. List
-# such chapters LAST in SUMMARY.md, and note print.html still concatenates them. This
-# is unlisted, not private. See guide.
-#
-# In fixed mode a heading may carry a subtitle — <p class="mdb-subtitle">…</p> on the
-# line under it (renders below the rule, muted italic) — and a digression an
-# <aside>…</aside> (muted, smaller, thin left rule). No markdown is parsed inside
-# either; write emphasis/links as HTML. See guide.
+# After the first push, set Settings -> Pages -> Source -> "GitHub Actions" once.
+# How to use it: mdb-guide.md. The comments here are for reviewers.
 
 set -euo pipefail
 
 ## ─── user configuration ──────────────────────────────────────────────────
-# edit these
+# Each setting: mdb-guide.md, "The toggles". A re-run applies what changed here.
 
-PROJECT_DIR="$HOME/Desktop"               # parent folder your books live under
-BOOK_NAME="mybook"                        # the book's folder under PROJECT_DIR:
-                                          # letters, digits, . _ - (a GitHub repo
-                                          # name's characters). Readers never see it
-BOOK_TITLE="mybook"                       # the title readers see; quotes and /
-                                          # are fine
-BOOK_AUTHOR="John Doe"                    # rendered in book.toml
-DEPLOY_BRANCH="main"                      # CI trigger + git default branch
-HEADING_NUMBERS=false                     # true enables mdbook-numbering (h2-h6)
-SIDEBAR_NUMBERS=true                      # sidebar chapter numbers (1., 1.1.);
-                                          # false hides them (no-section-label)
-THEME_MODE="fixed"                        # "fixed" (default): hide the picker,
-                                          #   OS drives PREFERRED_LIGHT/DARK.
-                                          # "default": stock mdBook themes +
-                                          #   picker, without Light and Rust
-                                          #   while LIGHT_THEME is false. NB the
-                                          #   value named "default" is NOT the
-                                          #   default.
-LIGHT_THEME=false                         # false (default): no reader gets a light
-                                          #   theme, in either mode. Fixed: the book is
-                                          #   dark whatever the browser or OS is set
-                                          #   to. Default: the picker offers only the
-                                          #   dark themes. true, fixed: the light
-                                          #   palette is written too, and the reader's
-                                          #   prefers-color-scheme picks between the
-                                          #   two, with no in-page control. true,
-                                          #   default: mdBook's stock picker, light
-                                          #   themes included. PREFERRED_LIGHT is
-                                          #   consulted only in fixed mode with this
-                                          #   true.
-PREFERRED_LIGHT="light"                   # light-mode theme (fixed mode, LIGHT_THEME
-                                          # true only)
-PREFERRED_DARK="ayu"                      # dark theme: coal, navy or ayu. Used in
-                                          # fixed mode, and in default mode while
-                                          # LIGHT_THEME is false.
-GIT_REPO_URL=""                           # https://github.com/user/repo — icons,
-                                          # site-url, README link, origin remote;
-                                          # empty -> icons and site-url omitted
-CODE_LINE_NUMBERS=true                    # line numbers on language-fenced code
-                                          # blocks of 10 lines or more (a gutter
-                                          # beside <code>; copy button and Ctrl+C
-                                          # stay exact). Shorter blocks: no numbers
-SIDEBAR_MASTHEAD="text"                   # what fills the sidebar band opposite the
-                                          # menu bar. One of:
-                                          #  "text"  (default) BOOK_TITLE, set in the
-                                          #     menu-bar title's own face, size and
-                                          #     baseline and left-aligned with the
-                                          #     chapters below it; the menu-bar title
-                                          #     fades out while the sidebar is showing.
-                                          #     Needs no file and no configuration:
-                                          #     rename the book and the mark follows.
-                                          #  "none"  nothing; the book title stays in
-                                          #     the menu bar, as mdBook ships it.
-                                          #  "image" src/logo.svg, masked into the
-                                          #     band and painted in the sidebar text
-                                          #     colour — so ONE file serves light and
-                                          #     dark. That makes it an ALPHA mask:
-                                          #     supply a flat silhouette (a monogram)
-                                          #     on a TRANSPARENT ground, or the
-                                          #     painted background masks the whole
-                                          #     band solid. You must add src/logo.svg
-                                          #     yourself; the script warns if it is
-                                          #     missing.
-FAVICON_TEXT="auto"                       # what theme/favicon.svg draws when there is
-                                          # no src/logo.svg. src/logo.svg ALWAYS wins:
-                                          # present, it is copied verbatim, in every
-                                          # theme mode and every masthead mode, and
-                                          # this key is not consulted — so a text
-                                          # masthead and a file favicon coexist.
-                                          # Otherwise the value here is drawn as
-                                          # letters on a transparent ground: no plate,
-                                          # ink in the palette's --fg, swapping to the
-                                          # dark ink under prefers-color-scheme: dark.
-                                          # One of:
-                                          #  "auto" (default) the first alphanumeric
-                                          #     character of BOOK_TITLE — "m" for the
-                                          #     shipped "mybook". Needs no file and no
-                                          #     upkeep: rename the book and the mark
-                                          #     follows.
-                                          #  any other string, drawn as typed, case
-                                          #     preserved, first 3 characters only
-                                          #     (longer truncates, with a warning).
-                                          #  ""     draw nothing, and leave mdBook's
-                                          #     own bundled favicon in place.
-                                          # NB a drawn mark is NOT in Charter and
-                                          # cannot be: a favicon is fetched as an
-                                          # image, and an image never loads an
-                                          # @font-face. The stack below it renders.
-# The version label in the sidebar footer is NOT set here: the deploy workflow reads
-# it out of git and stamps it in, with the build time and the per-page dates. Cut a tag with
+PROJECT_DIR="$HOME/Desktop"               # the folder the book's folder goes in; ~ allowed
+BOOK_NAME="mybook"                        # the book's folder: letters, digits, . _ -
+BOOK_TITLE="mybook"                       # the title readers see
+BOOK_AUTHOR="John Doe"
+DEPLOY_BRANCH="main"                      # pushes here deploy; git's default branch
+HEADING_NUMBERS=false                     # true: numbered headings (mdbook-numbering)
+SIDEBAR_NUMBERS=true                      # sidebar chapter numbers (1., 1.1.)
+THEME_MODE="fixed"                        # "fixed" (default): the reading theme, no picker;
+                                          # "default": mdBook's own themes and picker
+LIGHT_THEME=false                         # false: dark for every reader; true: light allowed
+PREFERRED_LIGHT="light"                   # fixed mode with LIGHT_THEME=true only
+PREFERRED_DARK="ayu"                      # coal, navy or ayu
+GIT_REPO_URL=""                           # https://github.com/user/repo; "" = local only
+CODE_LINE_NUMBERS=true                    # numbers language-fenced blocks of 10+ lines
+SIDEBAR_MASTHEAD="text"                   # "text", "none", or "image" (src/logo.svg)
+FAVICON_TEXT="auto"                       # "auto" (the title's first letter), up to 3
+                                          # characters, or ""; src/logo.svg wins
+# The footer's version label comes from git, stamped by the workflow: the tag on
+# the built commit, or the nearest one plus a count (v1.2+5). Tag a release with
 #   git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
-# The workflow fires on tag pushes as well as branch pushes, so the tag alone is
-# enough to deploy. Commits after it read v0.2.0+1, v0.2.0+2, ... until the next tag
-# — so tagging once a release, not once a commit, still keeps a version on every
-# build. A repository with no tag at all shows just when it was updated and its
-# commit; a local build, which nothing stamps, shows no line.
 
-# Expand leading ~ in PROJECT_DIR (bash doesn't inside quoted assignments).
+# Expand a leading ~ (bash doesn't, inside quotes) and make the path absolute.
 PROJECT_DIR="${PROJECT_DIR/#\~/$HOME}"
-# Make relative paths absolute against $PWD.
 [ "${PROJECT_DIR:0:1}" = "/" ] || PROJECT_DIR="$PWD/$PROJECT_DIR"
-# The book's folder is BOOK_NAME, under PROJECT_DIR. The title is no part of the
-# path, so changing BOOK_TITLE and re-running updates the same book.
 BOOK_DIR="$PROJECT_DIR/$BOOK_NAME"
 
 ## ─── internals ───────────────────────────────────────────────────────────
 
-# Action SHAs. Pinning to a SHA (not a moving tag like @v5) protects against
-# the upstream repo being compromised: a SHA can't be re-pointed. All four are
-# first-party (github.com/actions). Bump occasionally for security fixes;
-# resolve a tag to its commit SHA via:
+# First-party actions, pinned by commit SHA (a tag can be re-pointed). To bump:
 #   git ls-remote https://github.com/actions/REPO refs/tags/TAG^{}
 ACTIONS_CHECKOUT_SHA="9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"         # v7.0.0
 ACTIONS_CONFIGURE_PAGES_SHA="45bfe0192ca1faeb007ade9deae92b16b8254a0d"  # v6.0.0
@@ -213,25 +64,16 @@ ACTIONS_DEPLOY_PAGES_SHA="cd2ce8fcbc39b97be8ca5fce6e763baed58fa128"     # v5.0.0
 # Pinned like everything else the build consumes. Bump deliberately.
 MDBOOK_NUMBERING_VERSION="0.5.0"
 
-# lychee runs the link check in CI only, so unlike mdBook its digest cannot be
-# computed from a local install at run time: both values are recorded here at pin
-# time instead. Bump deliberately: pick a release, download
-#   https://github.com/lycheeverse/lychee/releases/download/lychee-v<V>/lychee-x86_64-unknown-linux-gnu.tar.gz
-# and set LYCHEE_SHA256 to its sha256sum (the release publishes a .sha256 beside
-# the tarball to check yours against).
+# The link checker ./build runs, here and in CI, installed in bin/ beside mdBook:
+# pinned by version and tarball sha256 (the release publishes a .sha256 to check
+# against). Bump both together, and check ./build still reads lychee's report.
 LYCHEE_VERSION="0.24.2"
 LYCHEE_SHA256="1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
 
-# The five theme names mdBook ships. PREFERRED_LIGHT/DARK must be one of these:
-# the palette below is written as html.<name>{...}, so a name mdBook does not
-# emit would silently apply no palette at all.
+# The five themes mdBook ships; PREFERRED_LIGHT/DARK must name one.
 MDBOOK_THEMES="light rust coal navy ayu"
 
-# The three of those on a dark ground. mdBook's variables.css paints --bg at 8-11%
-# lightness for coal, navy and ayu, and at 100% (light) and 87% (rust) for the other
-# two. PREFERRED_DARK must be one of these three: a dark-only book is pinned to it,
-# and in default mode the light two are removed from the picker, so a PREFERRED_DARK
-# of rust would pin the book to a theme it also takes away.
+# The dark three; PREFERRED_DARK must be one, since the book is pinned to it.
 MDBOOK_DARK_THEMES="coal navy ayu"
 
 MDBOOK_VERSION=""
@@ -247,20 +89,13 @@ say()  { echo "$*"; }
 warn() { echo "WARN: $*" >&2; }
 die()  { echo "ERROR: $*" >&2; exit 1; }
 
-# apt's index goes stale on a long-lived install; refresh it before the first
-# install so a missing Packages entry doesn't fail the bootstrap.
+# Refresh apt's index first: a stale one can fail the install.
 apt_install() {
     sudo apt-get update
     sudo apt-get install -y "$@"
 }
 
-# Escape a value for a double-quoted string literal. A TOML basic string, a JS string
-# literal and a CSS string all need the same two escapes here, and v23 carried one
-# function per consumer with byte-identical bodies: backslash first (so the ones we
-# add are not re-escaped), then the double quote. Lets a title, an author or a URL
-# contain an apostrophe or a quote without breaking book.toml, custom.js, or the
-# masthead's content: "..." in custom.css. A literal newline is the only thing that
-# still breaks any of the three, and validate_config rejects it.
+# Escape for a double-quoted TOML, JS or CSS string: backslash first, then ".
 esc_dq() {
     local s="$1"
     s="${s//\\/\\\\}"
@@ -268,20 +103,9 @@ esc_dq() {
     printf '%s' "$s"
 }
 
-# Escape a value for XML character data. A different job from esc_dq, not a variant of
-# it: esc_dq escapes backslash and double quote, which is what a TOML/JS/CSS string
-# literal needs and what an SVG needs NOTHING of, and it leaves &, < and > alone, which
-# is exactly the set an SVG does need. Putting a title's '&' into <text> unescaped
-# makes the file not well-formed, and a browser handed a malformed SVG renders nothing
-# at all rather than the part it could parse — so the favicon would just silently fail.
-# Ampersand first, so the ones added after it are not re-escaped.
-#
-# The backslashes in the replacements are load-bearing and must not be tidied away.
-# Bash treats an UNQUOTED & in a ${var//pat/repl} replacement as the matched text, the
-# way sed does, so ${s//</&lt;} substitutes "<lt;" — the escape it was meant to write,
-# with its ampersand eaten. \& is the literal one. (${s//&/&amp;} happens to survive
-# unescaped, since there the matched text IS an ampersand; escaping it too keeps all
-# three lines saying the same thing.)
+# Escape for XML text (the drawn favicon): & first, so later ones survive. Each &
+# in a replacement is backslashed on purpose: unquoted, bash expands it to the
+# match, so ${s//</&lt;} would give "<lt;".
 esc_xml() {
     local s="$1"
     s="${s//&/\&amp;}"
@@ -290,17 +114,9 @@ esc_xml() {
     printf '%s' "$s"
 }
 
-# Derive the Pages URL and site-url from GIT_REPO_URL, which validate_config has
-# already constrained to https://github.com/user/repo. Both are empty when
-# GIT_REPO_URL is: nothing here can be guessed from an unset remote.
-#
-# site-url matters more than it looks. GitHub Pages serves /repo/404.html for a
-# miss at /repo/a/b/c while the browser's URL stays at the deep path, so the 404
-# page's relative asset links resolve against /repo/a/b/ and every stylesheet and
-# script 404s. Given site-url, mdBook emits <base href="..."> on that page and it
-# renders. A user/org site (the repo literally named user.github.io) publishes at
-# the origin root, so its site-url is "/" and its Pages URL has no repo segment.
-# A custom domain cannot be detected here — set site-url and the README by hand.
+# Pages URL and site-url from GIT_REPO_URL; both empty without one. site-url lets
+# the 404 page find its assets at any depth. A user site (user.github.io)
+# publishes at the root. A custom domain is set by hand.
 derive_pages() {
     SITE_URL=""
     PAGES_URL=""
@@ -326,23 +142,25 @@ main() {
     [ $# -eq 0 ] || die "this script takes no arguments; got: $*"
     validate_config
     derive_pages
+    check_build_file
     mkdir -p "$BOOK_DIR/bin"
     cd "$BOOK_DIR"
     init_git_repo
     ensure_git_remote
     ensure_curl
-    # Resolve the version once; the local binary, the workflow and the digest
-    # check all pin to it.
+    # One version for the local binary, the workflow and the digest check.
     MDBOOK_VERSION=$(get_latest_mdbook_version)
     [ -n "$MDBOOK_VERSION" ] || die "could not resolve the current mdBook version"
     install_mdbook
     [ -n "$MDBOOK_SHA256" ] || die "could not determine the mdBook tarball digest"
+    install_lychee
     write_book_files
     write_theme
     write_custom_css
     write_custom_js
     write_gitignore
     write_readme
+    write_build
     if [ "$HEADING_NUMBERS" = true ]; then
         ensure_cargo
         ensure_mdbook_numbering
@@ -350,12 +168,15 @@ main() {
     fi
     write_workflow
     git_initial_commit
+    # The check CI runs, before the preview: a broken link or anchor stops here.
+    ./build || exit 1
     local port
     port=$(pick_port)
     say ""
+    say "before each push: ./build builds the book and stops on a broken link or anchor."
     say "first deploy: push, then set Settings -> Pages -> Source -> \"GitHub Actions\" once."
     say "done. starting preview at http://127.0.0.1:${port} (Ctrl-C to stop)."
-    say "re-launch later with: cd \"$BOOK_DIR\" && ./bin/mdbook serve --open -n 127.0.0.1 -p ${port}"
+    say "re-launch later with: cd \"$BOOK_DIR\" && ./build && ./bin/mdbook serve --open -n 127.0.0.1 -p ${port}"
     say "run a second book alongside this one by giving it a different -p port."
     say ""
     ./bin/mdbook serve --open -n 127.0.0.1 -p "$port"
@@ -363,19 +184,18 @@ main() {
 
 ## ─── checks ──────────────────────────────────────────────────────────────
 
-# book.toml values are written as escaped double-quoted basic strings, so quotes
-# are safe. A literal newline is the only thing that still breaks them, and it is
-# never valid in any of these fields, so reject it outright.
+# ./build is this script's (it names bootstrap-mdbook.sh); a book's own script by
+# that name is left alone, and the run stops before anything is written.
+check_build_file() {
+    [ -e "$BOOK_DIR/build" ] || return 0
+    grep -q 'bootstrap-mdbook.sh' "$BOOK_DIR/build" && return 0
+    die "$BOOK_DIR/build exists and wasn't written by this script; move it aside (mv build build.own), then re-run. nothing has been changed."
+}
+
+# A newline is the one thing the escaped strings can't carry, so it is refused.
 validate_config() {
-    # BOOK_NAME is only ever a folder name, so it gets a GitHub repository name's
-    # characters and nothing else: the folder and the repo can share a name, and
-    # nothing in it expands when the 'cd "..."' line main prints is pasted into a
-    # shell. Not starting with '.' (hidden, or '..') or '-' (read as an option).
-    #
-    # The set is spelled out, not written as A-Za-z0-9, and must stay that way. Bash
-    # compares a character above U+00FF with a range by the locale's collation,
-    # globasciiranges or not, so under en_IN.UTF-8 or en_US.UTF-8 a range lets 'ń',
-    # 'ā' or '३' through as if they were ASCII.
+    # BOOK_NAME is a folder (and usually the repo) name: GitHub's characters only,
+    # spelled out, not ranges: under a UTF-8 locale a range lets 'ń' or '३' through.
     case "$BOOK_NAME" in
         ""|.*|-*|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*)
             die "BOOK_NAME is the book's folder: letters, digits, '.', '_' and '-' only, not starting with '.' or '-', got: '$BOOK_NAME'" ;;
@@ -390,14 +210,10 @@ validate_config() {
     case "$LIGHT_THEME"     in true|false) ;; *) die "LIGHT_THEME must be true or false, got: $LIGHT_THEME" ;; esac
     case "$CODE_LINE_NUMBERS" in true|false) ;; *) die "CODE_LINE_NUMBERS must be true or false, got: $CODE_LINE_NUMBERS" ;; esac
     case "$SIDEBAR_MASTHEAD"  in none|text|image) ;; *) die "SIDEBAR_MASTHEAD must be none, text or image, got: $SIDEBAR_MASTHEAD" ;; esac
-    # FAVICON_TEXT is free-form — it is drawn, not matched — so this is the same
-    # newline check every other free-form string here gets, and nothing more. It is
-    # not a validity check on the SVG: a control character would still make the file
-    # invalid XML, and esc_xml does not encode one. Type letters.
+    # Free-form, like the strings above: only newlines are refused.
     case "$FAVICON_TEXT"      in *$'\n'*|*$'\r'*) die "FAVICON_TEXT must not contain newlines" ;; esac
 
-    # A theme name mdBook does not ship would leave html.<name> matching nothing,
-    # so the palette would silently not apply. Catch the typo here instead.
+    # A theme mdBook doesn't ship would leave the palette matching nothing.
     local t found
     for v in PREFERRED_LIGHT PREFERRED_DARK; do
         found=false
@@ -411,11 +227,7 @@ validate_config() {
         *) die "PREFERRED_DARK must be a dark theme, one of: $MDBOOK_DARK_THEMES (got: $PREFERRED_DARK)" ;;
     esac
 
-    # Everything downstream — the edit icon, site-url, the Pages URL,
-    # the origin remote, the commit links in the sidebar footer — assumes GitHub
-    # over https, and the deploy path is GitHub Actions to GitHub Pages regardless.
-    # An ssh or non-GitHub URL would produce a broken icon and a nonsense Pages URL,
-    # so require the one form that works.
+    # Everything downstream assumes https github.com.
     case "$GIT_REPO_URL" in
         "") ;;
         *$'\n'*|*$'\r'*) die "GIT_REPO_URL must not contain newlines or carriage returns" ;;
@@ -425,7 +237,7 @@ validate_config() {
 }
 
 ## ─── install ─────────────────────────────────────────────────────────────
-# curl, mdBook, cargo, mdbook-numbering, git
+# curl, mdBook, lychee, cargo, mdbook-numbering, git
 
 ensure_curl() {
     command -v curl >/dev/null 2>&1 || apt_install curl
@@ -444,15 +256,9 @@ current_mdbook_version() {
     bin/mdbook --version 2>/dev/null | awk '{print $2}'
 }
 
-# Downloads the release tarball, records its sha256, and installs the binary.
-# The digest is the point: the workflow pins the mdBook *version*, but a version
-# tag names a file, not its contents. CI re-downloads that file and checks it
-# against this digest, so the deployed book is built from the same bytes that were
-# installed here. mdBook publishes no digest of its own (the .sha256 asset does not
-# exist), so it has to be computed from the download. The digest is cached beside
-# the binary — bin/ is gitignored — so a re-run that finds the right version
-# already installed still has a digest to pin the workflow with, without
-# re-downloading.
+# Installs the release and records its tarball's sha256, which CI checks its own
+# download against (mdBook publishes no digest). The digest is cached in bin/, so
+# a re-run with the right version installed pins without re-downloading.
 install_mdbook() {
     local version current triple archive url bin
     version="$MDBOOK_VERSION"
@@ -488,6 +294,24 @@ install_mdbook() {
     say "installed: $(./bin/mdbook --version) (sha256 ${MDBOOK_SHA256:0:12}...)"
 }
 
+# lychee into bin/, beside mdBook: ./build's link checker, the same release and
+# bytes CI runs, checked against LYCHEE_SHA256 before anything is installed.
+install_lychee() {
+    local archive="lychee-x86_64-unknown-linux-gnu.tar.gz"
+    if [ -x bin/lychee ] && [ "$(bin/lychee --version 2>/dev/null)" = "lychee ${LYCHEE_VERSION}" ]; then
+        say "lychee ${LYCHEE_VERSION} already installed"
+        return
+    fi
+    [ -n "${TMP_DIR:-}" ] || TMP_DIR=$(mktemp -d)
+    say "downloading lychee ${LYCHEE_VERSION}..."
+    curl --fail -sSL "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/${archive}" \
+        -o "$TMP_DIR/$archive"
+    echo "${LYCHEE_SHA256}  $TMP_DIR/$archive" | sha256sum -c --quiet - \
+        || die "the lychee download does not match LYCHEE_SHA256; nothing was installed"
+    tar -xzf "$TMP_DIR/$archive" -C bin --strip-components=1 "lychee-x86_64-unknown-linux-gnu/lychee"
+    say "installed: $(./bin/lychee --version)"
+}
+
 ensure_cargo() {
     command -v cargo >/dev/null 2>&1 && return
     if [ -f "$HOME/.cargo/env" ]; then
@@ -510,20 +334,15 @@ ensure_cargo() {
     command -v cargo >/dev/null 2>&1 || die "cargo not on PATH after install"
 }
 
-# Version-pinned, like the actions and mdBook itself: an unpinned 'cargo install'
-# was the last floating input in the build.
+# Version-pinned, like mdBook.
 ensure_mdbook_numbering() {
     cargo install --list 2>/dev/null | grep -q "^mdbook-numbering v${MDBOOK_NUMBERING_VERSION}:" && return
     say "installing mdbook-numbering ${MDBOOK_NUMBERING_VERSION}..."
     cargo install --locked --version "$MDBOOK_NUMBERING_VERSION" mdbook-numbering
 }
 
-# Heading numbering enabled (consecutive style); code-block line numbering
-# explicitly disabled. mdbook-numbering's own code numbering injects the same
-# highlight.js line-numbers plugin inline into *every chapter*, which rebuilds
-# <code> as a <table> and so breaks mdBook's copy button; custom.js numbers with
-# a gutter instead (see write_custom_js). Appends to book.toml after
-# render_book_toml has written the base contents.
+# Heading numbers on, code numbering off: mdbook-numbering's own rebuilds <code>
+# as a table and breaks the copy button; custom.js draws a gutter instead.
 ensure_numbering_config() {
     grep -q '^\[preprocessor\.numbering\]' book.toml && return
     cat >> book.toml <<'EOF'
@@ -549,11 +368,7 @@ init_git_repo() {
     fi
 }
 
-# Derive the 'origin' remote from GIT_REPO_URL so the first push needs no manual
-# 'git remote add'. GIT_REPO_URL is the https web URL (validate_config enforces
-# that); this converts it to the ssh form you push with. Idempotent: updates
-# origin if present, adds it otherwise. Skipped when GIT_REPO_URL is empty or git
-# is absent; never pushes.
+# origin from GIT_REPO_URL, in its ssh form; added or updated, never pushed.
 ensure_git_remote() {
     [ -d ".git" ] || return 0
     [ -n "$GIT_REPO_URL" ] || return 0
@@ -569,9 +384,7 @@ ensure_git_remote() {
     fi
 }
 
-# Create an initial commit so `git push` has a ref. Skipped if the repo already
-# has commits, or (with a hint) if no git identity is configured. Runs after the
-# files are written, so the scaffold is captured in the commit.
+# An initial commit so the first push has a ref; skipped without a git identity.
 git_initial_commit() {
     [ -d ".git" ] || return 0
     git rev-parse HEAD >/dev/null 2>&1 && return 0
@@ -583,9 +396,7 @@ git_initial_commit() {
     fi
 }
 
-# First free TCP port at or above 3000 on the IPv4 loopback, via bash's /dev/tcp
-# (no external tools). Serving with -n 127.0.0.1 makes mdBook bind the same
-# address this probes, so a second book started later lands on the next port.
+# First free port from 3000 on 127.0.0.1 (where serve binds), via /dev/tcp.
 pick_port() {
     local port=3000
     while (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; do
@@ -595,14 +406,9 @@ pick_port() {
 }
 
 ## ─── file writers ────────────────────────────────────────────────────────
-# Only src/ is preserved on re-run (the user's content). book.toml, theme/,
-# custom.css, custom.js and the deploy workflow are script-owned and regenerate.
+# src/ and README.md are the author's; everything else here is script-owned.
 
-# book.toml regenerates every run so config changes (GIT_REPO_URL, DEPLOY_BRANCH,
-# BOOK_TITLE, BOOK_AUTHOR) take effect without manual deletion. The trade-off:
-# hand edits to book.toml (theme, additional-css, numbering style) are overwritten
-# on re-run — set those via the toggles here, or update bin/mdbook manually instead
-# of re-running. src/ is never touched.
+# book.toml regenerates every run; src/ is written once, when SUMMARY.md is missing.
 write_book_files() {
     render_book_toml > book.toml
     if [ -f src/SUMMARY.md ]; then
@@ -623,22 +429,8 @@ write_gitignore() {
     grep -qxF 'book/' .gitignore || echo 'book/' >> .gitignore
 }
 
-# Resolve FAVICON_TEXT to the characters render_favicon_svg actually draws. Empty
-# output means draw nothing, which is what FAVICON_TEXT="" asks for.
-#
-# "auto" takes the first ALPHANUMERIC character of BOOK_TITLE, not simply its first: a
-# title may open with a quote, a bracket, a dash or a space, none of which reads as a
-# mark at 16px. A title with no alphanumeric character anywhere in it resolves to
-# nothing and warns, rather than writing a blank favicon over mdBook's own.
-#
-# Anything else is drawn as typed and capped at three characters — a favicon is only
-# ever shown at tab size, and a fourth letter there is a smudge. Truncating warns:
-# silently dropping the tail of a wordmark someone typed would be a puzzle to debug.
-#
-# Character counting follows the locale, as bash's does: by character in a UTF-8
-# locale, by byte under LC_ALL=C. Under LC_ALL=C a non-ASCII title falls through to
-# the first ASCII letter or digit (a high byte is not [[:alnum:]] there), which is a
-# poorer mark but never a broken one.
+# FAVICON_TEXT -> the characters drawn ("" = none). "auto" takes BOOK_TITLE's first
+# alphanumeric (warns if there is none); anything else is cut to 3, with a warning.
 favicon_mark() {
     local mark="" i c
     if [ "$FAVICON_TEXT" = "auto" ]; then
@@ -659,35 +451,10 @@ favicon_mark() {
     printf '%s' "$mark"
 }
 
-# The favicon as letters, for the branch where there is no src/logo.svg to copy.
-#
-# Letters on a transparent ground — no plate. A favicon is composited onto whatever
-# the browser paints behind a tab, and that colour is the browser's, not the site's;
-# a plate in the wrong one is more conspicuous than no plate at all. The ink is the
-# palette's --fg for each mode (#191713 light, #e8e6da dark), swapped by a
-# prefers-color-scheme query INSIDE the file. That query works where an @font-face
-# would not: a favicon is fetched as an image, so it gets no network of its own, but
-# its own <style> is part of the document and applies. mdBook's bundled favicon.svg
-# swaps its fill the same way, which is the proof it works in the favicon slot.
-#
-# Both inks in every mode, a dark-only book included. The mark is drawn in the
-# browser's tab bar, not on the page, and the tab bar follows the reader's browser
-# or OS, not the book: a dark-only book still sits in a light tab bar for a reader
-# whose system is light, where one pale ink would all but vanish.
-#
-# The stack is the theme's --serif, Charter first — and Charter will resolve here ONLY
-# for a reader who has it installed as a system font, because the woff2 in src/fonts/
-# are on the network this file cannot use. Everyone else gets the next face down. That
-# is a limit of the format, not a gap to close: see the same note on the SVG masthead
-# in write_custom_css. Naming Charter first still costs nothing and wins where it can.
-#
-# 100x100 viewBox because a favicon is drawn into a square. font-size falls as the
-# mark lengthens and the baseline rises with it, so each length fills the square
-# without spilling out of it. Measured in Chromium at a 200px render, the ink of a
-# capital or a digit sits 55 above / 50 below, and of a three-letter mark 78 / 73 —
-# centred either way. A lowercase single letter is the exception and sits low (82 /
-# 50), because its ink is an x-height, not a cap height; that is the shipped default
-# ("m" from "mybook") and it is normal typography, not a misplacement.
+# Letters on a transparent ground in the palette's ink, dark or light by
+# prefers-color-scheme inside the file: the tab bar follows the OS, not the book.
+# Charter only where installed (an image loads no @font-face). Size and baseline
+# by length, measured to fill the square.
 render_favicon_svg() {
     local mark="$1" size baseline
     case "${#mark}" in
@@ -706,85 +473,35 @@ render_favicon_svg() {
 EOF
 }
 
-# mdBook merges theme/ over its built-in front end (a file there replaces the
-# built-in; anything absent keeps it). fonts/fonts.css is fixed mode only;
-# head.hbs is written in fixed mode and in default mode with LIGHT_THEME=false,
-# with a different job in each; favicon.svg is written in every mode.
-#
-# theme/head.hbs clears a saved theme ahead of mdBook's theme script. Needed because
-# fixed mode hides the picker and localStorage is scoped to the ORIGIN — every project
-# site under one user.github.io shares it, so a theme chosen in another book would pin
-# this one. Clearing it lets mdBook resolve from the OS preference (and pick the
-# matching highlight.js stylesheet, which a later custom.js fix could not).
-#
-# theme/fonts/fonts.css: its presence makes mdBook emit fonts.css and ONLY the fonts
-# in theme/fonts/ (none), dropping its own Open Sans + Source Code Pro (~493KB, which
-# this theme doesn't use). Charter is NOT declared here — mdBook won't rewrite url()
-# inside a fonts.css it didn't generate, so it would 404; it's in custom.css with the
-# woff2 in src/fonts/ (copied verbatim, unhashed).
-#
-# theme/favicon.svg has TWO sources and is written in every theme mode — NOT gated on
-# SIDEBAR_MASTHEAD, since a favicon and a sidebar mark are different jobs. src/logo.svg
-# is copied verbatim whenever it exists; failing that, FAVICON_TEXT is drawn as letters
-# (favicon_mark resolves what, render_favicon_svg draws it). The file always wins over
-# the text. Either source replaces mdBook's own favicon.svg and, with it, mdBook's
-# favicon.png: theme/mod.rs sets favicon_png to None when only the svg is overridden,
-# so the built site carries the one file and index.hbs emits the one <link>.
-#
-# favicon.svg is deliberately NOT in the rm -f above, and that is not an oversight.
-# The two files that ARE cleared depend on the theme settings, and a stale copy of
-# either goes on doing harm — a fixed-mode head.hbs keeps wiping the saved theme,
-# fonts.css keeps suppressing mdBook's stock fonts — so a change of mode has to
-# remove them.
-# A stale favicon does nothing but show an old mark, and clearing it would delete a
-# favicon that a hand-built or hand-edited tree put there, which no re-run could give
-# back. So: it is written when there is a source, and left alone when there is not.
-# Removing src/logo.svg, or setting FAVICON_TEXT="", stops it being REGENERATED; it
-# does not delete the last one. Delete theme/favicon.svg by hand for that.
+# theme/ files replace mdBook's built-ins. head.hbs clears a saved theme (fixed
+# mode) or a saved light one (default mode, LIGHT_THEME=false); fonts.css drops
+# mdBook's unused fonts (fixed mode); favicon.svg is src/logo.svg, else drawn from
+# FAVICON_TEXT. favicon.svg is never deleted, so a hand-made one survives a run.
 write_theme() {
-    # Clear both overrides first, so a re-run writes exactly what this configuration
-    # calls for and switching THEME_MODE or LIGHT_THEME leaves nothing stale: a
-    # fixed-mode head.hbs left in a default-mode book would keep wiping the saved
-    # theme on every load (the picker would never remember), and a stale fonts.css
-    # would keep suppressing mdBook's stock fonts. The branches below recreate what
-    # applies. favicon.svg is a separate job and is left alone.
+    # Cleared first, so a change of THEME_MODE or LIGHT_THEME leaves nothing stale.
     rm -f theme/head.hbs theme/fonts/fonts.css
     local mark=""
     if [ -f src/logo.svg ]; then
         mkdir -p theme
         cp src/logo.svg theme/favicon.svg
         say "wrote theme/favicon.svg (from src/logo.svg)"
-        # A say, not a warn: preferring the file is the documented behaviour, not a
-        # mistake to be corrected. But ignoring a FAVICON_TEXT somebody typed without
-        # a word would be a puzzle, so name the winner.
+        # Say which source won, so an ignored FAVICON_TEXT is no puzzle.
         if [ -n "$FAVICON_TEXT" ]; then
             say "  (src/logo.svg wins; FAVICON_TEXT \"${FAVICON_TEXT}\" is not drawn)"
         fi
-    # The assignment sits in the elif condition so favicon_mark runs only on the branch
-    # that uses it: its truncation and no-alphanumeric warnings must not fire for a
-    # book whose favicon came from the file and never consulted FAVICON_TEXT at all.
+    # favicon_mark runs only on this branch, so its warnings fire only when used.
     elif mark=$(favicon_mark); [ -n "$mark" ]; then
         mkdir -p theme
         render_favicon_svg "$mark" > theme/favicon.svg
         say "wrote theme/favicon.svg (drawn from FAVICON_TEXT: \"${mark}\")"
     fi
-    # Default mode keeps mdBook's picker, so a saved theme is the reader's choice and
-    # has to survive. This head.hbs clears it only when it names a light theme — one
-    # saved before LIGHT_THEME was false, or by another book on the same github.io
-    # origin. It runs from <head>, ahead of the inline script in <body> that applies a
-    # saved theme without checking it, so no light frame is ever painted. fonts.css is
-    # not written here: default mode keeps mdBook's stock fonts.
+    # Default mode: the picker stays, so only a saved light theme is cleared.
     if [ "$THEME_MODE" = default ]; then
         [ "$LIGHT_THEME" = false ] || return 0
         mkdir -p theme
         cat > theme/head.hbs <<'EOF'
-{{!-- Script-owned; regenerated on every run.
-
-     Default theme mode with LIGHT_THEME=false: the picker offers only the dark
-     themes, because custom.js removes Light and Rust. A light theme saved earlier
-     — before that change, or by another book sharing this origin — would still be
-     applied by mdBook's inline theme script, which trusts whatever it finds, so it
-     is cleared here, first. A saved dark theme is left alone. --}}
+{{!-- Script-owned: a re-run rewrites it. Clears a saved light theme; the
+     picker offers only the dark ones. --}}
 <script>try{var t=localStorage.getItem('mdbook-theme');if(t==='light'||t==='rust')localStorage.removeItem('mdbook-theme');}catch(e){}</script>
 EOF
         say "wrote theme/head.hbs (default mode: clears a saved light theme)"
@@ -793,30 +510,19 @@ EOF
     [ "$THEME_MODE" = fixed ] || return 0
     mkdir -p theme/fonts
     cat > theme/head.hbs <<'EOF'
-{{!-- Script-owned; regenerated on every run.
-
-     Fixed theme mode hides the theme picker, so a theme saved in localStorage
-     would pin this book with no control left to change it. localStorage is scoped
-     to the origin, and every GitHub project site under one user shares one origin.
-     Clearing the key here, ahead of mdBook's own theme script, lets that script
-     resolve the theme from book.toml — and pick the matching highlight.js
-     stylesheet with it, which a later custom.js fix could not. --}}
+{{!-- Script-owned: a re-run rewrites it. Clears a saved theme before mdBook's
+     script reads it: the picker is hidden, and every site on one github.io
+     origin shares localStorage. --}}
 <script>try{localStorage.removeItem('mdbook-theme');}catch(e){}</script>
 EOF
     cat > theme/fonts/fonts.css <<'EOF'
-/* Script-owned; regenerated on every run.
-
-   Deliberately declares no faces. Its presence makes mdBook emit this file and
-   only the font files in theme/fonts/ — none — instead of its built-in Open Sans
-   and Source Code Pro, which this theme does not use. Charter is declared in
-   custom.css and its woff2 live in src/fonts/. */
+/* Script-owned. Declares no faces: its presence stops mdBook shipping Open Sans
+   and Source Code Pro. Charter is declared in custom.css. */
 EOF
     say "wrote theme/head.hbs, theme/fonts/fonts.css"
 }
 
-# True only when all four Charter faces are present in src/fonts/. The @font-face
-# block is emitted only then: declared unconditionally, a book without the fonts
-# requests four woff2 that do not exist on every single page load, forever.
+# All four Charter faces present: only then is @font-face written (else 404s).
 charter_present() {
     local f
     for f in charter_regular charter_italic charter_bold charter_bold_italic; do
@@ -825,44 +531,25 @@ charter_present() {
     return 0
 }
 
-# custom.css is always written. In fixed theme mode it carries the reading theme
-# (Charter, ~700px measure, a 60px menu bar, the palette, hairlines under H1/H2, and
-# a code-block ground the stock highlight sheets do not expose as a variable); in
-# every mode it sets the top gap that holds the two columns' first lines level, makes
-# a chapter's '---' and a SUMMARY's '---' draw the same rule, styles the sidebar
-# site-meta footer, the per-page last-updated line and the print.html back-link that
-# custom.js injects, and the
-# per-page wide marker; when CODE_LINE_NUMBERS is on it styles the line-number
-# gutter; and when SIDEBAR_MASTHEAD is text or image it fills the band opposite the
-# menu bar and fades the menu-bar title out behind it. The always-on rules use
-# fallback values so they also work under stock (default-mode) mdBook themes where
-# the theme vars aren't defined. mdBook rebases rem to 10px (html{font-size:62.5%});
-# px is literal, rem pre-scaled. The #mdbook-theme-toggle id matches the pinned
-# release; a future release could rename it and silently un-hide the picker (see
-# guide).
+# custom.css, always written. Fixed mode: the reading theme and palette. Every
+# mode: column alignment, rules, what custom.js adds, the gutter, the masthead.
+# rem is 10px here (mdBook's 62.5%).
 write_custom_css() {
-    # The palette's selector, used by the palette block and the print override alike.
-    # With LIGHT_THEME=true it must name BOTH theme classes (see STRUCTURE below);
-    # dark-only, book.toml pins both mdBook keys to PREFERRED_DARK, so that is the
-    # only class ever on <html> and the only one worth naming.
+    # The palette's selector, shared with the print override: both classes with
+    # LIGHT_THEME=true, else the dark one, the only class ever on <html>.
     local pal_sel="html.${PREFERRED_LIGHT},html.${PREFERRED_DARK}"
     [ "$LIGHT_THEME" = true ] || pal_sel="html.${PREFERRED_DARK}"
     : > custom.css
     if [ "$THEME_MODE" = fixed ]; then
         mkdir -p src/fonts
         cat >> custom.css <<EOF
-/* Fixed theme: hide the picker, so the theme is not the reader's to choose in the
-   page. With LIGHT_THEME=true their browser's light/dark preference drives it;
-   otherwise the book is dark throughout. A saved theme would pin the book with no
-   control left to change it — theme/head.hbs clears it. */
+/* Fixed theme: no picker. theme/head.hbs clears a saved theme. */
 #mdbook-theme-toggle { display: none; }
 EOF
         if charter_present; then
             cat >> custom.css <<'EOF'
 
-/* Self-hosted Charter (free, ~28KB/weight). custom.css is served from the book
-   root and CSS urls resolve against the stylesheet, so "fonts/x.woff2" finds the
-   copy mdBook makes of src/fonts/x.woff2 — copied verbatim, not content-hashed. */
+/* Self-hosted Charter; src/fonts/ is copied as is, not hashed. */
 @font-face{font-family:"Charter";src:url("fonts/charter_regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Charter";src:url("fonts/charter_italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
 @font-face{font-family:"Charter";src:url("fonts/charter_bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
@@ -872,24 +559,13 @@ EOF
             warn "src/fonts/ has no Charter woff2; the fallback face renders and no @font-face is emitted. Download the four from practicaltypography.com/charter.html into src/fonts/ and re-run."
             cat >> custom.css <<'EOF'
 
-/* No @font-face: the four Charter woff2 are not in src/fonts/, and declaring
-   faces whose files are absent 404s four requests on every page load. The
-   fallback stack below renders instead. Add them and re-run. */
+/* No @font-face: the Charter woff2 aren't in src/fonts/. */
 EOF
         fi
         cat >> custom.css <<'EOF'
 
-/* mdBook sets html{font-size:62.5%} -> 1rem = 10px. px is literal; rem pre-scaled.
-
-   --menu-bar-height is mdBook's own (50px). Everything that depends on the bar is
-   expressed in terms of it — by mdBook (the sticky hover placeholder's height, the
-   negative top margin on .page that pulls the bar to the viewport top, the icons'
-   and the title's line-height, :target's scroll-margin) and by this file (the
-   masthead band, the sidebar's scrollbox padding) — so raising it here raises all
-   of them together and the two columns stay level. 50px leaves a 24px serif title
-   about 13px of air above and below it, and the page scrolls under the bar, so that
-   13px is the whole clearance between the title and the body text passing beneath.
-   60px is the same title with room to breathe. */
+/* 1rem = 10px (mdBook's 62.5%). --menu-bar-height is mdBook's; everything tied
+   to the bar reads it, so 60px moves it all together. */
 :root{
   --serif: "Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;
   --content-max-width: 700px;
@@ -899,116 +575,82 @@ EOF
 html{font-family:var(--serif);}
 .sidebar{font-size:1.6rem;}
 .content{font-size:1.9rem;line-height:1.55;}
-.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0 .4em;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h2{font-size:2.5rem;line-height:1.18;margin:3rem 0 .85rem;padding-bottom:.3em;border-bottom:1px solid var(--rule-strong);}
-.content h3{font-size:1.9rem;line-height:1.18;margin:2.25rem 0 .55rem;}
 
-/* Subtitle: <p class="mdb-subtitle"> on the line under a heading. Sits BELOW the
-   heading's rule; the heading itself is untouched, so its own H1/H2 rule stays
-   identical to a subtitle-less heading's. The :has() rule only trims the heading's
-   bottom MARGIN (not its rule) to a fixed .5rem, so H1 and H2 both leave the same
-   ~5px gap under the rule. */
+/* Headings: margins in em of each one's own size; H4 to H6 at text size, told
+   apart by style, never smaller than the text. No rules under them but the
+   title block's, and a --- written straight after one. */
+.content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h2{font-size:2.5rem;line-height:1.18;margin:1.5em 0 .4em;}
+.content h3{font-size:2.15rem;line-height:1.18;margin:1.18em 0 .29em;}
+.content h4{font-size:1em;line-height:1.18;font-style:italic;margin:1.4em 0 .3em;}
+.content h5{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;margin:1.3em 0 .3em;}
+.content h6{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;color:var(--muted);margin:1.1em 0 .3em;}
+.content h6 .header:is(:link,:visited){color:inherit;}
+
+/* What follows a heading starts right under it, as does the first line inside
+   a quote or aside there: its own top margin would beat the heading's smaller
+   bottom one. A heading after a heading keeps its space above. */
+.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6),.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6) > :first-child{margin-block-start:0;}
+
+/* A --- straight after a heading, or after its subtitle, underlines it rather
+   than dividing the page. */
+.content main :is(h2,h3,h4,h5,h6):has(+ hr),.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle:has(+ hr){margin-block-end:.3em;}
+.content main :is(h2,h3,h4,h5,h6) + hr,.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle + hr{margin-block:0 1.6rem;}
+
+/* Subtitle: <p class="mdb-subtitle"> straight under a heading. */
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
-.content h1:has(+ .mdb-subtitle),.content h2:has(+ .mdb-subtitle){margin-block-end:.5rem;}
+.content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
 
-/* Blockquote, GitHub-style. Scoped to :not(.blockquote-tag) so mdBook's native
-   admonitions (> [!NOTE] etc., which ARE .blockquote-tag) keep their coloured accent.
-   padding:0 on the block edges plus zeroing the first child's top margin and the last
-   child's bottom margin is what keeps the rule flush with the text — without the
-   margin reset the inner <p> margins push the rule past the text, top and bottom. */
+/* Title block: the H1, then its subtitle and the "Last updated" line custom.js
+   adds, when there; one rule closes it, under whichever comes last. */
+.content h1:has(+ .mdb-subtitle,+ .mdb-updated){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
+.content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;padding-bottom:0;border-bottom:0;}
+.content .mdb-updated{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
+
+/* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
+   rule stays flush with the text. */
 .content blockquote:not(.blockquote-tag){background:none;border-block:0;border-inline-start:3px solid var(--rule);padding:0 1em;color:var(--muted);}
 .content blockquote:not(.blockquote-tag) > :first-child{margin-block-start:0;}
 .content blockquote:not(.blockquote-tag) > :last-child{margin-block-end:0;}
 
-/* Aside: <aside>…</aside>, a digression callout — muted, 0.82em, a thin left rule.
-   mdBook does not parse markdown inside it; write emphasis or links as HTML. */
+/* Aside: a muted digression with a thin left rule. */
 .content aside{font-size:.82em;color:var(--muted);border-inline-start:2px solid var(--rule);padding-inline-start:1em;margin:1.15rem 0;}
 
-/* Footnotes, matched to the aside: they are the same kind of thing, a digression,
-   and every other subordinate voice here (blockquote, aside, .mdb-subtitle) is
-   already --muted. mdBook's general.css sets only font-size:0.9em, which against
-   this book's 1.9rem content is 17.1px — a 1.9px step Charter's x-height does not
-   read as deliberate. .content .footnote-definition is (0,2,0) over mdBook's
-   (0,1,0), and custom.css is its last stylesheet either way. The separator is
-   already there: mdBook emits a bare <hr> before the <ol>. */
+/* Footnotes, muted like the aside; mdBook draws the <hr> above them. */
 .content .footnote-definition{font-size:.82em;color:var(--muted);}
-/* --links equals --fg in both palettes, so a citation link or a ↩ backref inside a
-   muted note would be the brightest thing in it and invert the hierarchy. Muting is
-   safe because the affordance here is the underline (.content a above), not colour.
-   a:link/a:visited is (0,3,1) over mdBook's .content a:link (0,2,1). */
+/* Links in notes muted too: the underline marks them, not the colour. */
 .content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
 
-/* mdBook's own .content a is text-decoration:none, and --links carries the colour.
-   Only the underline is added here; the colour comes from the palette. Search
-   results use --links too, so without an underline they render as plain body text
-   with no affordance at all — give them the same one. */
+/* Underlined links (colour from --links), search results included. Followed,
+   a link in the text takes --visited (:visited can change colours only); a
+   footnote number keeps its colour, and a link in a note stays muted (above). */
 .content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
 #mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
+.content main a:visited{color:var(--visited);}
+.content .footnote-reference a:visited{color:var(--links);}
 
-/* The sidebar list is left alone. mdBook's own .chapter li.chapter-item is
-   line-height:1.5em; margin-block-start:0.6em — already in em, so it scales with
-   the 1.6rem set above, and it is what spaces the rule a SUMMARY '---' draws.
-   Overriding it in px-equivalent terms only tightens that rule against the text. */
+/* A numbered list inside a numbered list counts 1.1, 1.2.1 (Markdown has no
+   "1.1"). A counter can't read <ol start>, so a list Markdown restarted keeps
+   the browser's own numbers rather than wrong ones. */
+.content main ol{counter-reset:outline;}
+.content main ol > li{counter-increment:outline;}
+.content main ol ol > li{list-style:none;position:relative;}
+.content main ol ol > li::before{content:counters(outline,".");position:absolute;inset-inline-end:100%;padding-inline-end:.25em;}
+.content main ol[start] ol > li,.content main ol ol[start] > li{list-style:revert;}
+.content main ol[start] ol > li::before,.content main ol ol[start] > li::before{content:none;}
 
-/* Palette. mdBook defines ~43 colour variables per theme; overriding only the page
-   and sidebar leaves blockquotes, tables, the search UI, icons and separators in the
-   stock blues, which show the moment a page has a table or quote — so this covers
-   every one that paints. Two rule weights: --rule-strong for H1/H2 hairlines and
-   separators, --rule for the rest. The five --blockquote-*-color admonition accents
-   are deliberately NOT overridden — they're semantic, and standing out is the point.
-
-   STRUCTURE. mdBook resolves the theme in JavaScript, not CSS: it bakes default-theme
-   into the served markup as <html class="light"> and an inline script in <body> swaps
-   the class after the stylesheets have already resolved. So on a dark-mode reader's
-   machine every navigation paints a full light frame first. That frame is what a
-   force-dark browser extension reads, and it then holds its inversion of THIS palette
-   over the dark one the swap installs — the page ends up part inverted-cream, part
-   extension grey.
-
-   That is a LIGHT_THEME=true problem only. Dark-only, book.toml pins default-theme
-   and preferred-dark-theme both to PREFERRED_DARK, so the served class is already
-   the dark one, nothing swaps, and the selector below collapses to that single
-   class with no media query under it at all.
-
-   With both palettes live, the dark block carries BOTH class names and comes first,
-   and the light block is gated behind the light media query and comes second:
-
-     html.<light>,html.<dark> { dark }      matches the served class too — the pre-swap
-                                            frame is already dark under a dark OS
-     @media (prefers-color-scheme: light)
-       html.<light> { light }               same specificity, later in the file, so it
-                                            wins wherever the query matches
-
-   Four states, all measured: OS dark before the swap -> dark; OS dark after -> dark;
-   OS light before -> light; OS light after -> light. No light frame ever paints under
-   a dark OS, and each palette is written once.
-
-   Both selectors are (0,1,1), which is what beats mdBook's own .<theme> at (0,1,0). A
-   bare html{...} would be (0,0,1) and lose to it, so the class must stay in both
-   selectors even though the media query alone would read as sufficient. The print
-   block at the bottom of this file has to clear the same (0,1,1) bar for the same
-   reason.
-
-   --sidebar-bg sits close to --bg deliberately: about 2 points of CIELAB lightness in
-   both modes, enough for the column to read as its own surface and little enough that
-   the page reads as one tone. It does NOT match the quote/code ground, which is a
-   heavier tint doing a different job. Nor can it go to zero: mdBook draws no border on
-   .sidebar, so this tint is the only boundary the column has, and .mobile-nav-chapters
-   takes its whole fill from the same variable.
-
-   --code-bg and --inline-bg are not mdBook variables: mdBook paints code backgrounds
-   from the highlight.js stylesheet, not a theme variable, so the palette can't reach
-   them. Both are repainted below. In light the code ground is the blockquote tint
-   (#f4f2e8); in dark it sits a step above it (#242420 over the #1b1b18 quote) because
-   at #1b1b18 the block barely parted from the #111 page.
-   Only the ground moves; the syntax token colours are left as the highlight theme sets
-   them — except comments: see --code-comment, repainted by its own rule further down.
-   --inline-bg is a separate, slightly stronger tint so a short inline pill reads
-   against both the page and the running text around it. */
+/* Palette: every colour variable mdBook paints, not just page and sidebar;
+   admonition accents left alone. With LIGHT_THEME=true the dark block names both
+   classes and comes first, the light one follows behind its media query, so no
+   light frame paints under a dark OS (guide: "Why the dark palette comes
+   first"). The class in each selector is load-bearing: html alone loses to
+   mdBook's .<theme>. Ours, not mdBook's: --muted, --rule, --rule-strong,
+   --inline-bg, --inline-border, --code-bg, --code-comment, --visited. */
 EOF
         cat >> custom.css <<EOF
 ${pal_sel}{
-  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
+  --bg:#111;--fg:#e8e6da;--links:#e8e6da;--visited:#94b9dc;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
   --sidebar-bg:#161613;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
   --sidebar-spacer:#42423c;--sidebar-non-existant:#6b6a61;--sidebar-header-border-color:#42423c;
@@ -1026,7 +668,7 @@ EOF
         cat >> custom.css <<EOF
 @media (prefers-color-scheme: light){
 html.${PREFERRED_LIGHT}{
-  --bg:#fdfcf7;--fg:#191713;--links:#191713;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
+  --bg:#fdfcf7;--fg:#191713;--links:#191713;--visited:#295a8e;--inline-code-color:#b5540a;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
   --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
   --sidebar-bg:#f8f6ee;--sidebar-fg:#3a3a34;--sidebar-active:#b5540a;
   --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
@@ -1044,134 +686,40 @@ EOF
     if [ "$THEME_MODE" = fixed ]; then
         cat >> custom.css <<EOF
 
-/* Repaint the code block's ground from the palette. custom.css is the last
-   stylesheet mdBook links, after all three highlight sheets, and pre > code.hljs
-   (0,1,2) outranks their bare .hljs (0,1,0) anyway. Scoped to pre > : inline code is
-   repainted by its own rule below. When the line-number gutter is on it is painted the
-   same colour, so the block reads as one surface rather than as two columns with a
-   seam down the middle. */
+/* Code-block ground from the palette (mdBook paints it from the highlight sheet). */
 pre > code.hljs{background-color:var(--code-bg);}
 
-/* Comment tokens, from the palette. The ground above moved but the token colours
-   did not: they live in the highlight sheet, where ayu paints comments #5c6773 —
-   about 2.7:1 on the #242420 ground, under WCAG AA's 4.5:1 (coal and navy load
-   tomorrow-night, whose #969896 passes but is unified anyway). Only the
-   comment/quote classes are repainted; every other token stays the sheet's.
-   Fixed mode only, and that gate is load-bearing: in default mode --code-comment
-   is undefined, and var() with no fallback computes to INHERIT — the rule would
-   wipe the stock sheets' comment colour instead of leaving it alone. The print
-   palette resets the token with the rest. */
+/* Comment tokens from the palette: ayu's #5c6773 is about 2.7:1 on this ground.
+   Fixed mode only: undefined, var() would wipe the stock colour. */
 pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comment);}
 
-/* Inline code. mdBook paints NO ground on inline code: chrome.css gives it only
-   padding + radius (:not(pre) > .hljs) and a text colour (:not(pre):not(a) > .hljs),
-   so the pill's fill is left to whichever highlight sheet is live — #f6f7f6 (light) or
-   #191f26 (ayu), both off this palette and near-invisible on our grounds — and with
-   --inline-code-color set to --fg (as it was) the text carried no signal either.
-   book.js adds .hljs to every non-header <code> at load, so inline code is code.hljs
-   in the browser: repaint it here from the palette. Warm fill + the theme's own accent
-   text (ffb454/b5540a) + a hairline drawn as an inset shadow, which — unlike a border —
-   does not change the inline box's metrics. :not(pre) excludes block code (its parent
-   is <pre>); :not(a) leaves linked code to the link styling. code.hljs makes this
-   (0,1,3), over mdBook's own (0,1,2) and the bare .hljs (0,1,0); custom.css is last. */
+/* Inline code: mdBook paints no ground on it. Warm fill, accent text, and a
+   hairline as an inset shadow, which keeps the inline box's metrics. */
 :not(pre):not(a) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);}
 
-/* mdBook fills the mobile chapter buttons from --sidebar-bg. Those buttons sit on the
-   page ground, not in the sidebar, so a tint tuned to draw a column edge leaves them
-   nearly invisible at the widths where they appear (<=1080px, and <=1380px with the
-   sidebar open). Give them the blockquote ground instead — same specificity as
-   mdBook's own rule, and custom.css is last, so this wins. */
+/* Mobile chapter buttons sit on the page, so they take the quote ground. */
 .mobile-nav-chapters{background-color:var(--quote-bg);}
 
-/* print.css resets layout but not colour, and the UA drops backgrounds when
-   printing — so a reader whose OS is dark prints near-white ink onto white paper.
-   Force ink-on-paper for the print media regardless of the theme in force.
-
-   The selector must name the theme class(es) — the same set the palette named, so it
-   is written from the same variable. A media query does not raise specificity, so a
-   bare html{...} here is (0,0,1) and loses outright to the palette's (0,1,1) — the
-   override silently never applied, which is exactly the failure it exists to prevent.
-   Matching the palette's selector ties the specificity; being last in the file wins it.
-
-   Ink stays #111 here even though the screen palette softened its --fg. Butterick's
-   case for grey over black is about an emissive screen; paper reflects, and the
-   contrast it needs is the other way. */
+/* Print: ink on paper whatever the theme. Same selector as the palette, or
+   html alone loses on specificity and the override never applies. */
 @media print{
   ${pal_sel}{
-       --bg:#fff;--fg:#111;--links:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
+       --bg:#fff;--fg:#111;--links:#111;--visited:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;--code-comment:#555;
        --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
 }
 EOF
     fi
 
-    # icon-button font:inherit — mdBook sizes its icons in em, but the UA gives
-    # <button> a 13.33px font it never resets, so the search/theme icons render 17%
-    # smaller than the toggle (<label>) and the print/repo links (<a>).
-    #
-    # --mdb-top-gap holds the two columns' first lines level. They don't line up on
-    # their own: mdBook fixes the sidebar to the viewport top and pads its scrollbox a
-    # flat 10px, while the page column starts at the bar's bottom edge. The page takes
-    # this gap as a top margin; the sidebar takes it plus the bar height + 1px border
-    # (or, with a masthead, a band of that height then that gap) — landing on the same
-    # number.
-    #
-    # The :empty and part-title rules exist because mdBook emits INVALID markup for a
-    # SUMMARY '---'/'# Part':  <li class="chapter-item"><li class="spacer"></li></li>.
-    # The nested <li> closes the outer one, leaving an empty li.chapter-item (with its
-    # 0.6em margin) before every separator/part heading. So ':first-child' can zero
-    # that invisible li instead of the real first row (TOC starts ~8px low) — the
-    # '+ li' rule zeroes the real one too, and zeroing every :empty li's margin drops
-    # the phantom gap it otherwise adds before a part heading. li.part-title also isn't
-    # a .chapter-item, so it misses mdBook's line-height:1.5em (set here), and it gets a
-    # bottom rule and a 1.7em top margin of its own — so a '# Part' draws an underlined
-    # section header with its own separating space, no SUMMARY '---' needed.
-    #
-    # hr/spacer: mdBook styles a chapter <hr> in no stylesheet (the UA's 3-D groove
-    # renders), and a SUMMARY '---' as a 3px --sidebar-spacer slab — two different
-    # looks. Both set here to a 1px --rule-strong block (fallback --table-border-color,
-    # since --sidebar-spacer disappears against the page ground in default mode).
-    #
-    # The .chapter :has() rule hides the sidebar row of any chapter under the reserved
-    # src/unlisted/ directory. It is keyed on the href because a page-level marker
-    # cannot work here: the row to hide is on every OTHER page, where that page's
-    # markup is not in the DOM. Two alternatives, not one substring test: at the book
-    # root toc.js leaves the href as "unlisted/x.html", and from inside a subdirectory
-    # it rewrites it to "../unlisted/x.html" — while a bare [href*="unlisted/"] would
-    # also swallow a legitimate chapter in, say, notunlisted/. Unconditional and inert
-    # in a book that has no such directory. It covers BOTH sidebars: the one toc.js
-    # injects into the page, and the toc.html iframe served to readers with JS off,
-    # which loads custom.css too. The prev/next links into those chapters are a
-    # separate job and are removed in custom.js — CSS cannot do it, since book.js
-    # reads .nav-chapters.next out of the DOM and follows its href whether or not it
-    # is painted. print.html is NOT covered: it is a flat concatenation with no
-    # per-chapter element to select. See guide.
-    #
-    # .mdb-wide and .mdb-bleed are screen-only: print.html concatenates all chapters
-    # into one <main>, so one marker anywhere would widen the whole printed book.
-    #
-    # They are different instruments. .mdb-wide widens the page, prose included.
-    # .mdb-bleed widens ONLY the element carrying it and re-caps every other top-level
-    # child of <main> at --content-max-width, so a wide code block or table gets its
-    # room while the reading measure stays where it was. Same mechanism underneath —
-    # widen <main>, then constrain the siblings — and max-width throughout, never
-    # negative margins, so with less than 1000px of room the block takes what there is
-    # instead of overflowing the page. The cap reads --content-max-width rather than a
-    # literal, so it tracks the 700px set above in fixed mode and mdBook's own 750px in
-    # default mode. Both markers on one page is not a combination worth writing: the
-    # sibling cap catches .mdb-wide too, so the narrower instruction wins.
-    #
-    # box-sizing on the sibling cap is load-bearing, not housekeeping. max-width sizes
-    # the CONTENT box by default, so the children carrying inline padding — <ul> (40px
-    # UA), a blockquote, an <aside> — would come out 718-740px wide against everyone
-    # else's 700 and hang into both margins, list text landing 20px right of paragraph
-    # text. Capping the border box instead gives every sibling one left edge and
-    # reproduces exactly the geometry an unwidened 700px <main> already has.
-    #
-    # .mdb-bleed goes on a wrapper <div>, not on an empty marker as .mdb-wide does — a
-    # fence cannot carry a class — and that wrapper must be a direct child of <main>,
-    # with blank lines inside it or pulldown-cmark takes the fence for raw HTML and
-    # renders it literally. render_chapter ships a working example. See guide.
+    # Always-on rules, with fallbacks for default mode's stock themes:
+    #  - icon buttons inherit the font (the UA's 13.33px shrinks them);
+    #  - --mdb-top-gap holds the two columns' first lines level;
+    #  - the :empty/part-title rules undo mdBook's invalid nested <li> for a
+    #    SUMMARY '---' or '# Part', which leaves an empty row;
+    #  - a chapter <hr> and a SUMMARY '---' draw the same 1px rule;
+    #  - chapters under src/unlisted/ lose their sidebar row (both href forms);
+    #  - .mdb-wide widens a page, .mdb-bleed one block; screen only. box-sizing on
+    #    the cap is load-bearing: content-box would widen padded siblings.
     cat >> custom.css <<'EOF'
 #mdbook-menu-bar .icon-button{font:inherit;line-height:var(--menu-bar-height);}
 
@@ -1190,8 +738,10 @@ EOF
 .sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
-/* The per-page "Last updated <when>" line custom.js inserts under the chapter H1. */
-.content .mdb-updated{margin-block:.6rem 0;font-size:.75em;color:var(--muted,#999);}
+/* The per-page "Last updated <when>" line custom.js inserts under the chapter
+   H1, set like a date line. Fixed mode puts the title block's rule under it;
+   default mode mixes a muted colour from its theme's own. */
+.content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
 
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}
@@ -1202,27 +752,14 @@ EOF
 }
 EOF
     if [ "$SIDEBAR_MASTHEAD" = none ]; then
-        # No masthead: the sidebar's first row is held level with the page's first line
-        # by padding alone. The book title stays in the menu bar, where mdBook puts it.
+        # No masthead: padding alone holds the first rows level.
         cat >> custom.css <<'EOF'
 .sidebar .sidebar-scrollbox{padding-top:calc(var(--menu-bar-height) + 1px + var(--mdb-top-gap));}
 EOF
     else
-        # The masthead band is the bar's height + 1px border, then --mdb-top-gap, so the
-        # TOC's first row lands on the page's first line whether or not a masthead exists.
-        #
-        # The menu-bar title fades via OPACITY (not display/visibility) while the sidebar
-        # shows: html.sidebar-visible is mdBook's own class, so the title returns when the
-        # sidebar hides (<1080px or 'b') and the masthead is gone; opacity keeps the <h1>
-        # in the accessibility tree (the CSS masthead has no text to replace it) and keeps
-        # .menu-title's flex:1 so the right-hand icons don't slide.
-        #
-        # The ::before is sticky at the top of the scrollbox (the scroll container) so it
-        # stays put while the TOC scrolls under it; box-sizing:border-box lands the 1px
-        # hairline inside the band; the opaque sidebar-bg ground hides the scrolling links.
-        # The hairline shows only on scroll, in the colour mdBook gives the menu bar's
-        # 'bordered' state (--table-border-color) — custom.js toggles .mdb-scrolled since
-        # no selector can read scroll offset.
+        # Masthead band: bar height + 1px, sticky and opaque over the scrolling list,
+        # with a hairline once it scrolls (custom.js sets .mdb-scrolled). The menu-bar
+        # title fades by opacity, so it stays in the accessibility tree.
         cat >> custom.css <<'EOF'
 .sidebar .sidebar-scrollbox{padding-top:0;}
 .sidebar-scrollbox::before{position:sticky;top:0;box-sizing:border-box;background-color:var(--sidebar-bg);border-block-end:1px solid transparent;}
@@ -1231,30 +768,13 @@ EOF
 html.sidebar-visible .menu-title{opacity:0;}
 EOF
         if [ "$SIDEBAR_MASTHEAD" = text ]; then
-            # BOOK_TITLE as the band's text. line-height is menu-bar-height minus 4px:
-            # 4px shorter than the band centres the wordmark's ink in it (a full-height
-            # line-height sits ~2px low from the font's ascender/descender split; measured
-            # on the fallback face — Charter may want a different offset). 2.7rem (a touch
-            # larger than the bar's 2.4rem) for prominence; weight 200 and colour inherited
-            # (--sidebar-fg); nowrap/ellipsis so a long title truncates. NB an SVG can't do
-            # this: a mask/background SVG is fetched as an IMAGE with external resources
-            # disabled, so an @font-face inside it never loads and <text> falls back to a
-            # system face — which a wordmark must not. Hence CSS text, not an SVG.
+            # BOOK_TITLE as text, not an SVG: an image can't load the webfont.
             cat >> custom.css <<EOF
 .sidebar-scrollbox::before{content:"$(esc_dq "$BOOK_TITLE")";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);font-size:2.7rem;font-weight:200;line-height:calc(var(--menu-bar-height) - 4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 EOF
         else
-            # src/logo.svg masked into the band, painted in --sidebar-fg so one file
-            # serves light and dark. Being painted makes it an ALPHA mask: the SVG must be
-            # transparent behind the shape or the whole band paints solid. ("logo.svg"
-            # resolves against custom.css at the book root, from any page depth.)
-            #
-            # Mark and sticky plate are TWO layers here (text mode does both in one). The
-            # plate (::before) must stay opaque to hide the scrolling links; a mask on it
-            # would clip that opaque ground away. So ::before keeps only the band geometry
-            # and the mask goes on .sidebar::after — absolute to the fixed (non-scrolling)
-            # sidebar, pointer-events:none so it doesn't eat the resize handle, html.js-
-            # gated so the noscript iframe (no scrollbox, no ::before) is left alone.
+            # src/logo.svg as an alpha mask in --sidebar-fg, on its own layer: a mask
+            # on the opaque sticky plate would clip the plate away.
             [ -f src/logo.svg ] || warn "SIDEBAR_MASTHEAD is \"image\" but src/logo.svg is missing; the sidebar shows an empty band, and no favicon is written, until you add it"
             cat >> custom.css <<'EOF'
 .sidebar-scrollbox::before{content:"";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);}
@@ -1263,30 +783,9 @@ EOF
         fi
     fi
     if [ "$CODE_LINE_NUMBERS" = true ]; then
-        # The gutter is a sibling of <code>, never inside it — so <code>'s DOM is
-        # exactly what mdBook rendered and its innerText is exactly the source. That
-        # is what mdBook's copy button reads (ClipboardJS -> playground_text(pre,
-        # false) -> code.innerText), and it is why v22's approach had to go: the
-        # highlight.js line-numbers plugin rebuilt <code> as a <table>, and a table's
-        # innerText inserts a tab per line and a blank line between rows, so a
-        # 12-line block copied out as 23 tab-indented lines. A gutter is safe here
-        # because mdBook's pre>code.hljs is white-space:pre with overflow-x:auto —
-        # code lines scroll, they never wrap, so the numbers cannot drift out of step
-        # with them. Except in print: print.css sets pre,code{white-space:pre-wrap},
-        # so lines do wrap there and the gutter is hidden instead.
-        # user-select:none keeps the numbers out of a manual Ctrl+C.
-        #
-        # The gutter is PAINTED, and that is the whole difference between how v22's
-        # numbers looked and how v24's did — the number styling is identical in both.
-        # mdBook puts a code block's background on code.hljs, not on <pre>, so v22's
-        # numbers inherited it for free by sitting inside that element (which is also
-        # exactly why they corrupted the copy) while v24's, standing outside it, showed
-        # the page's ground instead and made every numbered block a two-tone strip with
-        # a seam. --code-bg (set in the palette, and used to repaint code.hljs there)
-        # is the same colour on both sides of that seam. It only exists in fixed theme
-        # mode; in default mode the fallback leaves the gutter transparent, and the
-        # stock two-tone remains, because the stock code ground lives in a highlight
-        # stylesheet and is not a variable this file can read.
+        # The gutter sits beside <code>, never inside it, so the copy button copies
+        # the source exactly. Painted with --code-bg so the block is one surface;
+        # hidden in print, where lines wrap.
         cat >> custom.css <<'EOF'
 pre:has(> .mdb-gutter){display:flex;align-items:stretch;}
 pre > .mdb-gutter{flex:0 0 auto;-webkit-user-select:none;user-select:none;white-space:pre;text-align:right;font-family:var(--mono-font);font-size:var(--code-font-size);padding:1rem .8em 1rem 1rem;background-color:var(--code-bg,transparent);color:var(--muted,#999);border-right:1px solid var(--rule,rgba(128,128,128,.25));}
@@ -1301,56 +800,15 @@ EOF
     say "wrote custom.css"
 }
 
-# Always written, wired via additional-js. Behaviours:
-#  - press 'b' toggles the sidebar (mdBook ships no key for it), and the shortcut
-#    is added to mdBook's own '?' popup so the list stays true;
-#  - off-site links open in a new tab (mdBook has no native option);
-#  - print.html gets a "back to the book" link, and closing the print dialog
-#    returns you to the page you came from. mdBook auto-opens that dialog there and
-#    cancelling otherwise strands you on the concatenated whole-book page. Two event
-#    triggers, because browsers disagree about which they fire; the link is there
-#    because neither is guaranteed, and a reader must never be stuck;
-#  - a site-meta line at the foot of the sidebar: "<version> · updated <when> ·
-#    <sha>", where the version is the tag on the built commit or the nearest tag
-#    reachable from it plus a commit count (v1.2, v1.2+5). A segment is printed only
-#    if the workflow stamped it, so a repository with no tag yet prints the updated
-#    time and the commit, and an unstamped local build prints no line at all;
-#  - a per-page "Last updated <when>" line under the chapter H1 (after the subtitle
-#    when there is one), from each chapter source's last commit time, which the
-#    workflow stamps into MDB_PAGE_DATES. The source path comes from the edit link,
-#    falling back to the page URL; print.html (no single source) is skipped, and a
-#    local build draws nothing;
-#  - one relative-time formatter for the footer's <when> and the per-page line:
-#    same local calendar day, "N hours ago" ("just now" under an hour); then
-#    "yesterday", "two days ago", "three days ago"; older, the plain date. Future
-#    or unparseable clamps safely. Computed once at load — no ticking timer — with
-#    the exact timestamp on the element's title attribute, so hover shows the
-#    precision the words drop;
-#  - tabindex="0" on code blocks that overflow sideways, and ONLY those, re-checked
-#    on resize (debounced ~150ms), so Tab reaches what scrolls and skips what
-#    doesn't (axe: scrollable-region-focusable);
-#  - when CODE_LINE_NUMBERS is on, a line-number gutter beside each code block of ten
-#    or more lines whose fence named a language. Skipped for .playground blocks (their
-#    <pre> also holds a .result panel, which a flex row would put beside the code
-#    instead of below it) and for blocks with hidden lines (mdBook's eye button sets
-#    display:none on .boring spans, which removes lines from the flow and would leave
-#    the numbers pointing at the wrong ones).
-# Only the repo URL is injected from here; version, build time, SHA and page dates
-# are left as placeholders (__MDB_BUILD_*__ strings, and the QUOTED
-# "__MDB_PAGE_DATES__" the workflow replaces with an object literal) the deploy
-# workflow substitutes. Built with DOM
-# APIs (no innerHTML). The #mdbook-sidebar-toggle id matches the pinned release; a
-# future release could rename it (see guide).
+# custom.js, always written: 'b' toggles the sidebar; off-site links open in a
+# new tab; print.html gets a way back; the sidebar footer and per-page dates; the
+# line-number gutter; keyboard-scrollable code. The workflow stamps the
+# placeholders; unstamped, the footer and dates don't appear. DOM APIs only.
 write_custom_js() {
     cat > custom.js <<EOF
-// Script-owned. Edit GIT_REPO_URL at the top of the script and re-run. The other
-// four are stamped by the deploy workflow at build time: MDB_VERSION from the tag
-// on the built commit (empty when it carries none), MDB_UPDATED from the build
-// time, MDB_SHA from the built commit itself, and MDB_PAGE_DATES, whose whole
-// quoted token the workflow replaces with an object literal mapping each chapter
-// source to its last commit time ({"src/x.md":"2026-…"}). It is a QUOTED string
-// here on purpose: unstamped (every local build) the file must still parse, and a
-// bare identifier would throw and take the rest of this file with it.
+// Script-owned. MDB_REPO comes from GIT_REPO_URL; the deploy workflow stamps the
+// other four. MDB_PAGE_DATES stays a quoted string until stamped, so an unstamped
+// file still parses.
 var MDB_REPO = "$(esc_dq "$GIT_REPO_URL")";
 var MDB_VERSION = "__MDB_BUILD_VERSION__";
 var MDB_UPDATED = "__MDB_BUILD_DATE__";
@@ -1365,23 +823,14 @@ EOF
     else fn();
   };
 
-  // One test for every workflow-stamped string: non-empty and actually
-  // substituted (an unstamped local build leaves the __MDB_ placeholder).
+  // A stamped value: non-empty and no longer a placeholder.
   var stamped = function (v) {
     return typeof v === "string" && v !== "" && v.indexOf("__MDB_") !== 0;
   };
 
-  // The one relative-time formatter, shared by the sidebar footer and the
-  // per-page line. Buckets are LOCAL CALENDAR DAYS, not 24-hour windows, so
-  // "yesterday" means yesterday on the reader's clock: same day, "N hours ago"
-  // ("just now" under an hour); one day back, "yesterday"; two and three,
-  // spelled out; older, the plain local date (YYYY-MM-DD, the format the footer
-  // showed before). A future timestamp (clock skew) lands in days<=0 with ms
-  // clamped, so it reads "just now" rather than a negative; an unparseable one
-  // returns null and the caller falls back or draws nothing. Computed once at
-  // load — no ticking timer — and the exact timestamp rides the element's title
-  // attribute, so hover shows the precision the words drop. 'now' is a
-  // parameter only so the formatter can be unit-tested; callers pass nothing.
+  // Relative time by local calendar day: "N hours ago" ("just now" under an
+  // hour), "yesterday", "two days ago", "three days ago", then the date. Computed
+  // once; the exact time is the title. 'now' is a parameter for tests only.
   var mdbWhen = function (iso, now) {
     var d = new Date(iso);
     if (isNaN(d)) return null;
@@ -1408,9 +857,7 @@ EOF
     return t;
   };
 
-  // 'b' toggles the sidebar. The guard mirrors mdBook's own
-  // (mdbook_something_else_has_focus): composedPath for shadow-DOM targets, form
-  // fields, and contenteditable.
+  // 'b' toggles the sidebar, behind the same focus guard mdBook uses.
   document.addEventListener("keydown", function (e) {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key !== "b") return;
@@ -1446,14 +893,8 @@ EOF
     }
   });
 
-  // Drop the prev/next links that point INTO the reserved src/unlisted/ directory,
-  // so the chapter arrows and the Left/Right keys skip those chapters the way the
-  // sidebar rule already hides their rows. Remove, not hide: book.js reads
-  // .nav-chapters.next straight out of the DOM and follows its href, so CSS alone
-  // leaves the key walking in. Links OUT of an unlisted chapter are left alone —
-  // its own back arrow still works. Same two href alternatives as the CSS rule (the
-  // root form and the rewritten ../ form), and the class test is a substring because
-  // mdBook emits the desktop pair and the mobile pair under different class names.
+  // Remove (not hide) prev/next links into src/unlisted/: book.js follows the
+  // href from the DOM, so a hidden link would still take the arrow keys there.
   ready(function () {
     var sel = 'a[class*="nav-chapters"][href^="unlisted/"],' +
               'a[class*="nav-chapters"][href*="/unlisted/"]';
@@ -1461,12 +902,7 @@ EOF
     for (var i = 0; i < links.length; i++) links[i].remove();
   });
 
-  // The masthead is sticky at the top of the sidebar (CSS), and grows a hairline
-  // once the TOC scrolls under it — the same thing book.js does to the menu bar
-  // opposite it, whose 'bordered' class it adds the moment the bar leaves the top
-  // of the page. A class and not a selector because nothing in CSS can see a scroll
-  // offset. Its own ready() block, kept clear of the site-meta one below, which
-  // returns early on an unstamped build and would take this with it.
+  // The masthead's hairline once the list scrolls under it.
   ready(function () {
     var box = document.querySelector(".sidebar .sidebar-scrollbox");
     if (!box) return;
@@ -1475,17 +911,14 @@ EOF
     box.addEventListener("scroll", border, { passive: true });
   });
 
-  // Site-meta at the foot of the sidebar (site-level, not per-page). A part is
-  // shown only if the workflow stamped it, so an unstamped local build shows no
-  // line at all rather than a placeholder word.
+  // The sidebar footer; each part only if stamped.
   ready(function () {
     var box = document.querySelector(".sidebar .sidebar-scrollbox");
     if (!box) return;
     var parts = [];
     if (stamped(MDB_VERSION)) parts.push(document.createTextNode(MDB_VERSION));
     if (stamped(MDB_UPDATED)) {
-      // "updated <when>", relative, with the exact timestamp on hover. If the
-      // stamp doesn't parse as a date, show it verbatim rather than nothing.
+      // Relative, exact on hover; an unparseable stamp shows as it is.
       var u = document.createElement("span");
       u.appendChild(document.createTextNode("updated "));
       var w = mdbWhen(MDB_UPDATED);
@@ -1513,19 +946,9 @@ EOF
     box.appendChild(p);
   });
 
-  // Per-page "Last updated <when>" under the chapter H1, after the subtitle when
-  // there is one. MDB_PAGE_DATES is stamped by the workflow as an object literal
-  // mapping each chapter source to its last commit time; unstamped it is still
-  // the placeholder STRING, so the typeof test is the whole local-build guard.
-  // The source path comes from the edit link — mdBook's #git-edit-button sits
-  // inside the <a> whose href ends in the expanded {path}, src/…; matching the
-  // href against the stamped keys (longest wins) sidesteps parsing the branch
-  // segment, which may itself contain '/'. The fallback maps the page URL
-  // (foo/bar.html -> src/foo/bar.md) using path_to_root for the depth.
-  // index.html is a COPY of the first chapter, so the fallback would name a
-  // source that doesn't exist and the map lookup draws nothing — the edit link,
-  // when there is one, carries it. print.html is skipped outright: a flat
-  // concatenation has no single source.
+  // "Last updated <when>" under the H1, from the stamped dates. The source path
+  // comes from the edit link (the longest key its href ends with), else from the
+  // page URL; print.html has no single source and is skipped.
   ready(function () {
     if (typeof MDB_PAGE_DATES !== "object" || !MDB_PAGE_DATES) return;
     if (/(^|\/)print\.html$/.test(location.pathname)) return;
@@ -1569,19 +992,8 @@ EOF
     after.parentNode.insertBefore(p, after.nextSibling);
   });
 
-  // print.html. mdBook auto-opens the print dialog there, and cancelling it
-  // otherwise strands you on the concatenated whole-book page it renders for PDF
-  // export.
-  //
-  // Two paths, on purpose. The events are the nice path: go back when the dialog
-  // closes — on cancel and on a completed job alike, since no browser distinguishes
-  // the two. Two triggers, because browsers disagree about which they fire:
-  // afterprint, and the print media query ceasing to match (that one only after it
-  // has actually matched, so a spurious change event at load cannot bounce you); a
-  // once-flag stops the pair double-firing. Neither is guaranteed to fire in every
-  // browser, so the link is the path that cannot fail: it is always there, it needs
-  // no event, and it is hidden from the printed output. No referrer test —
-  // document.referrer is empty on a reload, a pasted URL or a restored tab.
+  // print.html: a back link, and a return to the page you came from when the
+  // print dialog closes (afterprint or the print media query; once only).
   (function () {
     if (!/(^|\/)print\.html$/.test(location.pathname)) return;
 
@@ -1619,15 +1031,8 @@ EOF
     if [ "$THEME_MODE" = default ] && [ "$LIGHT_THEME" = false ]; then
         cat >> custom.js <<'EOF'
 
-// Default theme mode with LIGHT_THEME=false: take Light and Rust out of the picker.
-//
-// Removed, not hidden. book.js moves keyboard focus through the list by sibling —
-// li.nextElementSibling.querySelector('button').focus() — and focus() on a
-// display:none button silently does nothing, so a hidden row would swallow the
-// arrow key and a keyboard reader could never get past Auto to Coal, Navy or Ayu.
-// This runs after book.js has read the list, which only means a saved light theme
-// would still count as valid there; theme/head.hbs clears one before anything
-// reads it. book.toml pins both theme keys dark, so Auto resolves dark on any OS.
+// Default mode, LIGHT_THEME=false: remove Light and Rust from the picker. Removed,
+// not hidden: book.js moves focus by sibling, and a hidden row would trap it.
 (function () {
   function drop() {
     var list = document.getElementById("mdbook-theme-list");
@@ -1645,22 +1050,9 @@ EOF
     if [ "$CODE_LINE_NUMBERS" = true ]; then
         cat >> custom.js <<'EOF'
 
-// Line numbers. book.js highlights synchronously before this file runs, so the
-// blocks already carry code.hljs. The numbers go in a sibling div, never inside
-// <code>: mdBook's copy button reads code.innerText, so anything that rewrites
-// <code>'s DOM corrupts what a reader copies.
-//
-// ONE style rule: a block shorter than MIN_LINES is not numbered. Nobody counts to
-// four, and a gutter on a three-line block is furniture.
-//
-// The three tests above it are not style rules, they are correctness guards, and
-// removing any one of them breaks something. Number a block only when its fence
-// named a language — mdBook emits class="language-x" for ```bash and no such class
-// for a bare ```, even though highlight.js still auto-detects and colours the bare
-// one. Skip .playground blocks (their <pre> also holds a .result panel, which a flex
-// row would put beside the code instead of below it) and blocks with hidden lines
-// (the eye button display:none's .boring spans, which drops lines out of the flow
-// and leaves the numbers pointing at the wrong ones).
+// Line numbers in a gutter beside <code> (the copy button reads code.innerText).
+// Only language-fenced blocks of MIN_LINES or more; not playgrounds or blocks with
+// hidden lines, where the numbers would sit wrong.
 (function () {
   var MIN_LINES = 10;
   function gutters() {
@@ -1689,44 +1081,59 @@ EOF
     fi
     cat >> custom.js <<'EOF'
 
-// Scrollable code is keyboard-reachable. tabindex="0" goes on code blocks that
-// overflow sideways, and ONLY those: the keyboard must reach what scrolls (axe:
-// scrollable-region-focusable) and skip what doesn't — a tab stop on every block
-// would make Tab a long walk. mdBook's pre > code.hljs is the scroll container
-// (white-space:pre; overflow-x:auto), so it takes the attribute; re-measured on
-// resize, debounced ~150ms, and the attribute is REMOVED when a block no longer
-// overflows (only a "0" this code set — an author's own tabindex is left alone),
-// so the set of tab stops tracks the viewport. This section sits AFTER the
-// line-number section on purpose: the gutter narrows <code> when it is drawn,
-// and measuring before it would miss blocks the gutter pushes into overflow.
+// Scrollable code is keyboard-reachable: tabindex="0" on blocks that overflow
+// sideways, and only those (axe: scrollable-region-focusable). After the gutter
+// section, which narrows <code>.
 (function () {
+  // More than 1px: whole-pixel widths turn a sub-pixel overhang into 1px.
   var apply = function () {
     var blocks = document.querySelectorAll("pre > code.hljs");
     for (var i = 0; i < blocks.length; i++) {
       var b = blocks[i];
-      if (b.scrollWidth > b.clientWidth) b.setAttribute("tabindex", "0");
+      if (b.scrollWidth > b.clientWidth + 1) b.setAttribute("tabindex", "0");
       else if (b.getAttribute("tabindex") === "0") b.removeAttribute("tabindex");
     }
   };
-  var run = function () { apply(); };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
+  // Re-check when a block resizes, debounced: mdBook animates the page for 0.3s,
+  // and a sidebar toggle fires no window resize.
   var timer = null;
-  window.addEventListener("resize", function () {
+  var later = function () {
     if (timer) clearTimeout(timer);
     timer = setTimeout(apply, 150);
-  });
+  };
+  var run = function () {
+    apply();
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(later);
+      var blocks = document.querySelectorAll("pre > code.hljs");
+      for (var i = 0; i < blocks.length; i++) ro.observe(blocks[i]);
+    } else {
+      window.addEventListener("resize", later);
+    }
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+  else run();
+  // book.js turns Left/Right into page turns and cancels them unless a form field
+  // has focus. Stopped in the capture phase while a code block has focus, the
+  // browser scrolls the block instead.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var t = e.target;
+    if (t && t.matches && t.matches("pre > code.hljs")) e.stopPropagation();
+  }, true);
 })();
 EOF
     say "wrote custom.js (sidebar key, external links, print return, site-meta footer, page dates, scrollable-code tabindex)"
 }
 
-# Repo-root README pointing at the live Pages site. Regenerated every run
-# (script-owned) so the link tracks GIT_REPO_URL; kept deliberately minimal — the
-# setup notes (fonts, tagging, toggles) belong in the guide, not here. When
-# GIT_REPO_URL is empty there is no Pages URL to derive, so the README is just the
-# title. A custom domain can't be detected here — edit by hand in that case.
+# README: the title and, with GIT_REPO_URL, the live-site link. Written once:
+# after the first run it's the author's, like src/.
 write_readme() {
+    if [ -e README.md ]; then
+        say "README.md preserved"
+        return
+    fi
     if [ -n "$PAGES_URL" ]; then
         printf '# %s\n\nLive site: <%s>\n' "$BOOK_TITLE" "$PAGES_URL" > README.md
         say "wrote README.md (live site: ${PAGES_URL})"
@@ -1734,6 +1141,13 @@ write_readme() {
         printf '# %s\n' "$BOOK_TITLE" > README.md
         say "wrote README.md (no GIT_REPO_URL, so no live-site link)"
     fi
+}
+
+# ./build at the book's root: script-owned, executable.
+write_build() {
+    render_build > build
+    chmod +x build
+    say "wrote build (./build: build the book, and stop on a broken link)"
 }
 
 write_workflow() {
@@ -1745,34 +1159,10 @@ write_workflow() {
 ## ─── templates ───────────────────────────────────────────────────────────
 # Quoted heredoc delimiter ('EOF') = literal; unquoted (EOF) = expanded.
 
-# Variables read: BOOK_TITLE, BOOK_AUTHOR, GIT_REPO_URL, SITE_URL, DEPLOY_BRANCH,
-# SIDEBAR_NUMBERS, THEME_MODE, LIGHT_THEME, PREFERRED_LIGHT, PREFERRED_DARK.
-# no-section-label is emitted only when SIDEBAR_NUMBERS=false (to hide mdBook's
-# numeric sidebar labels); true inherits mdBook's default, which shows them, so
-# nothing is written for that case.
-# THEME_MODE="fixed" loads custom.css (which hides the picker) and pins the theme
-# pair, so the reader has no in-page control (see write_custom_css). LIGHT_THEME=true
-# pins default-theme = PREFERRED_LIGHT and preferred-dark-theme = PREFERRED_DARK, and
-# the browser's light/dark preference chooses. LIGHT_THEME=false pins BOTH to
-# PREFERRED_DARK — load-bearing, not cosmetic: mdBook picks the highlight.js
-# stylesheet in JavaScript from the theme NAME (book.js set_theme), so a light name
-# left in default-theme would serve light syntax tokens onto the dark code ground the
-# palette paints, for every reader whose OS is light. Pinning both names is what keeps
-# palette and syntax in step. LIGHT_THEME=false pins both in default mode as well,
-# where it is also what makes the picker's Auto resolve dark on any OS (custom.js
-# removes the light rows); default mode with LIGHT_THEME=true emits neither line,
-# leaving mdBook's stock themes and picker.
-# edit-url-template adds a pencil icon that opens GitHub's web editor for the
-# current page; auto-forks for readers without write access. mdBook expands {path}
-# to the source file's path *including* the src dir (src/foo.md), so the template
-# must not prepend one itself — that yields src/src/foo.md and a 404. It is omitted
-# with site-url when GIT_REPO_URL is empty.
-# No git-repository-url is written. The repo icon it adds sits beside the pencil and
-# reaches the same repository the sidebar footer's commit link already reaches;
-# index.hbs gates the two icons on independent conditionals, so omitting the key
-# drops the repo icon and leaves the pencil untouched. Set it by hand in book.toml if
-# you want the icon back — but the script regenerates book.toml, so a re-run removes
-# it again. Values pass through esc_dq so an apostrophe in a title or author is safe.
+# book.toml. LIGHT_THEME=false pins both theme keys to PREFERRED_DARK: mdBook picks
+# the highlight sheet by name, so a light name would put light tokens on the dark
+# ground. edit-url-template: {path} already includes src/. No git-repository-url:
+# its icon duplicates the footer's commit link.
 render_book_toml() {
     cat <<EOF
 [book]
@@ -1783,11 +1173,9 @@ src = "src"
 [output.html]
 EOF
     echo 'additional-js = ["custom.js"]'
-    # custom.css is always written (it styles the sidebar footer and the print-back
-    # link that custom.js injects, and the line-number gutter), so always load it.
+    # Always loaded: it styles what custom.js adds, in every mode.
     echo 'additional-css = ["custom.css"]'
-    # SIDEBAR_NUMBERS=true is mdBook's own default (numeric labels shown), so emit
-    # nothing and inherit it; only the false case needs the explicit override.
+    # Numbers shown is mdBook's default; only hiding them needs a line.
     [ "$SIDEBAR_NUMBERS" = true ] || echo 'no-section-label = true'
     if [ "$LIGHT_THEME" = false ]; then
         cat <<EOF
@@ -1806,22 +1194,9 @@ site-url = "$(esc_dq "$SITE_URL")"
 edit-url-template = "$(esc_dq "$GIT_REPO_URL")/edit/$(esc_dq "$DEPLOY_BRANCH")/{path}"
 EOF
     fi
-    # Drop the reserved src/unlisted/ directory from the search index. One directory
-    # key covers every chapter under it, however many there are, and merges
-    # recursively — so this never needs a per-page line.
-    #
-    # It is GATED, and the gate is not optional: mdBook FAILS the build on a
-    # search.chapter key that matches no chapter path ("key `unlisted` does not match
-    # any chapter paths"), so emitting this unconditionally would break every book
-    # that has no unlisted chapter. The test greps SUMMARY.md rather than looking for
-    # src/unlisted/*.md, because mdBook matches CHAPTER paths: a file sitting in the
-    # directory but absent from SUMMARY.md is not a chapter, and a stanza emitted for
-    # it would fail the build. Grepping the list mirrors mdBook's own condition
-    # exactly. It also fails safe — on a first run SUMMARY.md does not exist yet, and
-    # if you add your first unlisted chapter and don't re-run, the page is merely
-    # searchable, not broken.
-    #
-    # A sub-table ends the parent table, so this must stay last in the file.
+    # Drop src/unlisted/ from search, only when SUMMARY.md lists a chapter there:
+    # mdBook fails the build on a key that matches no chapter. A sub-table, so it
+    # must stay last.
     if grep -qE '\]\(\.?/?unlisted/' src/SUMMARY.md 2>/dev/null; then
         cat <<'EOF'
 
@@ -1831,10 +1206,7 @@ EOF
     fi
 }
 
-# About is a prefix chapter (no leading dash) — renders unnumbered, above
-# all numbered chapters in the sidebar. A suffix chapter (same syntax, listed
-# after the numbered ones) renders unnumbered below them. A '---' line here draws
-# a separator rule in the sidebar, and a '# Title' line a part heading.
+# About is a prefix chapter: unnumbered, above the rest.
 render_summary() {
     cat <<'EOF'
 # Summary
@@ -1845,9 +1217,7 @@ render_summary() {
 EOF
 }
 
-# printf, not a heredoc: an unquoted heredoc would expand a '$' or execute a
-# backtick in BOOK_TITLE, so a title like 'Cost & Value $100' would silently lose
-# its price.
+# printf, not a heredoc: an unquoted heredoc would expand a $ in BOOK_TITLE.
 render_about() {
     printf '# %s\n\nA short description of this book — what it covers, who it'"'"'s for, and\nhow it'"'"'s organized. Replace this placeholder with your own text.\n' "$BOOK_TITLE"
 }
@@ -1972,14 +1342,14 @@ Ten or more, so it does:
 
 ```python
 def consectetur(adipiscing, elit=None):
-    """Vivamus luctus urna sed urna ultricies ac tempor dui."""
+    """Vivamus luctus urna sed urna ultricies ac tempor."""
     sagittis = []
     for nulla in adipiscing:
         if nulla in (elit or ()):
             continue
         sagittis.append(nulla.strip().lower())
     if not sagittis:
-        raise ValueError("sed nec diam eu diam mattis viverra")
+        raise ValueError("sed nec diam mattis viverra")
     return sorted(set(sagittis))
 ```
 
@@ -2018,8 +1388,7 @@ the collected definitions, and you would get two.
 EOF
 }
 
-# The one image the starter chapter shows. Grey at three opacities so it reads on
-# either ground without a second file — this book may be built light, dark, or both.
+# The starter chapter's picture: grey at three opacities, for either ground.
 render_demo_svg() {
     cat << 'EOF'
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 240">
@@ -2034,29 +1403,215 @@ render_demo_svg() {
 EOF
 }
 
-# Variables read: MDBOOK_VERSION, MDBOOK_SHA256, MDBOOK_NUMBERING_VERSION,
-# DEPLOY_BRANCH, HEADING_NUMBERS, ACTIONS_*_SHA.
-#
-# The mdBook version is pinned AND its bytes are: MDBOOK_VERSION names the release
-# and MDBOOK_SHA256 is the digest of the tarball this script actually installed, so
-# CI cannot be handed a different file under the same tag. First-party GitHub Pages
-# flow: the build job compiles the book and uploads it as a Pages artifact; the
-# deploy job publishes it via the Pages API. Requires Settings -> Pages -> Source ->
-# "GitHub Actions" once — actions/configure-pages can only enable Pages itself with
-# a personal access token (its GITHUB_TOKEN cannot), which is not worth storing for
-# a one-time click. Token is least-privilege: contents: read (checkout only); pages:
-# write and id-token: write are required by deploy-pages. Nothing pushes to a branch.
-#
-# The site version comes from git, not from this script: checkout takes fetch-depth: 0
-# (the default of 1 fetches no tags at all) and the stamp step writes it into custom.js
-# as the tag on the built commit, or as the nearest tag reachable from it with the
-# commit count appended — v0.2.0 exactly, or v0.2.0+5 five commits later. That means a
-# version on every deploy without a tag on every commit, and no build claiming to be a
-# release it is only descended from. Firing on tag pushes as well as branch pushes
-# means a tag alone deploys and stamps, so no atomic push is needed. The same step
-# stamps the build time and the per-page dates (git log -1 --format=%aI per chapter
-# source), and after the build lychee checks every internal link and anchor of the
-# built book offline — a break fails the job before anything deploys.
+# ./build: the build and link check, run by the author before a push and by the
+# deploy workflow, so both stop on the same broken links. lychee checks the built
+# pages; ./build reports each break by the Markdown file and line it's written on.
+render_build() {
+    cat <<'EOF'
+#!/usr/bin/env bash
+# Builds the book into book/, checks every internal link and anchor in it, and
+# stops on a broken one, listing each by the file and line it's written on. The
+# deploy workflow runs this same file.
+set -euo pipefail
+cd "$(dirname "$0")"
+for tool in mdbook lychee; do
+    [ -x "bin/$tool" ] || { echo "bin/$tool is missing: run bootstrap-mdbook.sh to install it" >&2; exit 1; }
+done
+./bin/mdbook build
+# print.html repeats every chapter; 404.html's <base href> points at the live site.
+rc=0
+report=$(./bin/lychee --offline --include-fragments --mode plain --no-progress \
+    --root-dir "$PWD/book" --exclude-path book/print.html --exclude-path book/404.html \
+    'book/**/*.html' 2>&1) || rc=$?
+if [ "$rc" -eq 0 ]; then
+    echo "links: every internal link and anchor resolves"
+    exit 0
+fi
+
+# lychee names each break by the built page and the address it resolved to.
+# The rest turns that into the Markdown file and line, the link as written, and
+# what's wrong. Fields are split by \037, since any of them can be empty.
+us=$'\037'
+
+# One line per break: page and target (both under book/), anchor, lychee's
+# reason. LC_ALL=C makes %XX decode to bytes, which reassemble as UTF-8.
+breaks=$(printf '%s\n' "$report" | LC_ALL=C ROOT_P="$(pwd -P)/book/" ROOT_L="$PWD/book/" awk '
+    function unhex(s,   out, i, c) {
+        out = ""
+        for (i = 1; i <= length(s); i++) {
+            c = substr(s, i, 1)
+            if (c == "%" && substr(s, i + 1, 2) ~ /^[0-9A-Fa-f][0-9A-Fa-f]$/) {
+                c = tolower(substr(s, i + 1, 2)); i += 2
+                c = sprintf("%c", (index(hex, substr(c, 1, 1)) - 1) * 16 + index(hex, substr(c, 2, 1)) - 1)
+            }
+            out = out c
+        }
+        return out
+    }
+    function in_book(p) {
+        if (index(p, ENVIRON["ROOT_P"]) == 1) return substr(p, length(ENVIRON["ROOT_P"]) + 1)
+        if (index(p, ENVIRON["ROOT_L"]) == 1) return substr(p, length(ENVIRON["ROOT_L"]) + 1)
+        return p
+    }
+    BEGIN { hex = "0123456789abcdef" }
+    /^\[.*\]:$/ { page = substr($0, 2, length($0) - 3); sub(/^book\//, "", page); next }
+    /^\[ERROR\] / {
+        url = $2; frag = ""
+        if ((i = index(url, "#")) > 0) { frag = unhex(substr(url, i + 1)); url = substr(url, 1, i - 1) }
+        sub(/^file:\/\//, "", url)
+        i = index($0, " | ")
+        print page "\037" in_book(unhex(url)) "\037" frag "\037" (i ? substr($0, i + 3) : "")
+    }' | sort -u)
+
+# Nothing to map (lychee itself failed): show its report as it is, less its
+# summary line, which is in emoji.
+if [ -z "$breaks" ]; then
+    printf '%s\n' "$report" | grep -v ' Total (in ' >&2 || true
+    echo "stopped: lychee failed (exit $rc); its output is above." >&2
+    exit 1
+fi
+
+# SRC: the file a built page comes from: NAME.md for NAME.html, a folder's
+# README.md or index.md for its index.html, SUMMARY.md for toc.html. Without
+# src/README.md or src/index.md, the root index.html is a copy of the first
+# chapter (COPY=1). A page with no source stays book/NAME.
+source_of() {
+    local p=$1 f
+    SRC='' COPY=''
+    case $p in
+        toc.html) SRC=src/SUMMARY.md ;;
+        index.html|*/index.html)
+            for f in "src/${p%index.html}README.md" "src/${p%index.html}readme.md" "src/${p%.html}.md"; do
+                [ -f "$f" ] && { SRC=$f; break; }
+            done
+            if [ -z "$SRC" ] && [ "$p" = index.html ]; then
+                f=$(awk 'match($0, /\]\([^)]*\.md\)/) { f = substr($0, RSTART + 2, RLENGTH - 3); sub(/^\.\//, "", f); print f; exit }' src/SUMMARY.md 2>/dev/null || true)
+                [ -z "$f" ] || [ ! -f "src/$f" ] || { SRC=src/$f; COPY=1; }
+            fi ;;
+        *.html) [ ! -f "src/${p%.html}.md" ] || SRC=src/${p%.html}.md ;;
+    esac
+    [ -n "$SRC" ] || { [ -f "src/$p" ] && SRC=src/$p || SRC=book/$p; }
+    return 0
+}
+
+re_esc() { printf '%s' "$1" | sed 's/[]\\.*$^+?(){}|[]/\\&/g'; }
+
+# Where file $1 writes the link: "line<TAB>link as written" per line. $2 matches
+# the target's file name, $3 its anchor; with $4, the link may be the anchor
+# alone. Inline, reference and HTML links count; code spans and fenced blocks
+# don't, as lychee skips them too.
+written() {
+    LC_ALL=C NAME_RE=$2 FRAG_RE=$3 SELF=$4 awk '
+        BEGIN {
+            q = sprintf("%c", 39)
+            lead = "(\\]\\(<?|\\]:[ \t]*<?|(href|src)=[\"" q "])"
+            path = "([^]()<>\"" q " \t]*/)?" ENVIRON["NAME_RE"]
+            if (ENVIRON["SELF"] != "") path = "(" path ")?"
+            if (ENVIRON["FRAG_RE"] != "") path = path "#" ENVIRON["FRAG_RE"]
+            end = "[)>\"" q " \t\r]"
+            re = lead path "(" end "|$)"
+        }
+        /^[ \t]*([`][`][`]|~~~)/ { fence = !fence; next }
+        fence { next }
+        {
+            line = $0
+            gsub(/`[^`]*`/, "", line)
+            if (match(line, re)) {
+                s = substr(line, RSTART, RLENGTH)
+                match(s, "^" lead); s = substr(s, RLENGTH + 1)
+                sub(end "$", "", s)
+                print FNR "\t" s
+            }
+        }' "$1"
+}
+
+# The heading anchor on built page $1 sharing the most words with anchor $2,
+# if it shares two thirds of them. Words under three letters and numbers don't
+# count; a word matches one it starts, or that starts it (rename, renames).
+closest() {
+    { grep -o '<h[1-6][^>]* id="[^"]*"' "book/$1" || true; } | sed 's/.* id="//; s/"$//' |
+    LC_ALL=C WANT=$2 awk '
+        function words(s, out,   n, i, k, part) {
+            n = split(s, part, "-"); k = 0
+            for (i = 1; i <= n; i++)
+                if (length(part[i]) > 2 && part[i] !~ /^[0-9]+$/ && part[i] !~ /^(and|the|for|with|from|into|that|this|what|how|why|when|are|was|not|its|you|your)$/)
+                    out[++k] = part[i]
+            return k
+        }
+        BEGIN { need = words(ENVIRON["WANT"], want) }
+        need {
+            k = words($0, have); hit = 0; split("", used)
+            for (i = 1; i <= need; i++)
+                for (j = 1; j <= k; j++)
+                    if (!(j in used) && (index(have[j], want[i]) == 1 || index(want[i], have[j]) == 1)) { hit++; used[j] = 1; break }
+            if (hit * 3 >= need * 2 && (hit > best || (hit == best && k - hit < fewest))) { best = hit; fewest = k - hit; pick = $0 }
+        }
+        END { if (pick != "") print pick }'
+}
+
+# Per break: the source file, each line the link is on, and why it's broken;
+# then sorted by file and line, each printed once.
+printf '%s\n' "$breaks" | while IFS=$us read -r page target frag reason; do
+    source_of "$page"; src=$SRC copy=$COPY
+    self=
+    [ -z "$frag" ] || [ "$target" != "$page" ] || self=1
+    name=${target##*/}
+    [ -z "$self" ] || name=${src##*/}
+    case $name in
+        *.html|*.md) name_re="$(re_esc "${name%.*}")[.](md|html)" ;;
+        *) name_re="$(re_esc "$name")/?" ;;
+    esac
+    case $reason in
+        "Cannot find fragment"*)
+            if [ -n "$self" ]; then why="no such anchor on this page"
+            else source_of "$target"; why="no such anchor in $SRC"; fi
+            hint=$(closest "$target" "$frag")
+            [ -z "$hint" ] || why="$why; did you mean #$hint?" ;;
+        "File not found"*)
+            md=src/${target%.html}.md
+            case $target in
+                /*) why="it points outside the book" ;;
+                README.html|*/README.html|readme.html|*/readme.html)
+                    why="mdBook builds README.md as index.html; write index.md in place of README.md" ;;
+                *.html) if [ -f "$md" ]; then why="$md isn't listed in src/SUMMARY.md, so the book has no page for it"
+                        else why="there's no $md"; fi ;;
+                *) why="there's no src/$target" ;;
+            esac ;;
+        *) why=$reason ;;
+    esac
+    found=
+    if [ -f "$src" ]; then found=$(written "$src" "$name_re" "$(re_esc "$frag")" "$self"); fi
+    if [ -n "$found" ]; then
+        while IFS=$'\t' read -r line link; do
+            printf '%s\n' "$src$us$line$us$link$us$why$us$copy"
+        done <<< "$found"
+    else
+        if grep -q '[{][{][[:space:]]*#[a-z_]*include' "$src" 2>/dev/null; then
+            why="$why (the link isn't in this file's own text; look in the files it includes)"
+        else
+            why="$why (couldn't find the link in this file's text)"
+        fi
+        printf '%s\n' "$src$us$us$target${frag:+#$frag}$us$why$us$copy"
+    fi
+done | LC_ALL=C sort -t "$us" -k1,1 -k2,2n -k3,3 -k4,4 -k5,5 | LC_ALL=C awk -F "$us" '
+    BEGIN { print "" }
+    !seen[$1 FS $2 FS $3 FS $4]++ {
+        printf "%s%s: %s\n    %s%s\n", $1, ($2 != "" ? ":" $2 : ""), $3, $4,
+            ($5 != "" ? " (on index.html, the copy of this chapter at the site root)" : "")
+        n++
+    }
+    END {
+        printf "\nstopped: %d broken link%s or anchor%s, listed above. fix %s, then run ./build again.\n",
+            n, (n == 1 ? "" : "s"), (n == 1 ? "" : "s"), (n == 1 ? "it" : "them")
+    }' >&2
+exit 1
+EOF
+}
+
+# The deploy workflow: mdBook and lychee pinned by version and sha256, actions by
+# SHA, the runner by image. Build job: install both into bin/, stamp custom.js,
+# run ./build, upload; deploy job: publish. Least-privilege token. Pages is
+# enabled by hand, once.
 render_workflow() {
     local numbering_step=""
     if [ "$HEADING_NUMBERS" = true ]; then
@@ -2086,15 +1641,13 @@ concurrency:
 
 jobs:
   build:
-    # Pinned like the action SHAs and the mdBook version: the runner image is the last
-    # input that could shift under an otherwise-green build. Bump when 24.04 is retired.
+    # Pinned like the actions and mdBook.
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@${ACTIONS_CHECKOUT_SHA}
         with:
-          # 0 = full history and tags. The default (1) fetches neither, and the
-          # version stamped below is the tag on this commit.
+          # Full history and tags: the stamp reads the tag.
           fetch-depth: 0
 
       - name: Install mdBook ${MDBOOK_VERSION}
@@ -2102,34 +1655,30 @@ jobs:
           set -euo pipefail
           base="https://github.com/rust-lang/mdBook/releases/download/${MDBOOK_VERSION}/mdbook-${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           curl --fail -sSL "\$base" -o mdbook.tar.gz
-          # The digest of the bytes the bootstrap script installed locally. A version
-          # tag names a file, not its contents; this pins the contents.
+          # The digest the bootstrap recorded: a tag names a file, not its bytes.
           echo "${MDBOOK_SHA256}  mdbook.tar.gz" | sha256sum -c -
-          tar -xz -f mdbook.tar.gz --directory=/usr/local/bin${numbering_step}
+          mkdir -p bin
+          tar -xz -f mdbook.tar.gz --directory=bin${numbering_step}
+
+      - name: Install lychee ${LYCHEE_VERSION}
+        run: |
+          set -euo pipefail
+          base="https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz"
+          curl --fail -sSL "\$base" -o lychee.tar.gz
+          # Pinned by version and sha256, recorded in the bootstrap script.
+          echo "${LYCHEE_SHA256}  lychee.tar.gz" | sha256sum -c -
+          tar -xz -f lychee.tar.gz --strip-components=1 \\
+            --directory=bin lychee-x86_64-unknown-linux-gnu/lychee
 
       - name: Stamp build metadata
         run: |
           set -euo pipefail
-          # The version of this build. 'describe --tags' names the tag on this commit
-          # if it carries one, and otherwise the nearest tag reachable from it plus the
-          # distance and the abbreviated commit: v1.2-5-gabc1234. The sed rewrites that
-          # tail to a '+5', which says the same thing without repeating the SHA that is
-          # already the next field of the line — so the label reads v1.2 on the tagged
-          # commit and v1.2+5 five commits later. Never --abbrev=0: that would print
-          # 'v1.2' for a commit that is not v1.2. Empty until the first tag exists;
-          # then it is never empty again. Reduced to a safe charset before being
-          # spliced into a sed replacement and a JS string literal: a git tag name may
-          # legally contain | and ".
+          # Version: the tag on this commit, or the nearest one plus a count
+          # (v1.2+5); never --abbrev=0, which would claim the tag. Safe charset only.
           version=\$(git describe --tags 2>/dev/null | sed -E 's/-([0-9]+)-g[0-9a-f]+\$/+\\1/' || true)
           version=\${version//[^A-Za-z0-9._+-]/}
-          # Last-commit time per chapter source, as the JSON object custom.js reads:
-          # {"src/chapter.md":"<git %aI>"}. It replaces the QUOTED placeholder, so
-          # the stamped line is an object literal while the unstamped one stays a
-          # string a local build can parse. The splice into sed is safe because both
-          # sides are constrained: %aI is digits, letters, 'T', ':', '+' and '-'
-          # only, and a path is admitted only from a charset with no '"', backslash,
-          # '&', '|' or newline — anything else is skipped with a notice and that
-          # page just shows no line.
+          # Each chapter source's last commit time, as {"src/x.md":"<time>"}; paths
+          # outside a safe charset are skipped, so the sed splice stays safe.
           dates="{" sep=""
           while IFS= read -r -d '' f; do
             case "\$f" in *.md) ;; *) continue ;; esac
@@ -2149,33 +1698,9 @@ jobs:
             -e "s|\\"__MDB_PAGE_DATES__\\"|\${dates}|" \\
             custom.js
 
-      - name: Build
-        run: mdbook build
-
-      - name: Install lychee ${LYCHEE_VERSION}
-        run: |
-          set -euo pipefail
-          base="https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz"
-          curl --fail -sSL "\$base" -o lychee.tar.gz
-          # Pinned version AND bytes, like mdBook — but lychee never installs
-          # locally, so the digest was recorded in the bootstrap script at pin time
-          # (the release publishes a matching .sha256) rather than computed here.
-          echo "${LYCHEE_SHA256}  lychee.tar.gz" | sha256sum -c -
-          tar -xz -f lychee.tar.gz --strip-components=1 \\
-            --directory=/usr/local/bin lychee-x86_64-unknown-linux-gnu/lychee
-
-      - name: Check links
-        run: |
-          # Offline pass over the built book: every internal link and every
-          # #fragment must resolve, or this step fails and nothing deploys.
-          # print.html repeats every chapter (each break would report twice) and
-          # 404.html carries a <base href> pointing at the live site, so both are
-          # excluded as inputs; links TO them are still checked. --offline also
-          # means external links are not fetched here — this gate is for the
-          # book's own integrity.
-          lychee --offline --include-fragments --root-dir "\$PWD/book" \\
-            --exclude-path book/print.html --exclude-path book/404.html \\
-            'book/**/*.html'
+      - name: Build and check links
+        # The ./build the author runs before a push: a broken link stops the deploy.
+        run: bash ./build
 
       - name: Setup Pages
         uses: actions/configure-pages@${ACTIONS_CONFIGURE_PAGES_SHA}
@@ -2199,8 +1724,7 @@ EOF
 }
 
 ## ─── entry point ─────────────────────────────────────────────────────────
-# Guarded so the file can be sourced (e.g. to unit-test a render_* function)
-# without running main.
+# Guarded so the file can be sourced to test a render_* function.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi

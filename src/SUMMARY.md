@@ -76,13 +76,14 @@
 
 - [Qemu install script](./qemu-install.md)
 
-- [Open letter to Devuan devs](./open-letter-to-devuan.md)
 
 # Local AI
 
 - [Ollama guide: set up a local LLM](./ollama-guide.md)
 
 - [Ollama install script](./ollama-install-script.md)
+
+- [Secure AI workstation](./secure-ai-workstation.md)
 
 # Publishing
 

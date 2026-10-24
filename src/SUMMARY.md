@@ -103,6 +103,8 @@
 
 - [Bootstrap mkdocs script](./bootstrap-mkdocs.md)
 
+- [Pubky domain with mirrors](./pubky-domain-with-mirrors.md)
+
 # Outro
 
 - [Contribute](./contribute.md)

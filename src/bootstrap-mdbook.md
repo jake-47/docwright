@@ -8,7 +8,7 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v62
+# bootstrap-mdbook.sh, v63
 #
 # Bootstraps an mdBook book at PROJECT_DIR/BOOK_NAME with a GitHub Pages workflow
 # that pins mdBook, lychee and the actions, then opens a live preview. Re-running
@@ -1265,6 +1265,12 @@ EOF
 <script>try{localStorage.removeItem('mdbook-theme');}catch(e){}</script>
 EOF
     fi
+    # Night modes built on Dark Reader (Brave's and Firefox's on iOS) repaint both palettes, Light into olive, unless locked out.
+    head="$head; locks out Dark Reader night modes"
+    cat >> theme/head.hbs <<'EOF'
+{{!-- Script-owned. Night modes built on Dark Reader leave the book's own palettes alone. --}}
+<meta name="darkreader-lock">
+EOF
     if [ "$OFFLINE" = full ]; then
         head="$head; links the web app manifest"
         cat >> theme/head.hbs <<'EOF'

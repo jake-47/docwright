@@ -1,4 +1,6 @@
 {{!-- Script-owned. Clears a saved theme the button doesn't offer: books on one github.io share it. --}}
 <script>try{const t=localStorage.getItem('mdbook-theme');if(t!==null&&t!=='light'&&t!=='ayu')localStorage.removeItem('mdbook-theme');}catch(e){}</script>
+{{!-- Script-owned. Night modes built on Dark Reader leave the book's own palettes alone. --}}
+<meta name="darkreader-lock">
 {{!-- Script-owned (OFFLINE="full"): the web app manifest offline.py writes. --}}
 <link rel="manifest" href="{{ path_to_root }}manifest.webmanifest">

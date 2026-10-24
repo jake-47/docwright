@@ -103,6 +103,8 @@
 
 - [Bootstrap mkdocs script](./bootstrap-mkdocs.md)
 
+- [Gitlab hosting with Github mirror](./gitlab-hosting-github-mirror.md)
+
 - [Pubky domain with mirrors](./pubky-domain-with-mirrors.md)
 
 # Outro

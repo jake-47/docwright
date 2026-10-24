@@ -2,7 +2,7 @@
 
 > - **For:** knowledge workers who want to understand Git rather than memorise it.
 > - **Before you start:** [Getting started with Git](./git-getting-started.md).
-> - **Reading time:** about 69 minutes end to end. The sections stand alone; read the ones you need.
+> - **Reading time:** about 73 minutes end to end. The sections stand alone; read the ones you need.
 > - **You end with:** the mental model behind commits, branches, staging, history rewriting and identity, and the habits that keep a history useful.
 
 This page explains important concepts of Git that every knowledge worker must know. The four core ones (repository, commit, staging, diff) are in [Whys of version control](./vcs-whys.md#four-core-concepts); this page goes underneath them.
@@ -333,7 +333,9 @@ Reorder commits by moving lines. Save and close, and Git walks through your inst
 
 The interactive rebase above is the general tool. For the specific case of "commit C is missing a small change," there's a cleaner shortcut: the fixup + autosquash workflow. Stage the change, then `git commit --fixup=<C>` records a new commit with the message `fixup! <subject of C>`. When you later run `git rebase -i --autosquash <C>^`, Git pre-positions the fixup next to C and pre-marks it for squashing; you confirm by saving the editor. This is the dominant workflow on rebase-based projects (Bitcoin Core, the Linux kernel) because it skips the manual reorder-and-relabel step that plain interactive rebase requires.
 
-Note that `--amend` itself only operates on HEAD. There's no syntax to target an older commit; for anything beyond HEAD you need rebase, and the fixup pair is the path of least friction.
+Note that `--amend` itself only operates on HEAD. There's no syntax to target an older commit; for anything beyond HEAD Git itself needs rebase, and the fixup pair is the path of least friction.
+
+Outside Git, git-revise does the same fold in one command and in memory: it applies your staged changes to the commit you name, or rewrites that commit's message, without touching the working tree or the index, and a run that fails leaves everything as it was. It has no conflict tooling beyond a prompt and doesn't run your hooks, so the fixup pair stays the fallback when a fold conflicts. The commands are under [Revising older commits](./gitreference.md#revising-older-commits) in the reference.
 
 For merges specifically, interactive rebase across them requires `--rebase-merges`:
 
@@ -349,13 +351,13 @@ Rewriting is safe when the commits only exist locally. The moment you've pushed 
 
 For a purely solo project, or where you're the only one pulling, rewrite freely. For anything shared, the rule of thumb: rewrite only commits that haven't been pushed, and leave pushed history alone.
 
-When you must force-push (amended a commit and need the remote to accept the new version), use `--force-with-lease`:
+When you must force-push (amended a commit and need the remote to accept the new version), use `--force-with-lease --force-if-includes`:
 
 ```bash
-git push --force-with-lease
+git push --force-with-lease --force-if-includes
 ```
 
-This refuses the push if the remote has changed in a way you didn't expect, preventing you from overwriting someone else's work you didn't know had been pushed. Use it instead of plain `--force` by default.
+The lease refuses the push if the remote has moved since you last fetched, so you can't overwrite work you didn't know had been pushed. On its own it has a gap: any fetch, including the one inside a `git pull` that then stopped on a conflict, resets what the lease compares against, so the push goes through and deletes the commit you fetched but never took in. `--force-if-includes` (Git 2.30+) closes the gap by also refusing unless your branch contains everything the remote has. The reference's `git pf` alias uses both. Use the pair instead of plain `--force` by default.
 
 There's a lighter-weight alternative: `git notes`. Notes let you attach additional commentary to a commit without rewriting it. The commit itself is untouched; you add a note alongside it with `git notes add -m "additional context" <sha>`. Safe on pushed commits because it doesn't alter the commit. Downsides: notes don't show up in most views by default, and they don't travel between repositories automatically without extra configuration. A niche tool, useful occasionally.
 
@@ -484,12 +486,11 @@ What these do:
 10. `commit.template ~/.gitmessage`: pre-fills the commit editor with reminders of the 50/72/imperative rules as comment lines (stripped on save). The [reference doc](./gitreference.md#one-time-setup) has the template content.
 11. `core.hooksPath ~/.git-hooks`: redirects Git's hook discovery from the per-repo `.git/hooks/` to a user-managed directory, so the same hooks apply to every repo on your machine. The hooks themselves are covered in [Hooks](#hooks) below.
 
-Useful aliases, added under `[alias]` in your global `~/.gitconfig`. The block below is a representative subset; the [Git reference doc](./gitreference.md#one-time-setup) has the full convergent set used by long-term experts, grouped by purpose, with reliability notes.
+Useful aliases, added under `[alias]` in your global `~/.gitconfig`. The block below is a representative subset; the [Git reference doc](./gitreference.md#one-time-setup) has the full set, grouped by purpose, with reliability notes.
 
 ```ini
 [alias]
     c = commit -m
-    ca = !git add -A && git commit -m
     last = show --compact-summary HEAD
     lg = log --oneline --graph --all --decorate
     st = status -s
@@ -500,7 +501,7 @@ Useful aliases, added under `[alias]` in your global `~/.gitconfig`. The block b
     pf = push --force-with-lease --force-if-includes
 ```
 
-The first three are the everyday workflow: `git c "msg"` commits staged changes, `git ca "msg"` stages everything and commits, `git last` shows what you just committed (commit metadata, message, and a compact summary of changed files including new/deleted/mode-changed annotations). The `pf` alias uses `--force-with-lease --force-if-includes`, which refuses to overwrite the remote if someone else has pushed in the meantime; never alias plain `push --force` to a short name. For the fuller setup that goes with these (`commit.verbose`, the commit message template, the editor configuration), see the Git reference doc.
+The first two are the everyday pair: `git c "msg"` commits staged changes and `git last` shows what you just committed (commit metadata, message, and a compact summary of changed files including new/deleted/mode-changed annotations). The reference's `git ca "msg"`, which stages everything and commits in one go, is left out here because it depends on the reference's `idle` guard, which stops it while a merge or rebase is half done. The `pf` alias uses `--force-with-lease --force-if-includes`, which refuses to overwrite the remote if someone else has pushed in the meantime; never alias plain `push --force` to a short name. For the fuller setup that goes with these (`commit.verbose`, the commit message template, the editor configuration), see the Git reference doc.
 
 Most experienced users have a dotfile of Git configuration that's grown over years and represents accumulated wisdom about friction points. Start yours now; add to it whenever you find yourself typing the same flag combination twice. The reference doc is the single source of truth for the alias inventory; come back here only for the principle, not the list.
 
@@ -528,6 +529,8 @@ It changes the second step from merge to rebase. After fetching the new remote c
 
 The cost: your local commits get new hashes. The replay produces new commit objects, because each new parent changes the hash. This is fine for unpushed work (the old hashes only existed locally), and it's the operational form of the rule "rewrite local history freely, never rewrite pushed history without coordination." If you've already pushed those local commits to a shared branch, the rebase will diverge from the remote and the next push will need force, which is a different kind of problem.
 
+A rebasing pull also needs a clean working tree: with uncommitted changes, it refuses to start until you commit or stash them.
+
 ### When rebase-on-pull is the wrong default
 
 On a branch where you have merged in commits other people already have (another shared branch, say), rebase-on-pull flattens your merge and replays those commits on top with new hashes, so your history ends up carrying copies of commits other people have already based work on. The merge-on-pull default avoids that by keeping every commit stable. Most modern workflows don't have this problem (feature branches typically belong to one author), but if you work that way, switch the setting per-repo with `git config pull.rebase false` for that repo.
@@ -537,6 +540,12 @@ On a branch where you have merged in commits other people already have (another 
 A worry that sounds related but isn't: what if the remote commits themselves are ones you don't want? Neither pull variant helps, because both integrate them; after either kind of pull, your branch contains the remote's work, and merge versus rebase only chooses the topology of the join. The guard against suspect remote commits is inspection before integration: `git fetch`, then `git log HEAD..origin/main` to list what arrived (or `git diff HEAD...origin/main` to read it as one diff), then decide what to do. No alias is needed for the deciding, because `git pull` already takes per-invocation flags that override the configured default for that one pull: `git pull --rebase`, `git pull --no-rebase`, and `git pull --ff-only`.
 
 There is also a third configuration stance worth naming: `git config --global pull.ff only`. With it, a pull succeeds only when your branch can fast-forward; any divergence makes the pull refuse, and you then choose `--rebase` or `--no-rebase` explicitly for that case. This is the fail-loud setting, the same philosophy as the identity setup in [Identity layers and isolation](#identity-layers-and-isolation): nothing is integrated silently, and every divergence becomes a deliberate decision. Its cost is friction in the common case, where the divergence is your own work on two machines and rebase was always going to be the answer. The recommendation here stays `pull.rebase true` for that reason; if you would rather decide every time, ff-only is the principled way to get it.
+
+### When a pull stops halfway
+
+Either kind of pull can stop on a conflict, and then it is half done: Git has fetched the remote's commit and started combining it with yours, but your branch doesn't contain it yet. That's why every push keeps failing, and why the push error's advice to pull doesn't help: the pull already happened, and what's missing is its second half. `git status` says which state you're in, and the only ways out are to finish (resolve each file, `git add` it, then commit or continue) or to abort, which puts you back where you were before the pull. The mode changes two things: a rebase replays your commits one at a time, so you can meet a conflict once per commit, and inside a rebase `--ours` and `--theirs` swap meaning, because "ours" is then the commit being built on, which is the remote's. The commands are under [If a pull stops on a conflict](./gitreference.md#if-a-pull-stops-on-a-conflict) in the reference.
+
+The habit that avoids most of these is pulling at the start of a session, before you edit anything: with nothing local to combine, a pull just fast-forwards. What usually gives a pull something to combine is a commit you didn't make on this machine, made in the forge's web editor or pushed from another clone; the reference shows how to tell which.
 
 ### The pull-rebase debate, in one paragraph
 
@@ -570,15 +579,17 @@ A Git hook is a script Git runs automatically at a specific point in the workflo
 
 Hooks live as executable files in a directory Git inspects when relevant operations run. The default location is `.git/hooks/` inside each repo. Files there with the right name (`pre-commit`, `prepare-commit-msg`, `pre-push`, `post-merge`, and others) get executed at their respective stages.
 
-Two facts about hooks worth absorbing early:
+Three facts about hooks worth absorbing early:
 
 1. Hooks are per-machine. The `.git/` folder isn't tracked by the repo itself. Cloning a repo does not give you its hooks. Each developer sets up their own hooks on their own machine. This is by design: hooks run arbitrary code, and pulling a repo would otherwise mean executing whatever the repo's author put in their hooks. Tools like `pre-commit` (the framework) layer a tracked configuration over this so hooks can be shared, but the raw mechanism is local-only.
 
 2. Hooks are opt-in. A fresh repo's `.git/hooks/` directory contains only `.sample` files, which Git ignores because of their names. Git runs nothing unless you create executable hook scripts with the exact hook names yourself.
 
+3. Which hooks run depends on the command, not only on the name. `pre-commit` runs on `git commit` but not on the commit `git rebase --continue` makes for you; `prepare-commit-msg` runs on both. `--no-verify` skips `pre-commit` and `commit-msg` but not `prepare-commit-msg`. And tools that write commits themselves, such as git-revise, run none of them. A check meant to catch mistakes while you finish a conflict therefore belongs in `prepare-commit-msg`, which is where the reference puts its conflict-marker check.
+
 ### `core.hooksPath`
 
-To share hooks across all your repos rather than copying them into each one, set `core.hooksPath` to a user-managed directory (the day-one block sets this to `~/.git-hooks`). Every repo on the machine then reads hooks from that single directory instead of its own `.git/hooks/`. Add an executable hook there once and it applies everywhere. [One-time setup](./gitreference.md#one-time-setup) in Git reference uses this pattern to install a rename-safety hook that warns when a rename commit also contains substantial content changes (the failure mode covered in [Renames](#renames), under What Git silently discards).
+To share hooks across all your repos rather than copying them into each one, set `core.hooksPath` to a user-managed directory (the day-one block sets this to `~/.git-hooks`). Every repo on the machine then reads hooks from that single directory instead of its own `.git/hooks/`. Add an executable hook there once and it applies everywhere. [One-time setup](./gitreference.md#one-time-setup) in Git reference uses this pattern to install a hook with two checks: it refuses a commit that adds conflict-marker lines, and it warns when a rename commit also contains substantial content changes (the failure mode covered in [Renames](#renames), under What Git silently discards).
 
 The trade-off: per-repo override is lost. If one repo genuinely needs different hooks, drop a `.git/hooks/<name>` in that repo and point `core.hooksPath` back at it for that repo with `git config core.hooksPath .git/hooks`. (Running `git config --unset core.hooksPath` there does nothing: the setting lives in your global config, not the repo's.) For most personal workflows, the global pattern is right; the rare per-repo override is the exception.
 
@@ -686,9 +697,9 @@ Not every forge supports LFS for free at scale (bandwidth quotas apply on GitHub
 
 If you've already committed large binaries you wish you hadn't, removing them requires history rewriting via `git filter-repo`, identical to the secrets purge described above. The [reference doc](./gitreference.md#purging-files-from-history) covers the procedure. Treat it like a secrets incident: rare, deliberate, all-collaborators-affected. Better to prevent than to clean up.
 
-## Signed commits
+## Signing
 
-To understand signed commits, start with what a normal commit's "author" field actually is.
+To understand signing, start with what a normal commit's "author" field actually is.
 
 When you commit, Git stamps the commit with the name and email you set in `user.name` and `user.email`. Git takes your word for it. There's no verification. Anyone with a clone of your repo can set their config to your name and your email and make commits that look exactly like yours. Push them to a server and the server has no way to know they didn't come from you.
 
@@ -696,13 +707,15 @@ For most work this doesn't matter. The threat model is small: nobody is forging 
 
 A signed commit closes this gap. When you commit with signing turned on, Git uses a cryptographic key (GPG, or more recently SSH) that lives only on your machine to attach a signature to the commit. The signature is mathematically bound to the commit's contents and to your private key. Anyone with your public key (which you've uploaded to GitHub) can verify two things: that the commit was made by someone who held your private key, and that the commit hasn't been altered since you signed it. GitHub displays this verification as a green "Verified" badge next to the commit.
 
-Why this matters: even if an attacker takes over your GitHub account, they don't have your private key (which lives on your laptop, not on GitHub). They can push unsigned commits or commits signed with the wrong key, but they can't produce signatures that match yours. Reviewers who require signed commits can reject the unsigned ones. The compromise gets caught.
+Why this matters: even if an attacker takes over your GitHub account, they don't have your private key (which lives on your laptop, not on GitHub). They can push unsigned commits or commits signed with the wrong key, but they can't produce signatures that match yours. Reviewers who require signed commits can reject the unsigned ones. The compromise gets caught. The protection is only as good as the key's: with no passphrase on it, anything running as you can sign as you, so the signature stops people who have never touched your machine and nothing more. [Beyond passphrase keys](#beyond-passphrase-keys) covers the next steps.
 
 This is why Bitcoin Core, the Linux kernel, and most security-critical projects either require or strongly encourage signatures on what reaches the main branch: Bitcoin Core signs every merge commit, and kernel maintainers sign the tags they ask Linus to pull from. The Linux kernel adds another layer: a `Signed-off-by:` line in the commit message, which is a contributor's legal attestation that they have the right to submit the change under the project's licence. That's a different mechanism from cryptographic signing (it's just text), but it serves a related purpose of making the chain of provenance explicit.
 
-For solo work and most personal projects, signing isn't necessary. Nobody is trying to impersonate you on your hobby blog repo. The threat model isn't in play. Skip it; you're not missing anything important.
+Notice what those two projects sign. Neither requires every commit to be signed; each signs the point where work is accepted, a merge commit or a tag. That's enough because of the object model: a tag names its commit by hash, and each commit names its tree and its parent by hash, so one signature at the tip vouches for every commit, tree and file behind it. Signing every commit adds a per-commit badge on the forge, and costs a re-sign after every history rewrite, because a rewrite gives every commit a new hash and the old signatures no longer match: filter-repo removes commit signatures, and a tag's signature stops verifying.
 
-For high-stakes contributions or projects where you want the assurance, set it up once and forget about it. Generate a GPG key (or use SSH signing, which is simpler if you already have an SSH key for GitHub). Tell Git to sign commits by default. Upload the public key to GitHub. From then on, every commit gets the green badge automatically. The [Git reference](./gitreference.md#signed-commits) has the exact commands.
+For solo work, signing every commit isn't necessary: nobody is trying to impersonate you commit by commit on your hobby blog repo. Signing the versions you publish is different once anyone relies on them. A reader who checks a signed tag against your published key can tell your version from one altered on the forge, a mirror or a fork, without trusting any of them. If nothing you publish is ever checked, skip signing; you're not missing anything important.
+
+To set it up, use SSH signing if you already have an SSH key for GitHub (GPG is the older alternative), tell Git to sign tags by default, and upload the public key to GitHub as a signing key; from then on every tag you push carries the green badge. Signing every commit is one more setting, for projects that require it. The [Git reference](./gitreference.md#signing) has the exact commands.
 
 One pragmatic note: most developers don't sign, and the ecosystem hasn't fully standardised. You'll see plenty of unsigned commits from serious developers in serious projects, because the cost of setting up signing across multiple machines and keeping keys in sync isn't trivial, and the benefit only kicks in for projects that actually verify signatures. Don't read the absence of signatures as carelessness; it's usually just rational triage. Read the presence of signatures as someone taking the supply-chain question seriously, which is increasingly the right disposition for anyone touching widely-used code.
 
@@ -730,7 +743,7 @@ A passphrase-protected SSH key on disk is the baseline for any serious setup. If
 
 2. *Network metadata via Tor.* Pushing over SSH leaks the source IP to the destination host (which network is doing the push). Routing SSH through Tor with `ProxyCommand` or running git operations from inside Whonix protects this metadata. The destination sees an SSH connection from a Tor exit node; the SSH protocol itself is unchanged. Useful when the *fact* that an identity exists at a given network location is itself sensitive.
 
-3. *Commit signing as an independent layer.* SSH (or GPG) signs commits cryptographically, separate from how the push happens. A signature proves a specific key authored a commit; an attacker who compromises your forge account but not your signing key can push fake commits, but they can't *sign* them. Bitcoin Core requires signed merges to master; the Linux kernel uses GPG-signed tags on maintainer trees. For personal projects, signing matters mainly if the project requires it or if you want a verifiable record of which commits you actually authored.
+3. *Signing as an independent layer.* SSH (or GPG) signs tags or commits cryptographically, separate from how the push happens. A signature proves a specific key made it; an attacker who compromises your forge account but not your signing key can push fake commits, but they can't *sign* them. Bitcoin Core requires signed merges to master; the Linux kernel uses GPG-signed tags on maintainer trees. For personal projects, signing tags matters once anyone checks what you publish, and signing every commit mainly when a project requires it; [Signing](#signing) has the reasoning.
 
 These are orthogonal. You can use a YubiKey without Tor, Tor without signing, signing without a YubiKey. The natural progression is: passphrase keys (current), then signing (cheap to add, no hardware needed), then hardware tokens (real cost, real benefit), then Tor (situational, depends on what metadata you're protecting).
 
@@ -776,7 +789,7 @@ This means `git log --follow` and every rename-aware diff are post-hoc heuristic
 
 Git's default similarity threshold for rename detection is 50%. `--follow` uses that threshold. So `--follow` traces through a rename fine as long as the file's similarity score stays above 50%; below that, it loses the thread entirely. The practical implication: keep rename commits content-pure. If you must edit a file at the same time you rename it, do the rename in one commit and the edit in a separate one. A rename-only commit has 100% similarity and is bulletproof for `--follow`; a rename-plus-substantial-edit commit risks dropping below 50% and silently breaking history traversal for that file forever afterward.
 
-The reference doc has a `prepare-commit-msg` hook that inspects every commit as it is being prepared, normal or amend, and warns when it contains a rename below 60% similarity (10 points above the danger floor). See [One-time setup](./gitreference.md#one-time-setup) there.
+The reference doc has a `prepare-commit-msg` hook that inspects every commit as it is being prepared, normal or amend, and warns when it contains a rename below 60% similarity (10 points above the danger floor). It looks for renames down to 30% similarity, because at the default 50% the worst cases appear only as a delete plus an add. See [One-time setup](./gitreference.md#one-time-setup) there.
 
 This is a known and longstanding criticism of Git's design: renames would need to be first-class objects in the commit format to record intent reliably, not inferred from diffs. The burden falls on the user to keep renames content-pure so the heuristic can recover what the tool discarded.
 
@@ -786,7 +799,7 @@ Several other footguns are variants of the same pattern: Git's model is lower-le
 
 1. Amending a pushed commit rewrites history for everyone else. `--amend` doesn't alter the previous commit; it replaces it entirely with a new one that has a different hash. If the original was already pushed, anyone who pulled it now has a diverged history. The rule: only amend commits that haven't been pushed.
 
-2. `git add .` and `git commit -a` stage everything indiscriminately. Easy to commit debug code, credentials, build artifacts, or unrelated changes by accident. The discipline is `git add <file>` explicitly, and reviewing `git diff --staged` before every commit. The staging area was designed to give you control over what's in the next commit; bypassing it gives up the safety it provides.
+2. `git add .` and `git commit -a` stage everything indiscriminately. Easy to commit debug code, credentials, build artifacts, or unrelated changes by accident. The discipline is `git add <file>` explicitly, and reviewing `git diff --staged` before every commit. The staging area was designed to give you control over what's in the next commit; bypassing it gives up the safety it provides. It matters most while you're finishing a conflict: `git add` is what tells Git a conflict is resolved, and Git never looks inside the file, so a file still full of conflict markers counts as resolved once it's staged, and `git commit -a` in the middle of a merge commits the markers along with every other edit in the tree.
 
 3. Merge vs rebase is a permanent, often-invisible choice about what history looks like. A merge commit preserves topology: you can see that work happened in parallel. A rebase rewrites commits as if they were always linear, discarding that topology. Most users pick one out of habit without realising the choice is irreversible once pushed.
 

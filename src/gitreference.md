@@ -2,7 +2,7 @@
 
 > - **For:** anyone who knows what they want Git to do and needs the command.
 > - **Before you start:** [Getting started with Git](./git-getting-started.md).
-> - **Reading time:** about 45 minutes end to end, but it's a lookup: find your task and read that section.
+> - **Reading time:** about 48 minutes end to end, but it's a lookup: find your task and read that section.
 > - **You end with:** Git set up once, and the command for whatever you need to do next.
 
 Lookup by task. The [concepts doc](./gitconcepts.md) covers the mental model and the why; this one tells you the command.
@@ -45,7 +45,7 @@ git config --global diff.tool vimdiff
 git config --global difftool.prompt false
 ```
 
-Make `git pull` rebase instead of merge. Keeps history linear; no noise commits.
+Make `git pull` rebase instead of merge. Keeps history linear; no noise commits. With uncommitted changes in the tree, a rebasing pull refuses to start (`error: cannot pull with rebase: You have unstaged changes.`, or `Your index contains uncommitted changes.` when they're staged); commit or stash them first. If a pull stops on a conflict, see [If a pull stops on a conflict](#if-a-pull-stops-on-a-conflict).
 
 ```bash
 git config --global pull.rebase true
@@ -108,24 +108,39 @@ Codium settings for commit-message editing. Open Settings, click the JSON icon t
 
 Vertical rulers at columns 50 and 72; word wrap activates at column 72.
 
-Install a rename-safety hook. Git records renames as delete+add and re-infers them post-hoc when you run `git log --follow`; that inference is content-similarity based, and `--follow` loses the thread when the rename commit's similarity drops below Git's 50% default. The hook below inspects the commit being prepared, normal or amend, and warns when it contains a rename below the 60% safety margin (10 points above the floor). See the concepts doc, [What Git silently discards](./gitconcepts.md#what-git-silently-discards), for the fuller framing.
+Install a commit hook with two checks. The first refuses a commit that adds conflict-marker lines: `git add` is what tells Git a conflict is resolved, and Git never looks inside the file, so markers left in it are committed like any other text. The second is a rename-safety warning. Git records renames as delete+add and re-infers them post-hoc when you run `git log --follow`; that inference is content-similarity based, and `--follow` loses the thread when the rename commit's similarity drops below Git's 50% default. The hook inspects the commit being prepared, normal or amend, and warns when it contains a rename below the 60% safety margin (10 points above the floor). See the concepts doc, [What Git silently discards](./gitconcepts.md#what-git-silently-discards), for the fuller framing.
 
 ```bash
 mkdir -p ~/.git-hooks
 cat > ~/.git-hooks/prepare-commit-msg << 'EOF'
 #!/bin/sh
-# Warn when the commit being prepared contains a rename with substantial
-# content changes (similarity <60%); such commits break `git log --follow`.
-# Renames are detected down to 10% similarity: at Git's default of 50%, the
-# worst ones show up as a delete plus an add and never reach the check.
-# $2 is the message source; $3 is HEAD when the source is an amend.
+# Git runs this hook on git commit and on git rebase --continue
+# (pre-commit does not run there); --no-verify does not skip it.
+#
+# 1. Refuse a commit that adds conflict-marker lines. git add is what marks a
+# conflict resolved; Git never looks inside the file. Only the opening and
+# closing markers count, because a bare ======= line is also a Markdown
+# heading underline.
+if git diff --cached --no-color --no-ext-diff --no-textconv -U0 |
+    grep -qE '^\+(<<<<<<<|>>>>>>>)( |$)'; then
+  echo "Conflict markers are staged. Fix the file, git add it, and retry." >&2
+  echo "To commit markers on purpose: git -c core.hooksPath=/dev/null commit ..." >&2
+  exit 1
+fi
+#
+# 2. Warn when the commit being prepared contains a rename with substantial
+# content changes (similarity <60%). git log --follow loses a file across a
+# rename below 50%; 60% leaves a margin. Detection runs at 30%, because at
+# Git's default 50% the worst cases show as a delete plus an add and are
+# never seen. $2 is the message source; $3 is HEAD when the source is an
+# amend.
 if [ "$2" = "commit" ] && [ "$3" = "HEAD" ]; then
   base=HEAD~1   # amend: the new commit's parent is HEAD's parent
 else
   base=HEAD     # normal commit: the new commit's parent is HEAD
 fi
 git rev-parse --verify --quiet "$base" >/dev/null || exit 0   # initial commit: nothing to compare
-if git diff --cached --find-renames=10% --name-status "$base" | grep '^R' | awk '{score=substr($1,2)+0; if(score<60) found=1} END{exit !found}'; then
+if git diff --cached --find-renames=30% --name-status "$base" | grep '^R' | awk '{score=substr($1,2)+0; if(score<60) found=1} END{exit !found}'; then
   echo "Warning: this commit contains a rename with substantial content changes (similarity <60%). git log --follow may lose history. Rename in one commit; edit in a separate commit." >&2
 fi
 exit 0
@@ -139,9 +154,11 @@ Point Git at that hooks directory globally:
 git config --global core.hooksPath ~/.git-hooks
 ```
 
-The hook checks the staged diff against the commit's actual future parent: `HEAD` for a normal commit, `HEAD~1` for an amend, whose parent is the old commit's parent and whose content the index already holds at hook time. It covers both the fresh rename-plus-edit commit and the pure-rename commit about to receive edits via amend, skips cleanly on a repo's first commit, and warns without ever blocking.
+The marker check blocks. It runs where conflicts get finished: on `git commit`, including the commit that concludes a merge, and on `git rebase --continue`, where a `pre-commit` hook would not run; `--no-verify` doesn't skip it. It looks only at lines the commit adds, and only at `<<<<<<<` and `>>>>>>>` lines, because a bare `=======` is also a Markdown heading underline. When it blocks, it prints its two lines and the commit doesn't happen; during a rebase Git adds `error: could not commit staged changes.` and stays stopped. To commit a page that shows conflict markers on purpose, like this one, bypass hooks for that one commit with `git -c core.hooksPath=/dev/null commit`.
 
-Useful aliases. Add to `~/.gitconfig` under `[alias]`, or set with `git config --global alias.<name> '<value>'`. The set below is built on the convergent core that shows up across long-stable expert configurations (mwhite, Haacked, Pro Git, Atlassian, oh-my-zsh's `git` plugin, GitHub's published dotfiles), grouped by purpose. Each line is what gets typed; the comment is what it does.
+The rename check compares the staged diff against the commit's actual future parent: `HEAD` for a normal commit, `HEAD~1` for an amend, whose parent is the old commit's parent and whose content the index already holds at hook time. It covers both the fresh rename-plus-edit commit and the pure-rename commit about to receive edits via amend, skips cleanly on a repo's first commit, and only warns. It looks for renames down to 30% similarity: at Git's default 50% it would miss the very renames `--follow` already loses, and at 20% a deleted post and an unrelated new one that shared front matter were taken for a rename.
+
+Useful aliases. Add to `~/.gitconfig` under `[alias]`, or set with `git config --global alias.<name> '<value>'`. The status, staging, diff, log, branch, rebase, stash and push entries use names and commands found across the common published sets (Pro Git, Atlassian, mwhite's gist, Haacked's post, and oh-my-zsh's `git` plugin, which spells them with a `g` prefix). The commit family is this setup's own, and its `a` means `add -A`, where `ca` in mwhite's gist and `gca` in oh-my-zsh mean `commit -a`. Grouped by purpose; each line is what gets typed, and the comment is what it does.
 
 ```ini
 [alias]
@@ -153,27 +170,27 @@ Useful aliases. Add to `~/.gitconfig` under `[alias]`, or set with `git config -
     a   = add
     ap  = add -p                              # interactive hunks (atomic commits)
 
+    # Guard: ca, caa, caam and rv run this first; note 9
+    idle    = "!f() { for s in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD rebase-merge rebase-apply; do if [ -e \"$(git rev-parse --git-path \"$s\")\" ]; then echo \"git idle: a merge, rebase, cherry-pick or revert is in progress; finish or abort it first (git status shows how)\" >&2; return 1; fi; done; if [ -n \"$(git ls-files -u)\" ]; then echo \"git idle: unresolved conflicts; fix each file and git add it first\" >&2; return 1; fi; }; f"
+                                              # refuse mid-merge, mid-rebase or with unresolved conflicts
+
     # Commit
     c       = commit -m                       # one-line message
-    ca      = !git add -A && git commit -m    # stage everything + one-line message
-    caa     = !git add -A && git commit --amend --no-edit
+    ca      = !git idle && git add -A && git commit -m
+                                              # stage everything + one-line message
+    caa     = !git idle && git add -A && git commit --amend --no-edit
                                               # stage everything + fold into prev commit, keep message
     caas    = commit --amend --no-edit        # fold ALREADY-STAGED into prev commit, keep message
-    caam    = "!f() { git add -A && git commit --amend -m \"$1\"; }; f"
+    caam    = "!f() { git idle && git add -A && git commit --amend -m \"$1\"; }; f"
                                               # stage everything + fold into prev commit, NEW message
     caams   = commit --amend -m               # fold ALREADY-STAGED into prev commit, NEW message
     cm      = "!bash -c 'args=(); for m in \"$@\"; do args+=(-m \"$m\"); done; git commit \"${args[@]}\"' --"
-                                              # each arg becomes a paragraph; no args opens the editor; note 11
+                                              # each arg becomes a paragraph; no args opens the editor; note 8
     cf      = commit --fixup                  # mark fixup; pair with ria
-    fixto   = "!f() { sha=$(git rev-parse \"$1\") && git add -A && git commit --fixup \"$sha\" && if base=$(git rev-parse -q --verify \"$sha^\"); then GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash \"$base\"; else GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --root; fi; }; f"
-                                              # stage everything + fold into <commit>, root-aware; note 8
-    fixtos  = "!f() { sha=$(git rev-parse \"$1\") && git commit --fixup \"$sha\" && if base=$(git rev-parse -q --verify \"$sha^\"); then GIT_SEQUENCE_EDITOR=: git rebase -i --autostash --autosquash \"$base\"; else GIT_SEQUENCE_EDITOR=: git rebase -i --autostash --autosquash --root; fi; }; f"
-                                              # fold ALREADY-STAGED into <commit>, root-aware; note 8
-    rewordto = "!f() { sha=$(git rev-parse \"$1\") && if [ -n \"${2:-}\" ]; then target_subject=$(git log -1 --format=\"%s\" \"$sha\") && git commit --allow-empty -m \"amend! $target_subject\" -m \"$2\"; else git commit --allow-empty --fixup=reword:\"$sha\"; fi && if base=$(git rev-parse -q --verify \"$sha^\"); then GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash \"$base\"; else GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash --root; fi; }; f"
-                                              # replace message of <commit>; editor or inline; no content change; note 9
-    foldinto = "!f() { git diff --quiet && git diff --cached --quiet || { echo \"foldinto: working tree not clean; commit or stash first\" >&2; return 1; }; orig=$(git rev-parse HEAD) && tgt_subj=$(git log -1 --format=%s \"$2\") && if base=$(git rev-parse -q --verify \"$2^\"); then base_arg=\"$base\"; else base_arg=\"--root\"; fi && git rewordto \"$1\" \"fixup! $tgt_subj\" && GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash \"$base_arg\" || { git rebase --abort 2>/dev/null; git reset --hard \"$orig\" >/dev/null; echo \"foldinto: fold conflicts; restored to $orig. Resolve manually with: git rebase -i <target>^\" >&2; return 1; }; }; f"
-                                              # fold existing <commit> into <target>; clean-tree, atomic; note 10
     cs      = commit -s                       # signoff (DCO projects)
+
+    # Revise older commits (git-revise)
+    rv      = !git idle && git revise         # fold staged changes into, or reword, an older commit; note 10
 
     # Diff
     d   = diff
@@ -224,16 +241,15 @@ Useful aliases. Add to `~/.gitconfig` under `[alias]`, or set with `git config -
 Reliability notes on the alias set above.
 
 1. `pf` uses `--force-with-lease --force-if-includes`, not plain `--force`. The lease form refuses to push if the remote has new commits since your last fetch; `--force-if-includes` (Git 2.30+) additionally verifies your local history includes everything from the remote ref before allowing the push. Together they prevent silent overwrites of someone else's work. Never alias plain `--force` to a short name.
-2. There are four amend-related aliases (`caa`, `caas`, `caam`, `caams`) and a deliberate one omitted (`commit -a --amend`). `caas` and `caams` operate on already-staged changes; you control what gets folded in, with `caams` also taking a new message. `caa` and `caam` both run `git add -A` first, which stages new files in addition to modified ones. `commit -a --amend` only stages modified tracked files, not new ones, which can lead to commits that omit the file you thought you were including. If you want one-step "stage everything and amend," prefer `caa`/`caam` over `commit -a --amend`. All three of these rewrite the previous commit, so the local-only rule applies: don't run on pushed commits without a force-with-lease push afterwards.
+2. There are four amend-related aliases (`caa`, `caas`, `caam`, `caams`) and a deliberate one omitted (`commit -a --amend`). `caas` and `caams` operate on already-staged changes; you control what gets folded in, with `caams` also taking a new message. `caa` and `caam` both run `git add -A` first, which stages new files in addition to modified ones. `commit -a --amend` only stages modified tracked files, not new ones, which can lead to commits that omit the file you thought you were including. If you want one-step "stage everything and amend," prefer `caa`/`caam` over `commit -a --amend`. All three of these rewrite the previous commit, so the local-only rule applies: don't run on pushed commits without a force-with-lease push afterwards. `caa` and `caam`, like `ca`, run the `idle` guard first (note 9).
 3. There is deliberately no alias for `reset --hard` or `clean -fdx`. The typing friction is the safety. Reflog can recover lost commits but cannot recover uncommitted working-tree changes a hard reset destroys.
 4. `sw` / `swc` (Git 2.23+) and `restore` separate what `checkout` did into two cleaner commands. They refuse some operations that `checkout` would silently complete, which is desirable. The older `co` / `cob` are kept for muscle memory; both forms work indefinitely.
-5. The `cf` + `ria` pair is the standard atomic-commit fixup workflow used on Bitcoin Core and other projects with rebase-based PR review. `git cf <sha>` records a fixup against an earlier commit; `git ria <base>` runs interactive rebase with autosquash, which automatically orders and squashes the fixups into their targets.
-6. Shell-form aliases (the ones starting with `!`) are `ca`, `caa`, `caam`, `cm`, `fixto`, `fixtos`, `rewordto`, `foldinto`, and `whoami`. The leading `!` makes git run a shell command rather than a git subcommand. Shell aliases execute from the repo root, not the directory where git was invoked. For the ones that call `git add -A` (`ca`, `caa`, `caam`, `fixto`) that changes nothing, because `git add -A` always operates from the repo root regardless of where you invoke from, which is what you want for snapshot-style commits but worth knowing if you ever expected scoped staging.
-7. The `aliases` entry uses `'^alias\\.'` with a doubled backslash. That's gitconfig escaping: the value is parsed before being passed to the regexp engine, so `\\` becomes `\` and the pattern matches a literal dot. If you copy this pattern outside gitconfig (into a shell script, for instance), unescape back to a single backslash. Relatedly, a value containing `;` or `#` must be wrapped in double quotes in gitconfig, since both characters otherwise begin a comment; that is why `caam`, `cm`, `fixto`, `fixtos`, `rewordto`, and `foldinto` are double-quoted above.
-8. `fixto` resolves its argument to a hash with `rev-parse` before committing, because creating the fixup commit shifts every `HEAD~N` name by one; without the resolution, `fixto HEAD~1` would record the fixup against the wrong commit. It stages everything (`git add -A`, so the `ca`/`caa` caveat in note 2 applies), then runs the autosquash rebase non-interactively by setting `GIT_SEQUENCE_EDITOR=:`, which accepts the generated todo unchanged. Both `fixto` and the staged-only `fixtos` are root-aware: when the target is the root commit they rebase with `--root`, because the target's parent `<hash>^` does not exist and naming it aborts the rebase and strands the `fixup!` commit at HEAD. `fixtos` differs only in that it skips `git add -A`, folding just the staged index, and adds `--autostash` so the unstaged remainder it leaves does not block the rebase, which refuses to run on a dirty working tree. Either form rewrites every commit from the target forward, so the local-only rule applies; the fold conflicts when a later commit changed the lines around your change, because the patch's context no longer matches at the target, and on that conflict the rebase stops as usual: resolve and `git rc`, or back out with `git ra`.
-9. `rewordto` is the message-only sibling of `fixto`, with two interfaces selected by whether you pass a second positional argument. With no second arg (`git rewordto <sha>`), it uses `git commit --allow-empty --fixup=reword:<sha>` (Git 2.32+, June 2021, shorthand for `--fixup=amend:<sha> --only`), which creates an empty `amend!` commit and opens the editor with the target's old message pre-filled for you to refine; save and close, and the autosquash rebase folds it in. With a second arg (`git rewordto <sha> "new title"`), it constructs the `amend!` commit manually with two `-m` flags (the target's subject becomes the first, prefixed with `amend!`; your inline argument becomes the body, which is what autosquash installs as the target's replacement message), bypassing the editor entirely. The two forms exist because `-m` and `--fixup=reword:` are mutually exclusive at the git level (`fatal: options '-m' and '--fixup:reword' cannot be used together`), so the inline form has to go through the manual `amend!` construction; the editor form goes through `--fixup=reword:` because it gives you the target's old message as the starting point. Use the inline form for single-line subject changes (the common case); use the editor form for multi-line message rewrites where you want the editor as your composition surface. `--allow-empty` is defensive in both branches; the commit has the same tree as its parent. Same root-awareness as `fixto`. Same local-only constraint: the rewrite changes the target's hash and every descendant hash, so don't run on commits already pushed to a shared remote. The commit hooks fire on the empty commit too; the rename-safety hook is a no-op there (no rename in an empty diff), but any custom hook that fails on empty commits will block this alias. The `amend!` autosquash lands on the commit named by `<sha>`, not on whichever commit happens to share its subject: because the rebase is based at the target's parent, the target is the oldest commit in the range, and autosquash attaches the `amend!` to the oldest in-range commit with the matching subject, so a duplicate subject newer in range loses to the target and any older duplicate sits below the base untouched. The same `<sha>^`-windowing protects `fixto`, `fixtos`, and `foldinto`.
-10. `foldinto` folds an existing commit into an earlier existing commit, the case `fixto` and `fixtos` cannot reach because their source is the working tree or index rather than a commit. It marks the source as `fixup! <target subject>` by calling `rewordto`, then runs an autosquash rebase based at the target's parent (`--root` when the target is the root commit), so the operation is two rebases: the message rewrite, then the fold. The fold lands on the commit you name regardless of duplicate subjects, by the same `<sha>^`-windowing noted for `rewordto` in note 9: basing at the target's parent makes the target the oldest commit in range, autosquash folds into the oldest in-range match, older duplicates sit below the base, and newer in-range duplicates lose. It requires a clean working tree and refuses otherwise, so its failure path can hard-reset to the starting commit without endangering uncommitted work; on a conflict it aborts the rebase, resets to the HEAD it captured on entry, and reports that you should redo the fold by hand with `git rebase -i <target>^`. This is the one place the fold family does not leave you inside the rebase to resolve in place: `fixto` and `fixtos` stop for `git rc`, but `foldinto` restores and hands the conflict back. Same local-only constraint as the rest of the family: it rewrites the target and every descendant hash, so don't run it on commits already pushed to a shared remote without a coordinated force-with-lease push afterwards. It depends on `rewordto` being defined.
-11. `cm` passes each argument as its own `-m`, so `git cm "subject" "first body para" "second body para"` expands to `git commit -m "subject" -m "first body para" -m "second body para"`; with no arguments it opens the editor like plain `git commit`. A plain alias can't interleave `-m` between your arguments, since simple aliases just append args verbatim, so this one is a shell alias with a loop. The explicit `bash -c` is necessary because on Devuan `/bin/sh` is dash, which has no arrays; the `!` prefix would otherwise hand the shell command to dash and break. The trailing `--` sets `$0` inside the `bash -c` script so that git's appended arguments land in `$1` onward and `$@` stays clean; without it, the first argument would be consumed as the script name and dropped. Edit `.gitconfig` directly rather than using `git config --global alias.cm '...'` for this one: the layered shell quoting on the command line is error-prone and the file edit is cleaner.
+5. The `cf` + `ria` pair is the standard atomic-commit fixup workflow used on Bitcoin Core and other projects with rebase-based PR review. `git cf <sha>` records a fixup against an earlier commit; `git ria <base>` runs interactive rebase with autosquash, which automatically orders and squashes the fixups into their targets. `rv` (note 10) does the same fold in one command when there's no conflict.
+6. Shell-form aliases (the ones starting with `!`) are `idle`, `ca`, `caa`, `caam`, `cm`, `rv`, and `whoami`. The leading `!` makes git run a shell command rather than a git subcommand. Shell aliases execute from the repo root, not the directory where git was invoked. For the ones that call `git add -A` (`ca`, `caa`, `caam`) that changes nothing, because `git add -A` always operates from the repo root regardless of where you invoke from, which is what you want for snapshot-style commits but worth knowing if you ever expected scoped staging.
+7. The `aliases` entry uses `'^alias\\.'` with a doubled backslash. That's gitconfig escaping: the value is parsed before being passed to the regexp engine, so `\\` becomes `\` and the pattern matches a literal dot. If you copy this pattern outside gitconfig (into a shell script, for instance), unescape back to a single backslash. Relatedly, a value containing `;` or `#` must be wrapped in double quotes in gitconfig, since both characters otherwise begin a comment; that is why `idle`, `caam`, and `cm` are double-quoted above.
+8. `cm` passes each argument as its own `-m`, so `git cm "subject" "first body para" "second body para"` expands to `git commit -m "subject" -m "first body para" -m "second body para"`; with no arguments it opens the editor like plain `git commit`. A plain alias can't interleave `-m` between your arguments, since simple aliases just append args verbatim, so this one is a shell alias with a loop. The explicit `bash -c` is necessary because on Devuan `/bin/sh` is dash, which has no arrays; the `!` prefix would otherwise hand the shell command to dash and break. The trailing `--` sets `$0` inside the `bash -c` script so that git's appended arguments land in `$1` onward and `$@` stays clean; without it, the first argument would be consumed as the script name and dropped. Edit `.gitconfig` directly rather than using `git config --global alias.cm '...'` for this one: the layered shell quoting on the command line is error-prone and the file edit is cleaner.
+9. `idle` is a guard rather than a command you need to type. `ca`, `caa`, `caam` and `rv` run it first, and it stops them with a one-line message while a merge, rebase, cherry-pick or revert is in progress, or while any file still has unresolved conflicts, which also covers a conflicted `git stash pop`. In those states `git add -A` would stage conflict markers as if they were resolved, and an amend during a stopped rebase lands on the commit being replayed onto, not on yours. Use plain git there instead (`git add <file>`, then `git commit`, `git rc` or `git cherry-pick --continue`), as `git status` says. The two messages are `git idle: a merge, rebase, cherry-pick or revert is in progress; finish or abort it first (git status shows how)` and `git idle: unresolved conflicts; fix each file and git add it first`. On its own, `git idle` prints nothing and exits 0 when nothing is in progress. One cost: `caa` refuses at a rebase `edit` stop too; use `git add -A && git caas` there.
+10. `rv` runs `git revise` after the `idle` guard, which matters because git-revise itself doesn't check for a rebase in progress. It needs git-revise installed (`sudo apt install git-revise`); usage is under [Revising older commits](#revising-older-commits).
 
 To type `g` instead of `git`, add a shell alias to `~/.bashrc`:
 
@@ -254,6 +270,18 @@ git aliases                       # list just your aliases (after adding the ali
 
 `git config --list --show-origin` is the unified view: every effective setting and the file it came from (system, global, per-repo, `includeIf` chains). Run inside a repo to confirm the identity is resolving correctly; run outside any identity directory to see the fail-loud state (no `user.email` set anywhere).
 
+Show Git's state in your shell prompt, so a half-finished merge or rebase is visible before you push or commit on top of it. Add this to the end of `~/.bashrc`; it assumes your prompt ends in `$ `, as Devuan's default does:
+
+```bash
+# git branch and in-progress state (MERGING, REBASE) in the prompt
+if [ -r /usr/lib/git-core/git-sh-prompt ]; then
+    . /usr/lib/git-core/git-sh-prompt
+    PS1=${PS1%'\$ '}'$(__git_ps1 " (%s)")\$ '
+fi
+```
+
+The helper ships with the `git` package. Expected: no output. In a new terminal, inside a repo, the prompt ends `(main)$`; during a stopped merge it ends `(main|MERGING)$`, and during a stopped rebase `(main|REBASE 1/1)$`, until you finish or abort.
+
 ### Dotfiles repo: the convention experts use
 
 The commands above get you set up on one machine. The convention for multi-machine setup, used widely across the Linux and privacy-focused dev world, is a *dotfiles repo*: a private Git repository containing your `~/.gitconfig`, your `~/.gitmessage` (and often `~/.bashrc`, `~/.vimrc`, anything else you customise). On a fresh machine you clone the dotfiles repo, put the files in place, and you're done.
@@ -271,7 +299,7 @@ This setup is single-identity by design. For a pseudonymous identity (separate f
 
 The reason is structural. Config-level identity separation on one OS account leaves several footguns intact: a repo placed under the wrong directory, a remote pointed at the wrong account, the SSH agent offering the wrong key, a host compromise that reads both identities at once. The convergent pattern among Tor developers, Bitcoin Core's pseudonymous contributors, and Qubes users is OS-level isolation: different home directory, different `~/.gitconfig`, different `~/.ssh`, different browser, different shell history. The "wrong terminal" class of failures disappears because the boundaries are real, not procedural.
 
-See the concepts doc, [Identity layers and isolation](./gitconcepts.md#identity-layers-and-isolation), for the threat-model reasoning, and [Beyond passphrase keys](./gitconcepts.md#beyond-passphrase-keys) for the optional next tiers (hardware tokens, Tor transport, independent commit signing).
+See the concepts doc, [Identity layers and isolation](./gitconcepts.md#identity-layers-and-isolation), for the threat-model reasoning, and [Beyond passphrase keys](./gitconcepts.md#beyond-passphrase-keys) for the optional next tiers (hardware tokens, Tor transport, independent signing).
 
 ## Starting a repo
 
@@ -460,39 +488,9 @@ git ria HEAD~3
 
 Why `HEAD~3` and not `HEAD~2`: the fixup commit itself moves HEAD, so the target that was `HEAD~1` is `HEAD~2` by rebase time, and the rebase base must be the target's parent, one further back. The sha-based general form above is immune to this shift, because a hash doesn't move when HEAD does. The rebase opens the editor with the fixup pre-positioned next to its target and pre-marked as a fixup. Save and close to apply. `--amend` itself only operates on HEAD; there's no syntax to point it at an arbitrary commit.
 
-The `fixto` alias from one-time setup wraps the whole sequence and resolves the target to a hash first, so the shift cannot bite. Its `fixtos` sibling does the same for staged-only changes:
+`git rv` does the same fold in one command, and also rewords an older commit; see [Revising older commits](#revising-older-commits). The plain pair above is the fallback when it hits a conflict.
 
-```bash
-git fixto HEAD~1       # stage everything, fold into the commit before last
-git fixto <sha>        # same, into any earlier commit
-git fixtos <sha>       # fold ONLY staged changes; leaves unstaged work untouched
-```
-
-`fixto` stages everything (`add -A`, the same caveat as `ca` and `caa`) and runs the autosquash rebase without opening the editor. `fixtos` skips the `add -A`, so only the staged index folds in, and adds `--autostash` to set the unstaged remainder aside during the rebase and restore it after. Both are root-aware: targeting the root commit rebases with `--root` rather than the nonexistent `<root>^`, which would otherwise abort and strand a stray `fixup!` commit. The fold conflicts when a later commit changed the lines around your change, since the patch's context no longer matches at the target; on a conflict it stops like any rebase: resolve and `git rc`, or back out with `git ra`.
-
-To replace the message of an older commit without changing its content, use `rewordto`. It has two forms selected by whether you pass a new message as a second positional argument.
-
-```bash
-git rewordto HEAD~1 "New subject for the prior commit"   # inline form, no editor
-git rewordto <sha>  "New subject for an earlier commit"  # same, against any earlier commit
-git rewordto HEAD~1                                       # editor form, opens with old message pre-filled
-git rewordto <sha>                                        # same, against any earlier commit
-```
-
-The inline form constructs the `amend!` commit manually with two `-m` flags (target's subject prefixed with `amend!` becomes the first; your new message becomes the body, which autosquash installs as the target's replacement message), and is fastest for the common case of changing a single-line subject. The editor form goes through `git commit --fixup=reword:<sha>` (Git 2.32+, June 2021) and opens the editor with the target's old message pre-filled; preferred for multi-line message rewrites where the editor is a better composition surface than the command line. The two paths exist because `-m` and `--fixup=reword:` are mutually exclusive at the git level, so the inline form has to go through the manual `amend!` construction.
-
-Either form runs the autosquash rebase non-interactively, leaving the target's tree unchanged and its message reading as the one you wrote. Same root-awareness and same local-only constraint as `fixto`; the rewrite changes the target's hash and every descendant. Don't use this on a commit you've already pushed to a shared remote without a coordinated force-with-lease push afterwards.
-
-To fold an existing commit into an earlier one, rather than folding the working tree or index, use `foldinto`. This reaches the case `fixto` and `fixtos` cannot: the change you want to absorb is already its own commit, not staged work.
-
-```bash
-git foldinto HEAD~1 HEAD~3      # fold the commit at HEAD~1 into the commit at HEAD~3
-git foldinto <source> <target>  # by hash; source first (dissolved), target second (absorbs it)
-```
-
-The argument order is source then target: the first commit is dissolved, the second absorbs its diff and keeps its own message. It requires a clean working tree and refuses otherwise, so that its conflict recovery can hard-reset to the starting commit without endangering uncommitted work. Targeting is by the commit you name, not by subject text: a duplicate subject elsewhere does not misdirect the fold, because the rebase is based at the target's parent, which makes the target the oldest commit in range (note 10). Unlike `fixto` and `fixtos`, which stop inside the rebase on a conflict for you to resolve and `git rc`, `foldinto` restores you to the exact starting state and reports it; redo the fold by hand with `git rebase -i <target>^`, reorder the source under the target, and mark it `fixup`. Same local-only constraint: it rewrites the target and every descendant, so don't run it on commits already pushed to a shared remote without a coordinated force-with-lease push afterwards.
-
-The aliases used above (`c`, `ca`, `caa`, `caas`, `caam`, `caams`, `last`, `cf`, `ria`, `fixto`, `fixtos`, `rewordto`, `foldinto`) are defined in [one-time setup](#one-time-setup). The fallback editor flow uses `commit.verbose`, `commit.template`, and the codium settings, all also in one-time setup.
+The aliases used above (`c`, `ca`, `caa`, `caas`, `caam`, `caams`, `last`, `cf`, `ria`, `rv`) are defined in [one-time setup](#one-time-setup). The fallback editor flow uses `commit.verbose`, `commit.template`, and the codium settings, all also in one-time setup.
 
 Note on shell quoting: every form that takes a message in quotes (the aliases and all `-m` variants) is subject to shell rules. Single and double quotes are interchangeable for plain strings: the shell strips both and passes the same bytes to git. Single quotes suppress `$VAR` and backtick expansion; double quotes allow it. Apostrophes, parens, `$`, `!`, and `*` need escaping or careful quoting. If a message would need heavy escaping, use editor mode instead, or pass it on standard input with a quoted heredoc, which Git takes verbatim:
 
@@ -503,6 +501,58 @@ Subject line
 Body paragraph. Apostrophes, $dollars, `backticks` and !bangs stay as typed.
 EOF
 ```
+
+
+## Revising older commits
+
+`git rv` (note 10 under [one-time setup](#one-time-setup)) runs git-revise, which folds staged changes into an older commit, or rewrites an older commit's message, in one command and in memory: the working tree and index are left alone, and a run that fails changes nothing. It replaces the `cf` + `ria` pair from [Everyday workflow](#everyday-workflow) whenever there's no conflict; when there is one, use that pair. Local only, like every rewrite: the target and every commit after it get new hashes.
+
+Install it once:
+
+```bash
+sudo apt install git-revise
+```
+
+Expected: apt's usual install output. Afterwards `git revise --version` prints a version number.
+
+Fold staged changes into an older commit:
+
+```bash
+git add <files>
+git rv <sha>                  # or HEAD~2; no hash shift to worry about
+```
+
+Expected: `Applying staged changes to '<sha>'`, one line per rewritten commit, then an `Updating ...` line with the old and new tip. git-revise uses only what's staged. Its own `-a` stages changed tracked files but not new ones, so for new files run `git add -A` first.
+
+Reword an older commit, inline or in the editor:
+
+```bash
+git rv -m "New subject" <sha>
+git rv -m "New subject" -m "Body paragraph" <sha>     # each -m is a paragraph
+git rv -e <sha>                                        # editor, with the old message
+```
+
+Fold one existing commit into an earlier one: mark the source as a fixup of the target, then let git-revise squash it in.
+
+```bash
+git rv -m "fixup! <target subject>" <source-sha>
+git rv --autosquash <target-sha>^
+```
+
+If a later commit changed the same lines, git-revise stops and asks `Edit conflicted file? (Y/n)`. Answer `n`: it prints `merge conflict: user aborted` and nothing changes, your staged changes included. Then do that fold with plain git, which gives you Git's usual conflict tools and runs your hooks:
+
+```bash
+git cf <sha>
+git ria <sha>^
+```
+
+Answering `y` instead opens the conflicted file in your editor and then asks `Merge successful? (y/N)`. If markers are left it first warns `conflict markers found in the merged file`, and the default, `N`, aborts without changing anything.
+
+Three things git-revise doesn't do:
+
+1. Run your hooks. Neither the conflict-marker check nor the rename warning sees what it writes.
+2. Check for a merge or rebase in progress. Run after `git add -A` at a stopped rebase, it rewrites the commit being replayed onto, conflict markers included; `rv` runs the `idle` guard first for that reason.
+3. Sign commits with SSH before version 0.8.0. With this setup's tags-only signing that doesn't matter. If you turn commit signing on and `git revise --version` prints something older, every rewrite fails with `gpg: signing failed: No secret key`.
 
 
 ## Remotes
@@ -575,7 +625,7 @@ Delete a remote branch.
 git push origin --delete <branch-name>
 ```
 
-Force-push. Overwrites remote history. Use `--force-with-lease --force-if-includes` instead of plain `--force`: the lease refuses the push if the remote changed unexpectedly, and `--force-if-includes` (Git 2.30+) additionally verifies your local history contains everything on the remote ref. Aliased as `git pf` in one-time setup.
+Force-push. Overwrites remote history. Use `--force-with-lease --force-if-includes` instead of plain `--force`: the lease refuses the push if the remote changed unexpectedly, and `--force-if-includes` (Git 2.30+) additionally verifies your local history contains everything on the remote ref. Aliased as `git pf` in one-time setup. The lease alone isn't enough right after a fetch: it compares the remote with what you last fetched, so after a pull that stopped on a conflict, `--force-with-lease` deletes the commit you just fetched. `--force-if-includes` refuses that push, because your branch doesn't contain the commit.
 
 ```bash
 git push --force-with-lease --force-if-includes
@@ -1196,6 +1246,46 @@ git add <file>
 
 The meaning inverts between merge and rebase. In a merge, `--ours` is your current branch and `--theirs` is the branch being merged in. In a rebase the sides are swapped: `--ours` is the branch you're replaying onto and `--theirs` is your own commit being replayed. Check which operation you're in before picking a side.
 
+### If a pull stops on a conflict
+
+A pull that stops on a conflict is half done. Git fetched the other side's commit and started combining it with yours, then stopped, so until you finish or abort, your branch still doesn't contain that commit. Every push fails (after a merge with the same advice to pull, after a rebase with `fatal: You are not currently on a branch.`), and running `git pull` again doesn't help. `git status` shows the state (`You have unmerged paths.` after a merge, `interactive rebase in progress` after a rebase), and so does the prompt from [one-time setup](#one-time-setup) (`MERGING` or `REBASE`).
+
+See which commit came in, and who made it:
+
+```bash
+git log --format='%h  %an  (committed by %cn)  %cr  %s' main..origin/main
+```
+
+Expected: one line per incoming commit. `committed by GitHub` means it was made in GitHub's web editor; your own name means it came from another clone or machine. Pulling at the start of each session, before you edit, avoids most of these: a pull with nothing local to combine just fast-forwards.
+
+Finish in the mode the pull used. After a merge (`pull.rebase false`):
+
+```bash
+git checkout --ours <file>      # keep your version
+git checkout --theirs <file>    # or keep the incoming one
+git add <file>                  # marks the conflict resolved
+git commit --no-edit            # concludes the merge
+```
+
+After a rebase (`pull.rebase true`, this setup's default), the sides swap:
+
+```bash
+git checkout --theirs <file>    # keep your version
+git checkout --ours <file>      # or keep the incoming one
+git add <file>
+git rebase --continue           # git rc
+```
+
+Expected: `git checkout` prints `Updated 1 path from the index`, and `git add` prints nothing. `git commit --no-edit` prints one `[main <hash>] Merge branch 'main' of ...` line. `git rebase --continue` opens your editor on the replayed commit's message; save and close it, and Git prints `Successfully rebased and updated refs/heads/main.` Lines starting `Recorded preimage` or `Recorded resolution` are rerere saving your resolution, not errors. Then push as usual.
+
+To back out instead, `git merge --abort` or `git rebase --abort` (`git ra`) returns you to just before the pull, with your commits intact.
+
+Three traps:
+
+1. Staging everything. Other uncommitted edits in the tree would go into the merge commit, and `git commit -a` commits the conflict markers along with them. Stage only the conflicted file and commit the other edits separately afterwards. `ca`, `caa`, `caam` and `rv` refuse in this state (note 9 under [one-time setup](#one-time-setup)), and the commit hook refuses staged markers.
+2. Picking a side after `git add`. Once the file is staged, `git checkout --ours` and `--theirs` quietly do nothing (`Updated 0 paths from the index`). Bring the conflict back first with `git checkout -m <file>`, which prints `Recreated 1 merge conflict`, then pick.
+3. Force-pushing past the rejection. Right after a fetch, `git push --force-with-lease` passes its check and deletes the incoming commit from the remote. `git pf` adds `--force-if-includes`, which refuses because your branch doesn't contain that commit.
+
 
 ## Stashing
 
@@ -1401,20 +1491,34 @@ git describe --tags --dirty          # append -dirty if the working tree has cha
 
 ## SSH setup for GitHub
 
-Generate a key.
+Generate a key, and give it a passphrase when asked. The key authenticates your pushes and, under [Signing](#signing), signs your tags, so a copy of the file is useless to anyone without the passphrase.
 
 ```bash
 ssh-keygen -t ed25519 -C "you@example.com"
 ```
 
-Start the agent and add the key.
+Expected: it asks where to save (press Enter for `~/.ssh/id_ed25519`), then `Enter passphrase (empty for no passphrase):` and `Enter same passphrase again:`, and prints the key's fingerprint and a randomart picture.
+
+Check whether an existing key has a passphrase, and add one if not:
 
 ```bash
-eval "$(ssh-agent -s)"
+ssh-keygen -y -P "" -f ~/.ssh/id_ed25519 >/dev/null 2>&1 && echo "no passphrase" || echo "has a passphrase"
+ssh-keygen -p -f ~/.ssh/id_ed25519
+```
+
+Expected from `ssh-keygen -p`: `Key has comment '<comment>'`, then `Enter new passphrase (empty for no passphrase):` and `Enter same passphrase again:`, then `Your identification has been saved with the new passphrase.` On a key that already has one, it asks `Enter old passphrase:` first.
+
+Load the key into ssh-agent once per login, so pushes and signed tags don't ask for the passphrase every time:
+
+```bash
+ssh-add -l                     # is an agent running?
+eval "$(ssh-agent -s)"         # only if the line above couldn't connect
 ssh-add ~/.ssh/id_ed25519
 ```
 
-Copy the public key to paste into GitHub at `Settings > SSH and GPG keys > New SSH key`.
+Expected: `ssh-add -l` prints `The agent has no identities.` when an agent is running but empty, or `Could not open a connection to your authentication agent.` when none is; then `eval` prints `Agent pid <number>`. `ssh-add` asks `Enter passphrase for /home/<you>/.ssh/id_ed25519:` and prints `Identity added: /home/<you>/.ssh/id_ed25519 (you@example.com)`. Without the agent, every push and every signed tag asks for the passphrase.
+
+Copy the public key and add it to GitHub at `Settings > SSH and GPG keys > New SSH key`, with the key type *Authentication Key*. [Signing](#signing) adds it a second time, as a *Signing Key*.
 
 ```bash
 cat ~/.ssh/id_ed25519.pub
@@ -1425,6 +1529,8 @@ Verify the connection.
 ```bash
 ssh -T git@github.com
 ```
+
+Expected: `Hi <username>! You've successfully authenticated, but GitHub does not provide shell access.`, with exit status 1, which is normal here. The first time, ssh asks whether to trust github.com: answer `yes` only if the ED25519 fingerprint it shows is `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`, the one GitHub publishes.
 
 Use SSH URLs for remotes (`git@github.com:user/repo.git`) rather than HTTPS URLs once SSH is set up.
 
@@ -1449,7 +1555,7 @@ git config --global --unset user.email
 
 ### Identity include file
 
-The identity lives in its own include file that sets name, email, signing config, and the SSH key to use. The `core.sshCommand` line pins the key by directory, so the right key is used even when a remote URL was never rewritten to a Host alias.
+The identity lives in its own include file that sets name, email, signing config, and the SSH key to use. The `core.sshCommand` line pins the key by directory, so the right key is used even when a remote URL was never rewritten to a Host alias. Signing here covers tags only; [Signing](#signing) explains why, and what the `allowedSignersFile` line is for.
 
 `~/.gitconfig-me`:
 
@@ -1460,7 +1566,9 @@ The identity lives in its own include file that sets name, email, signing config
     signingkey = ~/.ssh/id_ed25519.pub
 [gpg]
     format = ssh
-[commit]
+[gpg "ssh"]
+    allowedSignersFile = ~/.ssh/allowed_signers
+[tag]
     gpgsign = true
 [core]
     sshCommand = ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes
@@ -1512,49 +1620,72 @@ git config --show-origin user.email     # and which file set it
 With the fail-loud global in place, a repo in an uncategorised directory comes back empty here instead of resolving an identity. That empty result is the safety net, not a misconfiguration.
 
 
-## Signed commits
+## Signing
 
-Sign commits so GitHub (and similar) show a "Verified" badge. Two methods: SSH (Git 2.34+, GitHub support since 2022) and GPG. SSH reuses your existing SSH key and is simpler to set up; GPG is the long-standing standard. Pick one; don't combine.
+This setup signs tags, not commits. A tag names its commit by hash, and every commit names its files and its parent by hash, so one signature on a tag vouches for everything behind it. The Linux kernel works the same way: Linus pulls only from signed tags. Signing every commit adds a per-commit "Verified" badge on GitHub, at the cost of re-signing after every history rewrite, because filter-repo, and so the gitdel script, strips commit signatures. [Signing](./gitconcepts.md#signing) in the concepts doc has the reasoning.
+
+Two methods: SSH (Git 2.34+, GitHub support since 2022) and GPG. SSH reuses the key from [SSH setup for GitHub](#ssh-setup-for-github) and is simpler to set up; GPG is the long-standing standard. Pick one; don't combine.
 
 ### SSH signing
 
-```bash
-git config --global gpg.format ssh
-git config --global user.signingkey ~/.ssh/id_ed25519.pub
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-```
-
-For local verification (`git log --show-signature`), Git needs an `allowed_signers` file listing trusted keys. Without it, signature verification produces an error rather than a result.
+The settings belong in the identity include file from [Identity setup](#identity-setup), so signing follows the identity directory:
 
 ```bash
-echo "$(git config --get user.email) namespaces=\"git\" $(cat ~/.ssh/id_ed25519.pub)" >> ~/.ssh/allowed_signers
-git config --global gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
+git config --file ~/.gitconfig-me gpg.format ssh
+git config --file ~/.gitconfig-me user.signingkey ~/.ssh/id_ed25519.pub
+git config --file ~/.gitconfig-me tag.gpgsign true
+git config --file ~/.gitconfig-me gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
 ```
 
-Run that inside a repo under your identity directory. With the fail-loud global from [Identity setup](#identity-setup), `git config --get user.email` comes back empty anywhere else, and the line goes in with no email.
+Expected: no output. With `tag.gpgsign` on, every tag is signed, even a plain `git tag <name>`, which then asks for a message. To sign every commit as well, add `git config --file ~/.gitconfig-me commit.gpgsign true`.
 
-The `namespaces="git"` annotation is what tells `ssh-keygen` (and Git through it) that this key is authorised for Git-namespace signatures specifically, not other SSH-signed contexts.
+Verification needs an `allowed_signers` file, which says whose key may sign as which email. Add your own line once, with your email:
 
-Upload the same public key as a *Signing Key* in GitHub at *Settings > SSH and GPG keys > New SSH key*, with the key type set to *Signing Key* (a separate entry from the authentication key, even when the key material is identical).
+```bash
+echo "you@example.com namespaces=\"git\" $(cut -d' ' -f1,2 ~/.ssh/id_ed25519.pub)" >> ~/.ssh/allowed_signers
+```
 
-The `gpg.format ssh` and `commit.gpgsign true` setting names are misleading. They control all signing, including SSH; the config keys retained `gpg` in their names from before SSH signing existed.
+Expected: no output. The `namespaces="git"` annotation is what tells `ssh-keygen` (and Git through it) that this key is trusted for Git signatures specifically, not other SSH-signed contexts.
+
+Sign a tag and check it:
+
+```bash
+git tag -s v1.0.0 -m "First stable release"
+git verify-tag v1.0.0
+```
+
+Expected: `git tag -s` prints nothing, or asks `Enter passphrase:` when ssh-agent doesn't hold the key. `git verify-tag` prints `Good "git" signature for you@example.com with ED25519 key SHA256:…`. A line such as `allowed_signers:2: invalid key` points at a malformed line in that file; it doesn't stop your own tag verifying.
+
+Upload the same public key to GitHub a second time, at *Settings > SSH and GPG keys > New SSH key*, with the key type set to *Signing Key*: a separate entry from the authentication key, even though the key material is identical. Without it GitHub shows your tags as unverified.
+
+After a history rewrite, a tag's signature no longer verifies: filter-repo either removes it or leaves one that fails with `Could not verify signature.` Re-sign each tag where it now points, then force-push it:
+
+```bash
+git tag -s -f v1.0.0 'v1.0.0^{}' -m "First stable release"
+git push --force origin v1.0.0
+```
+
+Expected: `Updated tag 'v1.0.0' (was <hash>)`, then the push reports `+ <old>...<new> v1.0.0 -> v1.0.0 (forced update)`.
+
+GitHub's vigilant mode marks every unsigned commit and tag attributed to you as "Unverified". With tags-only signing, leave it off: GitHub says to turn it on only if you sign all your commits and tags.
+
+The `gpg.format` and `tag.gpgsign` names are misleading: they govern SSH signing too, and the keys kept `gpg` in their names from before SSH signing existed.
 
 ### GPG signing
 
 ```bash
-git config --global user.signingkey <key-id>
-git config --global commit.gpgsign true
-git commit -S -m "signed commit"
+git config --file ~/.gitconfig-me user.signingkey <key-id>
+git config --file ~/.gitconfig-me tag.gpgsign true
+git tag -s v1.0.0 -m "First stable release"
 ```
+
+Leave `gpg.format` unset for GPG; it's the default.
 
 List your GPG keys.
 
 ```bash
 gpg --list-secret-keys --keyid-format=long
 ```
-
-Skip signing entirely for solo work unless you want the badge. Required by some security-sensitive projects.
 
 Verify signatures rather than create them. The first shows signature status inline in the log; the others check a specific commit or tag and exit nonzero on failure.
 
@@ -1721,7 +1852,7 @@ bash gitdel.sh ~/projects/myrepo --dry-run
 bash gitdel.sh ~/projects/myrepo --save-list ~/purge_log.txt
 ```
 
-Without a file list, it scans git history for every deleted file and offers to purge them. With a file list, it purges only those paths (after validation).
+Without a file list, it scans git history for every deleted file and offers to purge them. With a file list, it purges those paths and every other name each one had, after validation; the purge list it shows before you confirm includes them all.
 
 ### BFG Repo-Cleaner
 
@@ -1840,7 +1971,7 @@ Start at the top. Stop at the first match.
 2. Force-pushing without coordinating with anyone else holding the branch. Their local history diverges silently; the next merge reintroduces what was scrubbed.
 3. Assuming `git gc` reclaims space automatically. It doesn't. Run `git reflog expire --expire=now --all && git gc --prune=now --aggressive` to actually free disk.
 4. Treating "rewrite succeeded" as "secret is gone." Platform caches, PR pages, mirror clones, search indices, IDE history, backup systems may all still hold it. Rotate the credential at its source regardless.
-5. Rewriting signed commits without re-signing. Signatures don't survive a commit-hash change; filter-repo strips them, so downstream verifiers see unsigned commits.
+5. Rewriting signed commits without re-signing. Signatures don't survive a commit-hash change; filter-repo strips them, so downstream verifiers see unsigned commits. With tags-only signing, re-sign the tags as shown under [Signing](#signing).
 6. Running `filter-branch` in 2026. Stop.
 
 ### Recovery
@@ -1871,4 +2002,4 @@ Belt and braces: tarball the entire `.git` directory before the rewrite. Cheap, 
 2. Rotate the leaked credential at its source. Treat the rewrite as evidence of disclosure, not as a cure.
 3. Notify collaborators. Anyone with a local clone needs to re-clone or carefully re-base their work; existing branches reference commit hashes that no longer exist.
 4. Expect platform caches to lag. GitHub, GitLab, and Codeberg may keep old refs accessible via the API or PR pages for some window. Contact platform support for accelerated removal if the leak is severe.
-5. Verify: clone fresh, `git log --all --oneline -- <path>` should show no trace of the purged paths.
+5. Verify: clone fresh, then run `git log --all --oneline -- <path>` for every path you purged (gitdel's `--save-list` file lists them all); each prints nothing once the path is gone. For a secret, also search the content, which catches a copy under a name you didn't purge: `git rev-list --all | xargs git grep -n -F '<part of the secret>'` prints nothing when it's gone, and a hit prints `<commit>:<path>:<line>:<text>`. Search for only part of the secret, so the whole key doesn't land in your shell history.

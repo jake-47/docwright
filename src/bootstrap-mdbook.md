@@ -8,7 +8,7 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v61
+# bootstrap-mdbook.sh, v62
 #
 # Bootstraps an mdBook book at PROJECT_DIR/BOOK_NAME with a GitHub Pages workflow
 # that pins mdBook, lychee and the actions, then opens a live preview. Re-running
@@ -35,10 +35,10 @@ BOOK_DESCRIPTION=""                       # a line about the book, for search en
 DEPLOY_BRANCH="main"                      # pushes here deploy; git's default branch
 HEADING_NUMBERS=false                     # true: numbered headings (mdbook-numbering)
 SIDEBAR_NUMBERS=true                      # sidebar chapter numbers (1., 1.1.)
-THEME="dark"                              # "dark" (default): the dark palette for every
-                                          # reader; "auto": light or dark as the reader's
-                                          # system is set; "picker": a button for Auto,
-                                          # Light and Dark, starting on Auto
+THEME="picker"                            # "picker" (default): a button for Auto, Light
+                                          # and Dark, starting on Auto; "auto": light or
+                                          # dark as the reader's system is set; "dark":
+                                          # the dark palette for every reader
 GIT_REPO_URL=""                           # https://github.com/user/repo; "" = the book's
                                           # origin remote, if that is on github.com
 CODE_LINE_NUMBERS=true                    # numbers language-fenced blocks of 10+ lines
@@ -99,10 +99,10 @@ BOOK_DESCRIPTION=""                       # a line about the book, for search en
 DEPLOY_BRANCH="main"                      # pushes here deploy; git's default branch
 HEADING_NUMBERS=false                     # true: numbered headings (mdbook-numbering)
 SIDEBAR_NUMBERS=true                      # sidebar chapter numbers (1., 1.1.)
-THEME="dark"                              # "dark" (default): the dark palette for every
-                                          # reader; "auto": light or dark as the reader's
-                                          # system is set; "picker": a button for Auto,
-                                          # Light and Dark, starting on Auto
+THEME="picker"                            # "picker" (default): a button for Auto, Light
+                                          # and Dark, starting on Auto; "auto": light or
+                                          # dark as the reader's system is set; "dark":
+                                          # the dark palette for every reader
 GIT_REPO_URL=""                           # https://github.com/user/repo; "" = the book's
                                           # origin remote, if that is on github.com
 CODE_LINE_NUMBERS=true                    # numbers language-fenced blocks of 10+ lines
@@ -1412,9 +1412,10 @@ ${dark_sel}{
 }
 EOF
     if [ "$THEME" != dark ]; then
+        # "only light", not "light": Chrome's dark theme for sites then leaves a reader's Light alone.
         light=$(cat <<'EOF'
   --bg:#fdfcf7;--fg:#191713;--links:#191713;--visited:#295a8e;--inline-code-color:#9d4909;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
-  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
+  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:only light;
   --sidebar-bg:#f8f6ee;--sidebar-fg:#3a3a34;--sidebar-active:#9d4909;
   --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
   --icons:#7d7a6e;--icons-hover:#191713;

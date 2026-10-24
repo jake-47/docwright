@@ -22,6 +22,7 @@ There's no keyboard, so here's what stands in for each key.
 | Search | <kbd>s</kbd> or <kbd>/</kbd> | Tap the magnifying glass |
 | Back to the top | Click the site's name | Tap the site's name |
 | Back to where you were | <kbd>Alt</kbd>+<kbd>←</kbd> | Your phone's back button or back gesture |
+| Read offline | Click the cloud, then `Save for offline` | Tap the cloud, then `Save for offline`; on an iPhone or iPad, open the site from your Home Screen first (in Safari: Share, then Add to Home Screen) |
 
 Swipes need to be quick: a slow drag scrolls the page instead.
 
@@ -30,20 +31,28 @@ Swipes need to be quick: a slow drag scrolls the page instead.
 | Icon | What it does |
 |------|--------------|
 | <i class="fas fa-bars"></i> Three bars | Opens and closes the sidebar. Same as <kbd>b</kbd>. |
-| <i class="fas fa-magnifying-glass"></i> Magnifying glass | Opens the search bar. Same as <kbd>s</kbd> or <kbd>/</kbd>. |
-| <i class="fas fa-print"></i> Printer | Lays the whole site out as one long page, for printing or saving as a PDF. To print only the page you're reading, press <kbd>Ctrl</kbd>+<kbd>p</kbd> instead. |
-| <i class="fas fa-pencil"></i> Pencil | Opens the source of this page on GitHub, so you can suggest a fix if you spot a mistake. |
-<!-- Theme picker row, parked while the picker is hidden. To bring it back,
-     move this row up to sit second (after Three bars), and remove the hiding
-     in custom.css (#mdbook-theme-toggle) and theme/head.hbs.
 | <i class="fas fa-paintbrush"></i> Paintbrush | Switches between the site's colour themes. Your pick is remembered for your next visit. |
--->
+| <i class="fas fa-magnifying-glass"></i> Magnifying glass | Opens the search bar. Same as <kbd>s</kbd> or <kbd>/</kbd>. |
+| <i class="fas fa-pencil"></i> Pencil | Opens the source of this page on GitHub, so you can suggest a fix if you spot a mistake. |
+| <i class="fas fa-print"></i> Printer | Lays the whole site out as one long page, for printing or saving as a PDF. To print only the page you're reading, press <kbd>Ctrl</kbd>+<kbd>p</kbd> instead. |
+| <i class="fas fa-cloud-arrow-down"></i> Cloud | Saves the site in this browser, to read without a connection, or gives you a copy to keep on any computer. Once the site is saved, the cloud becomes a tick. See [Reading offline](#reading-offline). |
+
 
 One icon lives outside the menu bar: hover over any code block and a <i class="fa fa-copy"></i> **copy** button appears at its top right. It copies the code exactly as written, ready to paste into the terminal.
 
 ## Search
 
 Open the search bar (the magnifying glass, <kbd>s</kbd> or <kbd>/</kbd>) and start typing; matching chapters and headings appear as you type. <kbd>↑</kbd> and <kbd>↓</kbd> move through the results, <kbd>Enter</kbd> opens the one you're on, and <kbd>Esc</kbd> closes the search bar.
+
+## Reading offline
+
+The cloud at the right end of the menu bar gives you two ways to read Docwright without a connection.
+
+**Save for offline** keeps the whole site in the browser you're using, search included. You need to be online once, to save it; after that the site opens from your saved copy, online or not. Once it's saved, the cloud turns into a tick, or a plane while you're offline. When a new version is out, a dot appears on the tick and the top of each page says so: tap the tick, then **Update to v…**, which downloads only what changed. **Remove saved copy** takes you back to the live site. The copy lives in that one browser. On an iPhone or iPad, add the site to your Home Screen first (in Safari: Share, then Add to Home Screen) and save it from there: Safari deletes a site saved in the browser after seven days of browsing without opening it.
+
+**Download a copy** gives you the whole site to keep on any computer, including one that's never online. Unpack it and open `index.html` in the folder it makes; it needs no connection. Under the button are the download's SHA-256 checksum and a checksum file, and the `README.txt` inside shows how to use them to check the download on Linux, macOS or Windows. A downloaded copy doesn't update itself: its cloud shows which version you have and the site's address, where you can get a newer one.
+
+If the cloud offers only **Download a copy**, this browser can't keep the site offline: use another browser, or the download.
 
 ## The version line
 

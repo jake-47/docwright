@@ -1613,11 +1613,12 @@ git config --global alias.whoami '!git config user.name; git config user.email; 
 Then, inside any repo:
 
 ```bash
-git whoami                              # name, email, signing key for this repo
-git config --show-origin user.email     # and which file set it
+git var GIT_AUTHOR_IDENT                # the identity a commit here would record
+git whoami                              # name, email, signing key from config
+git config --show-origin user.email     # and which file set the email
 ```
 
-With the fail-loud global in place, a repo in an uncategorised directory comes back empty here instead of resolving an identity. That empty result is the safety net, not a misconfiguration.
+Trust the first line. `git var GIT_AUTHOR_IDENT` prints `Name <email> <timestamp> <zone>`, the identity a commit would record, including one set by exported `GIT_AUTHOR_*` and `GIT_COMMITTER_*` variables, which `git whoami` can't see. With the fail-loud global in place, in a repo outside the identity directory it fails the way a commit does: Git's `Author identity unknown` hint, then `fatal: no email was given and auto-detection is disabled`. That failure is the safety net, not a misconfiguration; ignore the hint's advice to set a global identity, which would undo it. If `git whoami` comes back empty but `git var` prints a name, an exported variable is overriding the setup, and `env | grep '^GIT_'` shows which.
 
 
 ## Signing

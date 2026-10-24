@@ -8,7 +8,7 @@ Nothing it does is hidden. Each step is one the reference explains, under [SSH s
 
 ````bash
 #!/bin/bash
-# Git setup, v21
+# Git setup, v22
 
 ## ─── Usage ───────────────────────────────────────────────────────────────────
 ## To set up Git and SSH for a single identity, on a fresh machine or one you
@@ -43,6 +43,9 @@ Nothing it does is hidden. Each step is one the reference explains, under [SSH s
 ##    it's already there.
 ## 8. Prune backups of the managed files that are older than 30 days.
 ## 9. Print the commands that check the setup.
+## 10. Warn about anything that would override the setup: GIT_ variables in
+##     this shell or its startup files, other hooks in ~/.git-hooks, and
+##     identity, hook or SSH settings in the repos under REAL_DIR.
 
 ## ─── Scope ───────────────────────────────────────────────────────────────────
 ## The script touches only:
@@ -54,6 +57,9 @@ Nothing it does is hidden. Each step is one the reference explains, under [SSH s
 ##   - ~/.gitconfig-me         (identity, managed file)
 ##   - ~/.ssh/allowed_signers  (signing key for verify-tag; other lines kept)
 ##   - ~/.ssh/known_hosts      (github.com host key pinned, only when CLONE="on")
+##
+## It also reads, but never edits, your shell startup files and the config of
+## the repos under REAL_DIR, to warn about overrides (section 10).
 ##
 ## Fail-loud identity model: the global config carries NO usable identity and
 ## sets user.useConfigOnly=true. The identity is bound to a directory via
@@ -297,8 +303,9 @@ git config --global alias.cs    "commit -s"
 # runs the guard first.
 git config --global alias.rv    '!git idle && git revise'
 
-# Retired: earlier versions set these fold aliases; rv replaces them.
-for retired in fixto fixtos rewordto foldinto; do
+# Retired: fold aliases that earlier versions set, plus amendto, a hand-made
+# one with the same job; rv replaces them all.
+for retired in fixto fixtos rewordto foldinto amendto; do
     if git config --global --get-all "alias.$retired" >/dev/null; then
         git config --global --unset-all "alias.$retired"
         say "  removed retired alias: $retired"
@@ -492,6 +499,55 @@ if [[ "${CLONE:-off}" == "on" && ${#CLONE_REPOS[@]} -gt 0 ]]; then
     for repo in "${CLONE_REPOS[@]}"; do
         say "  ${repo##*/}  ($repo)"
     done
+fi
+
+## ─── 10. Overrides ───────────────────────────────────────────────────────────
+
+# Last, so nothing scrolls past it: anything that would quietly override this
+# setup. The script reports these rather than fixing them: it can't change the
+# shell it was started from, and it doesn't own your shell startup files or
+# your repos' own config.
+overrides=()
+
+# a. Variables. The author and committer ones override the directory-bound
+# identity in every repo, GIT_SSH_COMMAND the pinned key, GIT_EDITOR the editor.
+override_vars='GIT_AUTHOR_NAME|GIT_AUTHOR_EMAIL|GIT_COMMITTER_NAME|GIT_COMMITTER_EMAIL|GIT_SSH_COMMAND|GIT_EDITOR'
+for var in ${override_vars//|/ }; do
+    [[ -n "${!var+set}" ]] && overrides+=("$var is set in this shell")
+done
+for rc in "$HOME/.bashrc" "$HOME/.bash_aliases" "$HOME/.profile" "$HOME/.bash_profile"; do
+    [[ -f "$rc" ]] || continue
+    while IFS= read -r hit; do
+        overrides+=("$rc:$hit")
+    done < <(grep -nE "^[[:space:]]*(export[[:space:]]+)?($override_vars)=" "$rc")
+done
+
+# b. Other hooks. core.hooksPath makes Git run every executable hook in
+# ~/.git-hooks in every repo, not only the one section 6 writes.
+for hook in "$HOME/.git-hooks"/*; do
+    name=${hook##*/}
+    [[ -f "$hook" && -x "$hook" && "$name" != *.* && "$name" != prepare-commit-msg ]] || continue
+    overrides+=("$hook also runs in every repo")
+done
+
+# c. A repo's own config beats the include file. Looks four levels down, so
+# repos up to three folders below REAL_DIR are found.
+while IFS= read -r gitdir; do
+    repo=${gitdir%/.git}
+    while IFS= read -r key; do
+        overrides+=("$repo sets $key; to remove: git -C '$repo' config --local --unset $key")
+    done < <(git -C "$repo" config --local --name-only --get-regexp '^(user\.(name|email|signingkey)|core\.hookspath|core\.sshcommand)$' 2>/dev/null)
+done < <(find "$REAL_DIR" -maxdepth 4 -name .git -prune -print 2>/dev/null)
+
+say ""
+if [[ ${#overrides[@]} -gt 0 ]]; then
+    warn "WARNING: these override the setup. Remove any that aren't on purpose;"
+    warn "         after removing a variable, open a new terminal."
+    for o in "${overrides[@]}"; do
+        warn "  $o"
+    done
+else
+    say "Overrides: none found."
 fi
 
 ````

@@ -67,8 +67,11 @@ As you pursue those goals, Docwright teaches you about tools that will increase 
 ## A request
 
 I'm not a dev, at least not yet.
-All the code here is written with Anthropic's Opus or Fable models.
-Dear devs and security experts, could you please help us laymen out: if you spot a bug or a bad idea in any script, [open an issue or send a fix](./contribute.md).
+All the code here is written with Anthropic's Opus or Fable models. My coding skills is illustrated in the video below.
+
+<video controls src="attachments/coding-skills.mp4" title="coding-skill" style="width: auto; height: auto; display: block; margin: 0 auto"></video>
+
+So, dear devs and security experts, could you please help us laymen out: if you spot a bug or a bad idea in any script, [open an issue or send a fix](./contribute.md).
 
 > "We reject: kings, presidents and voting. We believe in: rough consensus and running code." ([David Clark, IETF, July 1992](https://groups.csail.mit.edu/ana/People/DDC/future_ietf_92.pdf))
 

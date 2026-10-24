@@ -5,11 +5,25 @@
 
 The **sidebar** lists every chapter of the site. The **menu button** (three horizontal bars) at the top left opens and closes it, and so does the <kbd>b</kbd> key. Click any chapter to open it. On a narrow window, a phone especially, the sidebar starts closed; the menu button brings it up.
 
-The **menu bar** along the top holds the icons described below. Clicking anywhere on the bar (other than on the icons) takes you back to the top of the page.
+The **menu bar** along the top holds the icons described below. Clicking the site's name in the middle takes you back to the top of the page. As you scroll down, the menu bar slides out of the way; scroll up a little and it comes back.
 
-The <kbd>←</kbd> and <kbd>→</kbd> keys move you to the previous and next chapter; the large arrow buttons at the sides of the page do the same. <kbd>↑</kbd> and <kbd>↓</kbd> scroll the page, and <kbd>PgUp</kbd>, <kbd>PgDn</kbd>, <kbd>Space</kbd> and <kbd>Shift</kbd>+<kbd>Space</kbd> scroll a whole screen at a time. Press <kbd>?</kbd> any time for the full list of keys.
+The <kbd>←</kbd> and <kbd>→</kbd> keys move you to the previous and next chapter; the large arrow buttons do the same, at the sides of the page on a wide screen and at the bottom of the page on a narrow window or a phone. <kbd>↑</kbd> and <kbd>↓</kbd> scroll the page, and <kbd>PgUp</kbd>, <kbd>PgDn</kbd>, <kbd>Space</kbd> and <kbd>Shift</kbd>+<kbd>Space</kbd> scroll a whole screen at a time. Press <kbd>?</kbd> any time for the full list of keys.
 
 This is not unique to Docwright, but in case you didn't know: <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>Alt</kbd>+<kbd>→</kbd> move you back and forward through your browser history. If a link took you somewhere, <kbd>Alt</kbd>+<kbd>←</kbd> brings you back.
+
+## On a phone or tablet
+
+There's no keyboard, so here's what stands in for each key.
+
+| To do this | On a computer | On a phone or tablet |
+|------------|---------------|----------------------|
+| Open or close the sidebar | <kbd>b</kbd> | Tap the three bars, or swipe right from the left edge to open it and swipe left to close it |
+| Previous or next chapter | <kbd>←</kbd> <kbd>→</kbd> | Tap the arrow buttons at the bottom of the page |
+| Search | <kbd>s</kbd> or <kbd>/</kbd> | Tap the magnifying glass |
+| Back to the top | Click the site's name | Tap the site's name |
+| Back to where you were | <kbd>Alt</kbd>+<kbd>←</kbd> | Your phone's back button or back gesture |
+
+Swipes need to be quick: a slow drag scrolls the page instead.
 
 ## Menu bar icons
 
@@ -19,6 +33,11 @@ This is not unique to Docwright, but in case you didn't know: <kbd>Alt</kbd>+<kb
 | <i class="fas fa-magnifying-glass"></i> Magnifying glass | Opens the search bar. Same as <kbd>s</kbd> or <kbd>/</kbd>. |
 | <i class="fas fa-print"></i> Printer | Lays the whole site out as one long page, for printing or saving as a PDF. To print only the page you're reading, press <kbd>Ctrl</kbd>+<kbd>p</kbd> instead. |
 | <i class="fas fa-pencil"></i> Pencil | Opens the source of this page on GitHub, so you can suggest a fix if you spot a mistake. |
+<!-- Theme picker row, parked while the picker is hidden. To bring it back,
+     move this row up to sit second (after Three bars), and remove the hiding
+     in custom.css (#mdbook-theme-toggle) and theme/head.hbs.
+| <i class="fas fa-paintbrush"></i> Paintbrush | Switches between the site's colour themes. Your pick is remembered for your next visit. |
+-->
 
 One icon lives outside the menu bar: hover over any code block and a <i class="fa fa-copy"></i> **copy** button appears at its top right. It copies the code exactly as written, ready to paste into the terminal.
 

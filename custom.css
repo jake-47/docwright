@@ -1,14 +1,14 @@
-/* Fixed theme: no picker. theme/head.hbs clears a saved theme. */
-#mdbook-theme-toggle { display: none; }
+/* The theme menu's rows are buttons, which don't take the page's typeface. */
+.theme-popup .theme { font-family: inherit; }
 
 /* Self-hosted Charter; src/fonts/ is copied as is, not hashed. */
-@font-face{font-family:"Charter";src:url("fonts/charter_regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:"Charter";src:url("fonts/charter_italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap}
-@font-face{font-family:"Charter";src:url("fonts/charter_bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
-@font-face{font-family:"Charter";src:url("fonts/charter_bold_italic.woff2") format("woff2");font-weight:700;font-style:italic;font-display:swap}
+/* The files' Windows line metrics, for every system: the set others read has the descent's sign wrong, setting text 0.24em low. */
+@font-face{font-family:"Charter";src:url("fonts/charter_regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap;ascent-override:98%;descent-override:23.6%;line-gap-override:0%}
+@font-face{font-family:"Charter";src:url("fonts/charter_italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:swap;ascent-override:98%;descent-override:23.6%;line-gap-override:0%}
+@font-face{font-family:"Charter";src:url("fonts/charter_bold.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap;ascent-override:98%;descent-override:23.6%;line-gap-override:0%}
+@font-face{font-family:"Charter";src:url("fonts/charter_bold_italic.woff2") format("woff2");font-weight:700;font-style:italic;font-display:swap;ascent-override:98%;descent-override:23.6%;line-gap-override:0%}
 
-/* 1rem = 10px (mdBook's 62.5%). --menu-bar-height is mdBook's; everything tied
-   to the bar reads it, so 60px moves it all together. */
+/* 1rem = 10px (mdBook's 62.5%). Everything tied to the bar reads --menu-bar-height. */
 :root{
   --serif: "Charter","Bitstream Charter",Palatino,"Palatino Linotype","Book Antiqua","Noto Serif","Liberation Serif",Georgia,serif;
   --content-max-width: 700px;
@@ -19,9 +19,7 @@ html{font-family:var(--serif);}
 .sidebar{font-size:1.6rem;}
 .content{font-size:1.9rem;line-height:1.55;}
 
-/* Headings: margins in em of each one's own size; H4 to H6 at text size, told
-   apart by style, never smaller than the text. No rules under them but the
-   title block's, and a --- written straight after one. */
+/* Headings: margins in em of each one's own size; H4 to H6 at text size, told apart by style. */
 .content h1{font-size:3.4rem;line-height:1.18;margin:2.4rem 0;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
 .content h2{font-size:2.5rem;line-height:1.18;margin:1.5em 0 .4em;}
 .content h3{font-size:2.15rem;line-height:1.18;margin:1.18em 0 .29em;}
@@ -30,13 +28,10 @@ html{font-family:var(--serif);}
 .content h6{font-size:1em;line-height:1.18;font-style:italic;font-weight:normal;color:var(--muted);margin:1.1em 0 .3em;}
 .content h6 .header:is(:link,:visited){color:inherit;}
 
-/* What follows a heading starts right under it, as does the first line inside
-   a quote or aside there: its own top margin would beat the heading's smaller
-   bottom one. A heading after a heading keeps its space above. */
+/* What follows a heading starts right under it; a heading after a heading keeps its space. */
 .content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6),.content main :is(h2,h3,h4,h5,h6) + :not(h2,h3,h4,h5,h6) > :first-child{margin-block-start:0;}
 
-/* A --- straight after a heading, or after its subtitle, underlines it rather
-   than dividing the page. */
+/* A --- straight after a heading, or its subtitle, underlines it. */
 .content main :is(h2,h3,h4,h5,h6):has(+ hr),.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle:has(+ hr){margin-block-end:.3em;}
 .content main :is(h2,h3,h4,h5,h6) + hr,.content main :is(h2,h3,h4,h5,h6) + .mdb-subtitle + hr{margin-block:0 1.6rem;}
 
@@ -44,15 +39,13 @@ html{font-family:var(--serif);}
 .content .mdb-subtitle{margin-block:0 0;font-size:1.9rem;font-style:italic;line-height:1.35;color:var(--muted);}
 .content h2:has(+ .mdb-subtitle){margin-block-end:.25em;}
 
-/* Title block: the H1 and its subtitle, when there; one rule closes it. The
-   "Last updated" line custom.js adds hangs under the rule, before the text. */
+/* Title block: the H1 and its subtitle; one rule closes it, the Last updated line under it. */
 .content h1:has(+ .mdb-subtitle){margin-block-end:.25em;padding-bottom:0;border-bottom:0;}
 .content h1 + .mdb-subtitle{margin-block-end:2.4rem;padding-bottom:1.3rem;border-bottom:1px solid var(--rule-strong);}
 .content h1:has(+ .mdb-updated),.content h1 + .mdb-subtitle:has(+ .mdb-updated){margin-block-end:0;}
 .content .mdb-updated{margin-block-end:2.4rem;}
 
-/* Blockquote; not admonitions (.blockquote-tag). Edge margins zeroed so the
-   rule stays flush with the text. */
+/* Blockquote, not admonitions (.blockquote-tag); edge margins zeroed so the rule sits flush. */
 .content blockquote:not(.blockquote-tag){background:none;border-block:0;border-inline-start:3px solid var(--rule);padding:0 1em;color:var(--muted);}
 .content blockquote:not(.blockquote-tag) > :first-child{margin-block-start:0;}
 .content blockquote:not(.blockquote-tag) > :last-child{margin-block-end:0;}
@@ -65,17 +58,15 @@ html{font-family:var(--serif);}
 /* Links in notes muted too: the underline marks them, not the colour. */
 .content .footnote-definition a:link,.content .footnote-definition a:visited{color:var(--muted);}
 
-/* Underlined links (colour from --links), search results included. Followed,
-   a link in the text takes --visited (:visited can change colours only); a
-   footnote number keeps its colour, and a link in a note stays muted (above). */
-.content a,.content a:visited{text-decoration:underline;text-underline-offset:2px;}
+/* Underlined links; an <a> with no href is text, on hover and in print too. Followed: --visited. */
+.content a:any-link{text-decoration:underline;text-underline-offset:2px;}
+.content a:not(:any-link){color:inherit;text-decoration:none;}
+.content a:not(:any-link) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);text-decoration:none;}
 #mdbook-searchresults a{text-decoration:underline;text-underline-offset:2px;}
 .content main a:visited{color:var(--visited);}
 .content .footnote-reference a:visited{color:var(--links);}
 
-/* A numbered list inside a numbered list counts 1.1, 1.2.1 (Markdown has no
-   "1.1"). A counter can't read <ol start>, so a list Markdown restarted keeps
-   the browser's own numbers rather than wrong ones. */
+/* A numbered list in a numbered list counts 1.1, 1.2.1; a restarted list (<ol start>) keeps its own. */
 .content main ol{counter-reset:outline;}
 .content main ol > li{counter-increment:outline;}
 .content main ol ol > li{list-style:none;position:relative;}
@@ -83,14 +74,8 @@ html{font-family:var(--serif);}
 .content main ol[start] ol > li,.content main ol ol[start] > li{list-style:revert;}
 .content main ol[start] ol > li::before,.content main ol ol[start] > li::before{content:none;}
 
-/* Palette: every colour variable mdBook paints, not just page and sidebar;
-   admonition accents left alone. With LIGHT_THEME=true the dark block names both
-   classes and comes first, the light one follows behind its media query, so no
-   light frame paints under a dark OS (guide: "Why the dark palette comes
-   first"). The class in each selector is load-bearing: html alone loses to
-   mdBook's .<theme>. Ours, not mdBook's: --muted, --rule, --rule-strong,
-   --inline-bg, --inline-border, --code-bg, --code-comment, --visited. */
-html.ayu{
+/* Palette: every colour mdBook paints, the dark block first (mdb-guide.md, "Light and dark"). */
+html.light,html.ayu{
   --bg:#111;--fg:#e8e6da;--links:#e8e6da;--visited:#94b9dc;--inline-code-color:#ffb454;--inline-bg:#2b281f;--inline-border:#3a382f;--muted:#aaa8a0;
   --rule:#2c2c28;--rule-strong:#42423c;--color-scheme:dark;
   --sidebar-bg:#161613;--sidebar-fg:#cfcdc2;--sidebar-active:#ffb454;
@@ -102,31 +87,76 @@ html.ayu{
   --searchbar-bg:#1b1b18;--searchbar-fg:#e8e6da;--searchbar-border-color:#42423c;--searchbar-shadow-color:#42423c;
   --searchresults-border-color:#2c2c28;--searchresults-header-fg:#9a988c;--searchresults-li-bg:#191916;
   --search-mark-bg:#5a4a24;--footnote-highlight:#5a4a24;--overlay-bg:rgba(10,10,8,.7);
+  --theme-popup-bg:#161613;--theme-popup-border:#676660;--theme-hover:#1b1b18;
+}
+@media (prefers-color-scheme: light){
+html.light{
+  --bg:#fdfcf7;--fg:#191713;--links:#191713;--visited:#295a8e;--inline-code-color:#9d4909;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
+  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
+  --sidebar-bg:#f8f6ee;--sidebar-fg:#3a3a34;--sidebar-active:#9d4909;
+  --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
+  --icons:#7d7a6e;--icons-hover:#191713;
+  --copy-button-filter:opacity(.55);--copy-button-filter-hover:opacity(1);
+  --quote-bg:#f4f2e8;--quote-border:#e5e3d7;--warning-border:#9d4909;--code-bg:#f4f2e8;--code-comment:#555;
+  --table-border-color:#e5e3d7;--table-header-bg:#e0dccb;--table-alternate-bg:#faf8ee;
+  --searchbar-bg:#fdfcf7;--searchbar-fg:#191713;--searchbar-border-color:#c2bda4;--searchbar-shadow-color:#c2bda4;
+  --searchresults-border-color:#e5e3d7;--searchresults-header-fg:#57564e;--searchresults-li-bg:#f9f7ec;
+  --search-mark-bg:#f2d9a8;--footnote-highlight:#f2d9a8;--overlay-bg:rgba(20,19,15,.6);
+  --theme-popup-bg:#f8f6ee;--theme-popup-border:#c2bda4;--theme-hover:#e8e6d9;--scrollbar:var(--sidebar-fg);
+}
+}
+html.js.light{
+  --bg:#fdfcf7;--fg:#191713;--links:#191713;--visited:#295a8e;--inline-code-color:#9d4909;--inline-bg:#ece3cd;--inline-border:#e0d8c2;--muted:#57564e;
+  --rule:#e5e3d7;--rule-strong:#c2bda4;--color-scheme:light;
+  --sidebar-bg:#f8f6ee;--sidebar-fg:#3a3a34;--sidebar-active:#9d4909;
+  --sidebar-spacer:#c2bda4;--sidebar-non-existant:#a8a496;--sidebar-header-border-color:#c2bda4;
+  --icons:#7d7a6e;--icons-hover:#191713;
+  --copy-button-filter:opacity(.55);--copy-button-filter-hover:opacity(1);
+  --quote-bg:#f4f2e8;--quote-border:#e5e3d7;--warning-border:#9d4909;--code-bg:#f4f2e8;--code-comment:#555;
+  --table-border-color:#e5e3d7;--table-header-bg:#e0dccb;--table-alternate-bg:#faf8ee;
+  --searchbar-bg:#fdfcf7;--searchbar-fg:#191713;--searchbar-border-color:#c2bda4;--searchbar-shadow-color:#c2bda4;
+  --searchresults-border-color:#e5e3d7;--searchresults-header-fg:#57564e;--searchresults-li-bg:#f9f7ec;
+  --search-mark-bg:#f2d9a8;--footnote-highlight:#f2d9a8;--overlay-bg:rgba(20,19,15,.6);
+  --theme-popup-bg:#f8f6ee;--theme-popup-border:#c2bda4;--theme-hover:#e8e6d9;--scrollbar:var(--sidebar-fg);
+}
+/* The light sheet's green strings and additions, a shade darker for 4.5:1 on the code ground. */
+@media screen{
+html.js.light pre > code.hljs :is(.hljs-string,.hljs-symbol,.hljs-bullet){color:#007f00;}
+html.js.light pre > code.hljs .hljs-addition{color:#207d36;}
 }
 
 /* Code-block ground from the palette (mdBook paints it from the highlight sheet). */
 pre > code.hljs{background-color:var(--code-bg);}
 
-/* Comment tokens from the palette: ayu's #5c6773 is about 2.7:1 on this ground.
-   Fixed mode only: undefined, var() would wipe the stock colour. */
-pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comment);}
+/* Comments from the palette (ayu's are 2.7:1 here); !important, so print keeps it too. */
+pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comment) !important;}
+/* Ayu's tag punctuation (< = >) too: 2:1 as it is. On screen: print has code in ink. */
+@media screen{html.ayu pre > code.hljs .hljs-tag{color:var(--code-comment);}}
 
-/* Inline code: mdBook paints no ground on it. Warm fill, accent text, and a
-   hairline as an inset shadow, which keeps the inline box's metrics. */
+/* Inline code: a warm fill, accent text, and a hairline as an inset shadow (no metric change). */
 :not(pre):not(a) > code.hljs{background-color:var(--inline-bg);color:var(--inline-code-color);box-shadow:inset 0 0 0 1px var(--inline-border);}
+
+/* Marks in the palette's ink; a hit in code, marked before highlight.js runs, inherits the mark. */
+mark{color:var(--fg);}
+pre > code.hljs mark span{background-color:transparent;}
+@media screen{pre > code.hljs mark :is(span,.hljs-comment){color:inherit !important;}}
 
 /* Mobile chapter buttons sit on the page, so they take the quote ground. */
 .mobile-nav-chapters{background-color:var(--quote-bg);}
 
-/* Print: ink on paper whatever the theme. Same selector as the palette, or
-   html alone loses on specificity and the override never applies. */
+/* Print: ink on paper, whatever the theme; the palette's selectors, or it never applies. */
 @media print{
-  html.ayu{
+  html.light,html.ayu,html.js.light{
        --bg:#fff;--fg:#111;--links:#111;--visited:#111;--inline-code-color:#111;--inline-bg:#f5f5f5;--inline-border:#ddd;--muted:#444;
        --rule:#ccc;--rule-strong:#999;--quote-bg:#fff;--quote-border:#ccc;--code-bg:#f5f5f5;--code-comment:#555;
-       --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;}
+       --table-border-color:#ccc;--table-header-bg:#eee;--table-alternate-bg:#fff;
+       --blockquote-note-color:#0969da;--blockquote-tip-color:#008000;--blockquote-important-color:#8250df;--blockquote-warning-color:#9a6700;--blockquote-caution-color:#b52731;
+       --warning-border:#9a6700;--search-mark-bg:#f2d9a8;}
+  a > code.hljs{background-color:var(--inline-bg);}
 }
 #mdbook-menu-bar .icon-button{font:inherit;line-height:var(--menu-bar-height);}
+@media (any-pointer:coarse){html{overscroll-behavior-x:none;}}
+@media print{pre > code.hljs{background-color:#f5f5f5;}pre > code.hljs,pre > code.hljs :is(span,mark){color:#111 !important;}pre > code.hljs :is(.hljs-comment,.hljs-quote) span{color:inherit !important;}pre > code.hljs mark{background-color:#f2d9a8;}pre > code.hljs mark span{background-color:transparent;}}
 
 :root{--mdb-top-gap:2.4rem;}
 .content main > :first-child{margin-block-start:var(--mdb-top-gap);}
@@ -134,26 +164,26 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 .chapter > li:first-child{margin-block-start:0;}
 .chapter > li.chapter-item:empty:first-child + li{margin-block-start:0;}
 .chapter li.chapter-item:empty{margin-block:0;}
-.chapter li.part-title{line-height:1.5em;margin-block:1.7em .55em;padding-block-end:.3em;border-block-end:1px solid var(--rule-strong,var(--table-border-color));}
+.chapter li.part-title{line-height:1.5em;margin-block:1.7em .55em;padding-block-end:.3em;border-block-end:1px solid var(--rule-strong);}
 .chapter li.chapter-item:has(a[href^="unlisted/"],a[href*="/unlisted/"]){display:none;}
 
-.content hr{border:0;height:1px;background-color:var(--rule-strong,var(--table-border-color));margin:3.2rem 0;}
+.content hr{border:0;height:1px;background-color:var(--rule-strong);margin:3.2rem 0;}
 .chapter .spacer{height:1px;margin-block:1.6em;}
 
-.sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule,rgba(128,128,128,.25));font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
+.sidebar .mdb-sitemeta{margin-top:1rem;padding:1rem 0 .5rem;border-top:1px solid var(--rule);font-size:1.3rem;line-height:1.5;color:var(--sidebar-fg);opacity:.8;}
 .sidebar .mdb-sitemeta a{color:inherit;text-decoration:underline dotted;text-underline-offset:3px;}
 
-/* The per-page "Last updated <when>" line custom.js inserts under the chapter
-   H1, set like a date line. Fixed mode hangs it under the title block's rule;
-   default mode mixes a muted colour from its theme's own. */
-.content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted,color-mix(in srgb,var(--fg) 80%,var(--bg)));}
+/* The per-page Last updated line, hanging under the title block's rule. */
+.content .mdb-updated{margin-block-start:1rem;font-size:.9em;font-style:italic;color:var(--muted);}
 
 .mdb-print-back{margin:0 0 2rem;font-size:.85em;}
 @media print{.mdb-print-back{display:none;}}
 
 @media screen{
-  .content main:has(.mdb-wide,.mdb-bleed){max-width:1000px;}
-  .content main:has(.mdb-bleed) > :not(.mdb-bleed){box-sizing:border-box;max-width:var(--content-max-width);margin-inline:auto;}
+  .content main:has(.mdb-wide){max-width:1000px;}
+  .content{container-type:inline-size;}
+  .content main > .mdb-bleed{box-sizing:border-box;clear:both;max-width:none;width:min(1000px,100cqw);margin-inline:calc((100% - min(1000px,100cqw)) / 2);}
+  :where(.content main > .mdb-bleed:not(table):not([hidden])){display:block;}
 }
 .sidebar .sidebar-scrollbox{padding-top:0;}
 .sidebar-scrollbox::before{position:sticky;top:0;box-sizing:border-box;background-color:var(--sidebar-bg);border-block-end:1px solid transparent;}
@@ -162,10 +192,43 @@ pre > code.hljs .hljs-comment,pre > code.hljs .hljs-quote{color:var(--code-comme
 html.sidebar-visible .menu-title{opacity:0;}
 .sidebar-scrollbox::before{content:"Docwright";display:block;height:calc(var(--menu-bar-height) + 1px);margin-block-end:var(--mdb-top-gap);font-size:2.7rem;font-weight:200;line-height:calc(var(--menu-bar-height) - 4px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 pre:has(> .mdb-gutter){display:flex;align-items:stretch;}
-pre > .mdb-gutter{flex:0 0 auto;-webkit-user-select:none;user-select:none;white-space:pre;text-align:right;font-family:var(--mono-font);font-size:var(--code-font-size);padding:1rem .8em 1rem 1rem;background-color:var(--code-bg,transparent);color:var(--muted,#999);border-right:1px solid var(--rule,rgba(128,128,128,.25));}
+pre > .mdb-gutter{flex:0 0 auto;-webkit-user-select:none;user-select:none;white-space:pre;text-align:right;font-family:var(--mono-font);font-size:var(--code-font-size);padding:1rem .8em 1rem 1rem;background-color:var(--code-bg);color:var(--muted);border-right:1px solid var(--rule);}
 pre > .mdb-gutter + code.hljs{flex:1 1 auto;min-width:0;padding-left:1em;}
 @media print{
   pre:has(> .mdb-gutter){display:block;}
   pre > .mdb-gutter{display:none;}
   pre > .mdb-gutter + code.hljs{padding-left:1rem;}
 }
+/* OFFLINE: the last button on the right, after print, and its panel; a dot on the button: a newer version is out. */
+/* Its icon's 8px a side, as print's and the pencil's: mdBook's buttons have 8px more. */
+#mdbook-menu-bar #mdb-offline-toggle{position:relative;padding:0;}
+#mdb-offline-toggle.mdb-offline-wait{visibility:hidden;}
+#mdb-offline-toggle.mdb-offline-new::after{content:"";position:absolute;top:calc(50% - 1.2rem);right:-5px;width:.8rem;height:.8rem;border-radius:50%;background:var(--sidebar-active);}
+#mdb-offline-toggle.mdb-offline-busy svg{animation:mdb-offline-spin 1.6s linear infinite;}
+@keyframes mdb-offline-spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){#mdb-offline-toggle.mdb-offline-busy svg{animation:none;}}
+.mdb-offline-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+.mdb-offline-panel{position:absolute;top:var(--menu-bar-height);right:10px;z-index:1000;box-sizing:border-box;width:36rem;max-width:calc(100vw - 20px);max-height:calc(100vh - var(--menu-bar-height) - 20px);max-height:calc(100dvh - var(--menu-bar-height) - 20px);overflow-y:auto;overscroll-behavior:contain;padding:0 1.6rem 1.6rem;border:1px solid var(--theme-popup-border);border-radius:4px;background:var(--theme-popup-bg);color:var(--fg);font-size:1.5rem;line-height:1.4;text-align:start;}
+[dir=rtl] .mdb-offline-panel{right:auto;left:10px;}
+.mdb-offline-panel[hidden]{display:none;}
+.mdb-offline-panel p{margin:1rem 0 0;}
+.mdb-offline-panel .mdb-offline-title{margin-top:1.2rem;font-weight:bold;}
+.mdb-offline-panel .mdb-offline-note,.mdb-offline-panel .mdb-offline-sum{font-size:1.3rem;color:var(--muted);}
+.mdb-offline-panel .mdb-offline-error{font-style:italic;}
+.mdb-offline-panel a{color:inherit;text-decoration:underline;}
+.mdb-offline-panel .mdb-offline-sum code{font-size:1.2rem;word-break:break-all;}
+.mdb-offline-panel progress{display:block;width:100%;margin-top:1rem;accent-color:var(--sidebar-active);}
+.mdb-offline-panel .mdb-offline-actions{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.2rem;}
+.mdb-offline-panel .mdb-offline-act{padding:.5rem 1.2rem;font:inherit;color:var(--fg);background:var(--theme-hover);border:1px solid var(--theme-popup-border);border-radius:4px;cursor:pointer;}
+.mdb-offline-panel .mdb-offline-act:disabled{opacity:.5;cursor:default;}
+/* Save, Update and the download: a big button each, what it's for under it. */
+.mdb-offline-panel .mdb-offline-big{display:block;box-sizing:border-box;width:100%;margin-top:1.4rem;padding:1rem 1.2rem;border:1px solid var(--theme-popup-border);border-radius:6px;background:var(--inline-bg);color:var(--fg);font:inherit;font-size:1.6rem;font-weight:bold;line-height:1.3;text-align:center;text-decoration:none;cursor:pointer;}
+.mdb-offline-panel .mdb-offline-big:is(:hover,:focus-visible):not(:disabled){border-color:var(--sidebar-active);}
+.mdb-offline-panel .mdb-offline-big:disabled{opacity:.5;cursor:default;}
+.mdb-offline-panel .mdb-offline-what{margin-top:.6rem;}
+.mdb-offline-panel .mdb-offline-what + .mdb-offline-note{margin-top:.2rem;}
+/* The download under saving, a rule between them. */
+.mdb-offline-panel .mdb-offline-sep{margin-top:1.6rem;border-top:1px solid var(--theme-popup-border);}
+/* A saved copy behind the site: the line above the page's text, outside <main>. */
+.mdb-stale{box-sizing:border-box;max-width:var(--content-max-width);margin:var(--mdb-top-gap) auto 0;padding:.8rem 1.2rem;border-inline-start:3px solid var(--sidebar-active);background:var(--quote-bg);font-size:1.6rem;line-height:1.45;}
+@media print{#mdb-offline-toggle,.mdb-offline-panel,.mdb-stale{display:none;}}

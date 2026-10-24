@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -17,31 +15,32 @@ concurrency:
 
 jobs:
   build:
-    # Pinned like the actions and mdBook.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history and tags: the stamp reads the tag.
           fetch-depth: 0
+          # The build runs the repo's code; it has no use for a git token.
+          persist-credentials: false
 
       - name: Install mdBook v0.5.4
         run: |
           set -euo pipefail
           base="https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz"
           curl --fail -sSL "$base" -o mdbook.tar.gz
-          # The digest the bootstrap recorded: a tag names a file, not its bytes.
+          # The digest the bootstrap checked: a tag names a file, not its bytes.
           echo "3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7  mdbook.tar.gz" | sha256sum -c -
           mkdir -p bin
-          tar -xz -f mdbook.tar.gz --directory=bin
+          tar -xz -f mdbook.tar.gz --directory=bin mdbook
 
       - name: Install lychee 0.24.2
         run: |
           set -euo pipefail
           base="https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz"
           curl --fail -sSL "$base" -o lychee.tar.gz
-          # Pinned by version and sha256, recorded in the bootstrap script.
+          # Pinned by version and sha256, as mdBook is.
           echo "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  lychee.tar.gz" | sha256sum -c -
           tar -xz -f lychee.tar.gz --strip-components=1 \
             --directory=bin lychee-x86_64-unknown-linux-gnu/lychee
@@ -49,50 +48,51 @@ jobs:
       - name: Stamp build metadata
         run: |
           set -euo pipefail
-          # Version: the tag on this commit, or the nearest one plus a count
-          # (v1.2+5); never --abbrev=0, which would claim the tag. Safe charset only.
+          # Version: the tag on this commit, or the nearest one plus a count (v1.2+5).
           version=$(git describe --tags 2>/dev/null | sed -E 's/-([0-9]+)-g[0-9a-f]+$/+\1/' || true)
           version=${version//[^A-Za-z0-9._+-]/}
-          # Each chapter source's last commit time, as {"src/x.md":"<time>"}; paths
-          # outside a safe charset are skipped, so the sed splice stays safe.
+          # Each chapter source's last commit time, in UTC; paths outside a safe charset skipped.
           dates="{" sep=""
           while IFS= read -r -d '' f; do
             case "$f" in *.md) ;; *) continue ;; esac
             case "$f" in *[!A-Za-z0-9._/' '-]*)
               echo "page dates: skipping '$f' (character outside the safe set)"; continue ;;
             esac
-            d=$(git log -1 --format=%aI -- "$f")
+            d=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%ad -- "$f")
             [ -n "$d" ] || continue
             dates="$dates$sep\"$f\":\"$d\""
             sep=","
           done < <(git ls-files -z -- src)
           dates="$dates}"
+          # The commit's time, not the clock's: two builds of a commit are the same.
+          built=$(TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)
           sed -i \
             -e "s|__MDB_BUILD_VERSION__|${version}|" \
-            -e "s|__MDB_BUILD_DATE__|$(date -u +%Y-%m-%dT%H:%M:%SZ)|" \
+            -e "s|__MDB_BUILD_DATE__|${built}|" \
             -e "s|__MDB_BUILD_SHA__|${GITHUB_SHA::7}|" \
             -e "s|\"__MDB_PAGE_DATES__\"|${dates}|" \
-            custom.js
+            version.js
 
       - name: Build and check links
         # The ./build the author runs before a push: a broken link stops the deploy.
         run: bash ./build
 
-      - name: Setup Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
-
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ./book
 
   deploy:
     needs: build
-    runs-on: ubuntu-24.04
+    # Only this job publishes, so only this job gets the two permissions.
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

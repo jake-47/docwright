@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# Builds the book into book/, checks every internal link and anchor in it, and
-# stops on a broken one, listing each by the file and line it's written on. The
-# deploy workflow runs this same file.
+# Builds the book into book/ and stops on a broken internal link or anchor, by file and line.
 set -euo pipefail
 cd "$(dirname "$0")"
 for tool in mdbook lychee; do
     [ -x "bin/$tool" ] || { echo "bin/$tool is missing: run bootstrap-mdbook.sh to install it" >&2; exit 1; }
 done
-./bin/mdbook build
+command -v python3 >/dev/null 2>&1 || { echo "python3 is missing: install it (on Debian or Ubuntu: sudo apt-get install python3), then run ./build again" >&2; exit 1; }
+[ -f offline.py ] || { echo "offline.py is missing: run bootstrap-mdbook.sh, then commit offline.py" >&2; exit 1; }
+# mdBook exits 0 on an {{#include}} it can't read, so its ERROR line stops the build.
+rc=0
+./bin/mdbook build 2>&1 \
+    | awk '{ print; fflush() } /^(\033\[[0-9;]*m)*ERROR/ { bad = 1 } END { exit bad ? 3 : 0 }' || rc=$?
+if [ "$rc" -ne 0 ]; then
+    [ "$rc" -ne 3 ] || echo "stopped: mdBook reported an error, above. Fix it, then run ./build again." >&2
+    exit 1
+fi
+# OFFLINE's files, before the link check, which follows the manifest link.
+python3 -I offline.py book
 # print.html repeats every chapter; 404.html's <base href> points at the live site.
 rc=0
 report=$(./bin/lychee --offline --include-fragments --mode plain --no-progress \
@@ -18,13 +27,10 @@ if [ "$rc" -eq 0 ]; then
     exit 0
 fi
 
-# lychee names each break by the built page and the address it resolved to.
-# The rest turns that into the Markdown file and line, the link as written, and
-# what's wrong. Fields are split by \037, since any of them can be empty.
+# lychee names each break by page and address; the rest maps it to the Markdown file and line.
 us=$'\037'
 
-# One line per break: page and target (both under book/), anchor, lychee's
-# reason. LC_ALL=C makes %XX decode to bytes, which reassemble as UTF-8.
+# One line per break: page, target, anchor, reason. LC_ALL=C: %XX decodes to bytes.
 breaks=$(printf '%s\n' "$report" | LC_ALL=C ROOT_P="$(pwd -P)/book/" ROOT_L="$PWD/book/" awk '
     function unhex(s,   out, i, c) {
         out = ""
@@ -53,18 +59,14 @@ breaks=$(printf '%s\n' "$report" | LC_ALL=C ROOT_P="$(pwd -P)/book/" ROOT_L="$PW
         print page "\037" in_book(unhex(url)) "\037" frag "\037" (i ? substr($0, i + 3) : "")
     }' | sort -u)
 
-# Nothing to map (lychee itself failed): show its report as it is, less its
-# summary line, which is in emoji.
+# Nothing to map (lychee itself failed): its report as it is, less its summary line.
 if [ -z "$breaks" ]; then
     printf '%s\n' "$report" | grep -v ' Total (in ' >&2 || true
     echo "stopped: lychee failed (exit $rc); its output is above." >&2
     exit 1
 fi
 
-# SRC: the file a built page comes from: NAME.md for NAME.html, a folder's
-# README.md or index.md for its index.html, SUMMARY.md for toc.html. Without
-# src/README.md or src/index.md, the root index.html is a copy of the first
-# chapter (COPY=1). A page with no source stays book/NAME.
+# SRC: the file a built page comes from; COPY=1 for the root index.html copying the first chapter.
 source_of() {
     local p=$1 f
     SRC='' COPY=''
@@ -80,46 +82,93 @@ source_of() {
             fi ;;
         *.html) [ ! -f "src/${p%.html}.md" ] || SRC=src/${p%.html}.md ;;
     esac
-    [ -n "$SRC" ] || { [ -f "src/$p" ] && SRC=src/$p || SRC=book/$p; }
+    [ -n "$SRC" ] || [ ! -f "src/$p" ] || SRC=src/$p
+    [ -n "$SRC" ] || SRC=book/$p
     return 0
 }
 
-re_esc() { printf '%s' "$1" | sed 's/[]\\.*$^+?(){}|[]/\\&/g'; }
+# $1 as a regex for the ways a link can write it: each byte but a letter or digit, or its %XX.
+as_written() {
+    S=$1 LC_ALL=C awk 'BEGIN {
+        s = ENVIRON["S"]
+        for (i = 1; i < 256; i++) ord[sprintf("%c", i)] = i
+        for (i = 1; i <= length(s); i++) {
+            c = substr(s, i, 1)
+            if (c ~ /[A-Za-z0-9]/) { out = out c; continue }
+            h = sprintf("%02X", ord[c]); a = substr(h, 1, 1); b = substr(h, 2, 1)
+            out = out "(" (index("\\.*$^+?(){}|[]", c) ? "\\" : "") c "|%[" a tolower(a) "][" b tolower(b) "])"
+        }
+        printf "%s", out
+    }'
+}
 
-# Where file $1 writes the link: "line<TAB>link as written" per line. $2 matches
-# the target's file name, $3 its anchor; with $4, the link may be the anchor
-# alone. Inline, reference and HTML links count; code spans and fenced blocks
-# don't, as lychee skips them too.
+# Where file $1 writes the link to $6, from folder $5: "line<TAB>link"; code is skipped, as by lychee.
 written() {
-    LC_ALL=C NAME_RE=$2 FRAG_RE=$3 SELF=$4 awk '
+    LC_ALL=C NAME_RE=$2 FRAG_RE=$3 SELF=$4 BASE=$5 WANT=$6 awk '
+        function unhex(s,   out, i, c) {
+            out = ""
+            for (i = 1; i <= length(s); i++) {
+                c = substr(s, i, 1)
+                if (c == "%" && substr(s, i + 1, 2) ~ /^[0-9A-Fa-f][0-9A-Fa-f]$/) {
+                    c = tolower(substr(s, i + 1, 2)); i += 2
+                    c = sprintf("%c", (index(hex, substr(c, 1, 1)) - 1) * 16 + index(hex, substr(c, 2, 1)) - 1)
+                }
+                out = out c
+            }
+            return out
+        }
+        # Address p, decoded, from folder BASE: its path in book/ ("/" first if it climbs out).
+        function resolve(p, md,   n, i, k, part, seg, out) {
+            p = unhex(p)
+            if (substr(p, 1, 1) != "/" && ENVIRON["BASE"] != "") p = ENVIRON["BASE"] "/" p
+            n = split(p, part, "/"); k = 0; out = 0
+            for (i = 1; i <= n; i++) {
+                if (part[i] == "" || part[i] == ".") continue
+                if (part[i] == "..") { if (k) k--; else out = 1; continue }
+                seg[++k] = part[i]
+            }
+            p = out ? "/" : ""
+            for (i = 1; i <= k; i++) p = p (i > 1 ? "/" : "") seg[i]
+            if (md) sub(/[.]md$/, ".html", p)
+            return p
+        }
         BEGIN {
+            hex = "0123456789abcdef"
             q = sprintf("%c", 39)
             lead = "(\\]\\(<?|\\]:[ \t]*<?|(href|src)=[\"" q "])"
-            path = "([^]()<>\"" q " \t]*/)?" ENVIRON["NAME_RE"]
-            if (ENVIRON["SELF"] != "") path = "(" path ")?"
-            if (ENVIRON["FRAG_RE"] != "") path = path "#" ENVIRON["FRAG_RE"]
+            # The folders before the name: in <> or quotes, all but the closer; bare, no space or bracket.
+            n = ENVIRON["NAME_RE"]; o = ENVIRON["SELF"] != "" ? "?" : ""
+            path = "(\\]\\(<|\\]:[ \t]*<)(([^<>\t]*/)?" n ")" o
+            path = path "|(href|src)=\"(([^\"<>\t]*/)?" n ")" o
+            path = path "|(href|src)=" q "(([^" q "<>\t]*/)?" n ")" o
+            path = "(" path "|(\\]\\(|\\]:[ \t]*)(([^]()<> \t]*/)?" n ")" o ")"
+            # no anchor, or an empty one (page.md#)
+            path = path "#" (ENVIRON["FRAG_RE"] != "" ? ENVIRON["FRAG_RE"] : "?")
             end = "[)>\"" q " \t\r]"
-            re = lead path "(" end "|$)"
+            re = path "(" end "|$)"
         }
         /^[ \t]*([`][`][`]|~~~)/ { fence = !fence; next }
         fence { next }
         {
             line = $0
             gsub(/`[^`]*`/, "", line)
-            if (match(line, re)) {
-                s = substr(line, RSTART, RLENGTH)
-                match(s, "^" lead); s = substr(s, RLENGTH + 1)
+            while (match(line, re)) {
+                s = substr(line, RSTART, RLENGTH); line = substr(line, RSTART + 1)
+                match(s, "^" lead); md = substr(s, 1, RLENGTH) !~ /^src=/; s = substr(s, RLENGTH + 1)
                 sub(end "$", "", s)
-                print FNR "\t" s
+                t = s; sub(/#.*/, "", t)
+                r = t == "" ? "" : resolve(t, md)
+                if (ENVIRON["WANT"] == "" || (t == "" ? ENVIRON["SELF"] != "" : ENVIRON["WANT"] == "/" ? substr(r, 1, 1) == "/" : r == ENVIRON["WANT"])) {
+                    print FNR "\t" s
+                    break
+                }
             }
         }' "$1"
 }
 
-# The heading anchor on built page $1 sharing the most words with anchor $2,
-# if it shares two thirds of them. Words under three letters and numbers don't
-# count; a word matches one it starts, or that starts it (rename, renames).
+# The heading anchor on page $1 sharing two thirds or more of anchor $2's words, if any.
 closest() {
-    { grep -o '<h[1-6][^>]* id="[^"]*"' "book/$1" || true; } | sed 's/.* id="//; s/"$//' |
+    { grep -ho '<h[1-6][^>]* id="[^"]*"' "book/$1" 2>/dev/null || true; } | sed 's/.* id="//; s/"$//' | sort -u |
     LC_ALL=C WANT=$2 awk '
         function words(s, out,   n, i, k, part) {
             n = split(s, part, "-"); k = 0
@@ -139,8 +188,7 @@ closest() {
         END { if (pick != "") print pick }'
 }
 
-# Per break: the source file, each line the link is on, and why it's broken;
-# then sorted by file and line, each printed once.
+# Per break: the source file, the line the link is on, and why; sorted, each once.
 printf '%s\n' "$breaks" | while IFS=$us read -r page target frag reason; do
     source_of "$page"; src=$SRC copy=$COPY
     self=
@@ -148,9 +196,10 @@ printf '%s\n' "$breaks" | while IFS=$us read -r page target frag reason; do
     name=${target##*/}
     [ -z "$self" ] || name=${src##*/}
     case $name in
-        *.html|*.md) name_re="$(re_esc "${name%.*}")[.](md|html)" ;;
-        *) name_re="$(re_esc "$name")/?" ;;
+        *.html|*.md) name_re="$(as_written "${name%.*}")[.](md|html)" ;;
+        *) name_re="$(as_written "$name")/?" ;;
     esac
+    frag_re=$(as_written "$frag")
     case $reason in
         "Cannot find fragment"*)
             if [ -n "$self" ]; then why="no such anchor on this page"
@@ -165,12 +214,27 @@ printf '%s\n' "$breaks" | while IFS=$us read -r page target frag reason; do
                     why="mdBook builds README.md as index.html; write index.md in place of README.md" ;;
                 *.html) if [ -f "$md" ]; then why="$md isn't listed in src/SUMMARY.md, so the book has no page for it"
                         else why="there's no $md"; fi ;;
+                *.md)
+                    if [ -f "book/${target%.md}.html" ]; then why="its page is ${target%.md}.html: mdBook writes .html for .md in Markdown and in an <a href>, not in an HTML src"
+                    elif [ -f "src/$target" ]; then why="src/$target isn't listed in src/SUMMARY.md, so the book has no page for it"
+                    else why="there's no src/$target"; fi ;;
                 *) why="there's no src/$target" ;;
             esac ;;
         *) why=$reason ;;
     esac
+    # The folder a link in $src is read from, and the page it must lead to.
+    base=${src#src/}
+    [ -z "$copy" ] && [ "$base" != "$src" ] || base=$page
+    case $base in */*) base=${base%/*} ;; *) base= ;; esac
+    want=$target
+    if [ -n "$self" ]; then
+        want=$page
+        [ -n "$copy" ] || [ "${src#src/}" = "$src" ] || want=${src#src/}
+        want=${want%.md}; want=${want%.html}.html
+    fi
+    case $want in /*) want=/ ;; esac
     found=
-    if [ -f "$src" ]; then found=$(written "$src" "$name_re" "$(re_esc "$frag")" "$self"); fi
+    if [ -f "$src" ]; then found=$(written "$src" "$name_re" "$frag_re" "$self" "$base" "$want"); fi
     if [ -n "$found" ]; then
         while IFS=$'\t' read -r line link; do
             printf '%s\n' "$src$us$line$us$link$us$why$us$copy"

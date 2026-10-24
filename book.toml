@@ -1,12 +1,17 @@
 [book]
 title = "Docwright"
-authors = ["Jake"]
+authors = ["Jake S"]
+description = "Empowering students with tools of power and productivity"
 src = "src"
 
 [output.html]
-additional-js = ["custom.js"]
+additional-js = ["version.js", "custom.js"]
 additional-css = ["custom.css"]
-default-theme = "ayu"
+hash-files = false
+default-theme = "light"
 preferred-dark-theme = "ayu"
 site-url = "/docwright/"
 edit-url-template = "https://github.com/jake-47/docwright/edit/main/{path}"
+
+[output.html.playground]
+runnable = false

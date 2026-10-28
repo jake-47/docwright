@@ -109,6 +109,14 @@
 
 - [Pubky domain with mirrors](./pubky-domain-with-mirrors.md)
 
+# Productivity
+
+- [Focus box](./focus-box.md)
+
+- [Focus box with Wifi](./focus-box-wifi.md)
+
+- [Stopwatch pomodoro tracker](./stopwatch-pomo.md)
+
 # Outro
 
 - [Contribute](./contribute.md)

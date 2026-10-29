@@ -1,4 +1,3 @@
-
 <div class="mdb-wide"></div>
 
 # Bootstrap-zola script
@@ -7,14 +6,19 @@ The script below scaffolds a Zola blog, installs and version-pins the Zola binar
 
 ````bash
 #!/usr/bin/env bash
-# zola-blog-setup, v102
+# zola-blog-setup, v110
 #
 # Bootstraps a Zola 0.23 blog for GitHub Pages at PROJECT_DIR/BLOG_NAME, and
 # keeps it in step with the configuration block below. Re-running is the update
-# path: the script-owned files are regenerated, content/ is never touched.
+# path: the script-owned files are regenerated, content/ is never touched (in
+# book mode, book/ is never touched, and content/ is made from it). Each
+# run takes the newest Zola 0.23 release that has been out a week (with
+# KEEP_PINS, the one the workflow pins), puts it in ZOLA_DIR if it isn't there,
+# its download checked against GitHub's digest, and pins it in the workflow.
 #
-#   bash zola-blog-setup.sh              # create or update the blog
-#   bash zola-blog-setup.sh update-zola  # update the local Zola
+#   bash zola-blog-setup.sh                  # create or update the blog
+#   KEEP_PINS=true bash zola-blog-setup.sh   # the same, keeping the releases the
+#                                            # workflow pins
 #   bash zola-blog-setup.sh help
 #
 # How to use it: zola-blog-guide.md. The comments here are for reviewers.
@@ -106,6 +110,10 @@ readonly LIGHT_THEME=false        # true: light for readers whose OS asks for it
 readonly LIGHT_CODE_THEME="github-light"   # Giallo theme names
 readonly DARK_CODE_THEME="github-dark"
 
+# true: pages from an outline, book/SUMMARY.md, as mdBook builds a book, and
+# no posts (guide: "Book mode"). Needs GENERATE_FEEDS and ENABLE_TAGS false.
+readonly BOOK_MODE=false
+
 readonly GENERATE_FEEDS=true      # atom.xml, and one per tag
 readonly SHOW_RSS_LINK=true       # the menu link only; the feed stays
 readonly ENABLE_TAGS=true
@@ -148,24 +156,54 @@ fi
 readonly FAVICON_MARK="$_favicon_mark"
 unset _favicon_mark
 
-## ─── pinned tool versions ─────────────────────────────────────────────
-# A band, not a floor, applied to the local Zola and to the workflow pin alike.
-# Floor 0.23: the templates are Tera v2 (components, keyword tests, strict
-# undefined, no %+ date). Ceiling 0.24: refuse an untested template language
-# rather than report success and fail at build. Raise it only after porting the
-# templates.
-readonly ZOLA_MIN_VERSION="0.23"
-readonly ZOLA_MAX_VERSION="0.24"   # exclusive: 0.23.x is supported, 0.24 is not
+# The command that started this run, for messages that say what to type next:
+# the same path works again from the folder the run started in.
+printf -v SELF_CMD 'bash %q' "${BASH_SOURCE[0]}"
+readonly SELF_CMD
+
+## ─── releases ─────────────────────────────────────────────────────────
+# No release is named here. Each run asks GitHub for the newest Zola release in
+# ZOLA_SERIES and, with GIT_REPO_URL, the newest release of each of the
+# workflow's three actions, and takes one only once it has been out this many
+# days (most hijacked releases are found and pulled within a week). It checks a
+# download against the SHA-256 GitHub computed when it was uploaded, installs
+# that Zola for every blog on this computer, and pins the release, its Linux
+# file's digest and each action's commit in the workflow, where CI checks them
+# again. For an action the wait counts from its release, and the commit is the
+# one its tag names on the day: a run that pins that tag refuses a moved one, a
+# first run takes it as it finds it.
+readonly RELEASE_WAIT_DAYS=7
+# The templates are Tera v2 (components, keyword tests, strict undefined, no %+
+# date), written for Zola 0.23; before 0.23.3 Zola doesn't publish a redirecting
+# section's files, which content/attachments/ is: the build passes and every
+# picture is missing. A newer series is said, not taken: a build that passes
+# doesn't prove the templates still render right (0.23.5 changed what the date
+# filter prints). Move both only after porting the templates.
+readonly ZOLA_SERIES="0.23"
+readonly ZOLA_FLOOR="0.23.3"
+# For one run, in front of the command: true keeps every release the workflow
+# pins as it pins it, and looks up only what it doesn't pin. Read here, not in
+# the configuration block, so a block pasted from an older version still runs.
+readonly KEEP_PINS="${KEEP_PINS:-false}"
 
 ## ─── shared state (set per invocation) ────────────────────────────────
 OS=""
 ARCH=""
 TMP_ZOLA=""
+NEW_ZOLA=""          # install_zola's folder in ZOLA_DIR, while it's there
 GITHUB_REPO=""
 IS_UPDATE=""
-ZOLA_VERSION=""
-CI_ZOLA_VERSION=""
-ZOLA_SHA256=""
+ZOLA_VERSION=""      # the release this run installs and pins: vX.Y.Z
+ZOLA_SHA256=""       # GitHub's digest for its Linux file, which the workflow pins
+LOCAL_DIGEST=""      # GitHub's for this computer's file; "" when not asked
+ZOLA_DIR=""          # where every blog's zola goes: ~/.local/bin (~/bin in Git Bash)
+ZOLA_BIN=""
+LOCAL_ASSET=""       # this computer's file and the workflow's, {tag} for the tag
+LINUX_ASSET="zola-{tag}-x86_64-unknown-linux-gnu.tar.gz"
+CHECKOUT_USES=""     # actions/checkout@<commit> # <tag>, for the workflow
+UPLOAD_USES=""
+DEPLOY_USES=""
+KEPT=""
 BLOG_CREATED=""
 BASE_URL=""
 SOURCE_URL=""
@@ -178,7 +216,11 @@ YESTERDAY=""
 TWO_DAYS_AGO=""
 README_KEPT=""
 
-cleanup_tmp() { [ -n "$TMP_ZOLA" ] && rm -rf "$TMP_ZOLA"; return 0; }
+cleanup_tmp() {
+    [ -n "$TMP_ZOLA" ] && rm -rf "$TMP_ZOLA"
+    [ -n "$NEW_ZOLA" ] && rm -rf "$NEW_ZOLA"
+    return 0
+}
 
 # Removes only a folder this run created: BLOG_CREATED is set right after the
 # mkdir and cleared once the blog is complete.
@@ -193,13 +235,17 @@ trap cleanup_all EXIT
 # =============================================================================
 # Dispatch
 # =============================================================================
-# Two subcommands. Anything else is an error, never a folder named after a typo.
+# One subcommand. Anything else is an error, never a folder named after a typo.
 main() {
+    # git as the blog's folder has it, whatever a terminal points it at
+    # (GIT_DIR=~/.dotfiles, say): the first commit and origin are the blog's.
+    # GIT_CONFIG too: git config reads only the file it names.
+    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG
     case "${1:-}" in
         "")              cmd_setup ;;
         help|-h|--help)  cmd_help ;;
-        update-zola)     cmd_update_zola ;;
-        *)               die_usage "unknown command: $*. the script takes help or update-zola, or nothing; everything else is a setting in the block at the top (bash zola-blog-setup.sh help)" ;;
+        update-zola)     die_usage "update-zola is gone: every run installs the newest Zola it takes, so $SELF_CMD on its own updates it. nothing has been changed." ;;
+        *)               die_usage "unknown command: $*. the script takes help, or nothing; everything else is a setting in the block at the top ($SELF_CMD help)" ;;
     esac
 }
 
@@ -211,14 +257,15 @@ cmd_help() {
     cat <<'EOF'
 
   bash zola-blog-setup.sh              create or update PROJECT_DIR/BLOG_NAME
-                                       from the configuration block
-  bash zola-blog-setup.sh update-zola  install the latest supported Zola
+                                       from the configuration block, and
+                                       install the Zola it takes (with
+                                       GIT_REPO_URL, the one the workflow pins)
   bash zola-blog-setup.sh help         this list (also -h and --help)
 
 For one run, in front of the command:
   START_PREVIEW=false          skip the live preview
   REGENERATE_TEMPLATES=true    overwrite script-owned files edited by hand
-  ZOLA_VERSION_OVERRIDE=<tag>  use this Zola release instead of the latest
+  KEEP_PINS=true               keep the releases the workflow pins
 
 Everything else is a setting in the configuration block. Guide:
 zola-blog-guide.md.
@@ -228,11 +275,26 @@ EOF
 # =============================================================================
 # Platform detection
 # =============================================================================
+# The platform, and from it this computer's file of a Zola release and where
+# every blog's zola goes. zola publishes no Windows build for arm64: there, the
+# x86_64 one, which Windows 11 runs on arm64 (runs_here checks that it runs).
 detect_platform() {
     OS=$(detect_os)
     ARCH=$(detect_arch)
     [ "$OS" = "unknown" ] && die "unsupported OS (uname -s: $(uname -s 2>/dev/null))"
     [ "$ARCH" = "unknown" ] && die "unsupported architecture (uname -m: $(uname -m 2>/dev/null))"
+    case "${OS}_${ARCH}" in
+        linux_x86_64)  LOCAL_ASSET="zola-{tag}-x86_64-unknown-linux-gnu.tar.gz" ;;
+        linux_aarch64) LOCAL_ASSET="zola-{tag}-aarch64-unknown-linux-gnu.tar.gz" ;;
+        macos_x86_64)  LOCAL_ASSET="zola-{tag}-x86_64-apple-darwin.tar.gz" ;;
+        macos_aarch64) LOCAL_ASSET="zola-{tag}-aarch64-apple-darwin.tar.gz" ;;
+        windows_*)     LOCAL_ASSET="zola-{tag}-x86_64-pc-windows-msvc.zip" ;;
+    esac
+    if [ "$OS" = windows ]; then
+        ZOLA_DIR="$HOME/bin" ZOLA_BIN="$HOME/bin/zola.exe"
+    else
+        ZOLA_DIR="$HOME/.local/bin" ZOLA_BIN="$HOME/.local/bin/zola"
+    fi
     return 0
 }
 
@@ -259,6 +321,7 @@ detect_arch() {
 cmd_setup() {
     validate_config
     detect_platform
+    check_sudo
     if [ -f "$BLOG_DIR/config.toml" ]; then
         run_update_mode
     else
@@ -270,10 +333,11 @@ cmd_setup() {
 # single file is created, so a failure leaves nothing behind.
 run_create_mode() {
     check_required_tools
-    ensure_zola_installed
+    [ ! -e "$BLOG_DIR" ] || die "'$BLOG_DIR' exists but holds no config.toml; move it aside or point BLOG_NAME somewhere else. nothing has been changed."
+    lookup_releases
     resolve_host_config
     resolve_dates
-    resolve_workflow_pin
+    install_zola
     create_blog_directory
     write_owned_files
     write_content_if_absent
@@ -284,6 +348,7 @@ run_create_mode() {
     say "blog created in $BLOG_DIR"
     say ""
     init_git_repo
+    build_site
     start_preview_server
 }
 
@@ -291,23 +356,31 @@ run_create_mode() {
 # content/ is left alone.
 run_update_mode() {
     say "found an existing blog in $BLOG_DIR"
-    say "updating the script-owned files; content/ is left untouched."
-    say ""
     IS_UPDATE=1
-    # The drift check comes first, before anything is installed or downloaded, so
-    # its "nothing has been changed" is true.
+    # The tools, then the drift check, before anything is looked up, installed or
+    # downloaded, so their "nothing has been changed" is true; the update is
+    # announced once they pass, so no stop follows the announcement.
+    check_required_tools
     enter_existing_target
+    check_book_folder
+    check_blog_writable
     check_owned_file_drift
     check_menu_pages
-    check_required_tools
-    ensure_zola_installed
+    if [ "$BOOK_MODE" = true ]; then
+        say "updating the script-owned files; book/ is left untouched, and content/ is made from it."
+    else
+        say "updating the script-owned files; content/ is left untouched."
+    fi
+    say ""
+    lookup_releases
     resolve_host_config
-    resolve_workflow_pin
+    install_zola
     write_owned_files
     warn_placeholders
     update_git_remote
     say ""
     say "updated."
+    build_site
     start_preview_server
 }
 
@@ -315,8 +388,173 @@ enter_existing_target() {
     cd "$BLOG_DIR" || die "could not enter blog folder '$BLOG_DIR'"
 }
 
+# BOOK_MODE switched on for a site with no book/: a blog (its config.toml says
+# book = false), which can't become a book, or a book whose book/ has gone.
+# Said as what it is, before the menu check would blame MENU_PAGES. Only on a
+# re-run: a first run writes book/ itself.
+check_book_folder() {
+    [ "$BOOK_MODE" = true ] && [ ! -d book ] || return 0
+    if grep -q '^book = true' config.toml 2>/dev/null; then
+        die "BOOK_MODE is true, but $BLOG_DIR/book/, the folder that holds the pages, is gone. put it back, from your repository if it's committed, then run this again. nothing has been changed."
+    fi
+    die "BOOK_MODE is true, but $BLOG_DIR was made as a blog: it has no book/, and a blog can't become a book (guide: \"A blog can't become a book\"). for a book, set BLOG_NAME to a new folder; to update this blog, set BOOK_MODE=false. nothing has been changed."
+}
+
+# A run as root (sudo, su, doas) on a blog, or a ZOLA_DIR, that isn't root's
+# (sudo -E and su -m keep HOME, or PROJECT_DIR names the user's folder) leaves
+# files of root's there that the owner's next run can't write: public/, which
+# every build makes again, the whole blog on a first run, ZOLA_DIR when the run
+# made it. Nothing here needs root. Each folder, or the nearest one above it
+# that's there; -O, since stat takes other options on a Mac.
+check_sudo() {
+    [ "$EUID" -eq 0 ] || return 0
+    local d p
+    for d in "$BLOG_DIR" "$ZOLA_DIR"; do
+        p=$d
+        while [ ! -e "$p" ]; do p=$(dirname "$p"); done
+        [ -O "$p" ] || die "this run is root's, and $p isn't: it would leave files of root's there that a run as its owner couldn't write. nothing here needs root: run this as the user who owns $p, without sudo. nothing has been changed."
+    done
+}
+
+# A path from the blog's folder (or from /), physically: through every symlink
+# on the way, as chown -R and chmod -R, given the blog's folder, follow none
+# inside it. A symlink is read, not entered, so one to a folder this user can't
+# enter is named too; ./ in front, or an exported CDPATH could take cd elsewhere.
+physical() {
+    local p=$1 l n=0
+    case "$p" in /*) ;; *) p=./$p ;; esac
+    while p=${p%/} && [ -L "$p" ] && [ "$n" -lt 40 ]; do
+        l=$(readlink -- "$p") || return 1
+        case "$l" in /*) p=$l ;; *) p=${p%/*}/$l ;; esac
+        n=$((n + 1))
+    done
+    if [ -d "$p" ] && l=$(cd -P -- "$p" 2>/dev/null && pwd -P); then
+        printf '%s\n' "$l"
+    else
+        l=$(cd -P -- "${p%/*}/" 2>/dev/null && pwd -P) || return 1
+        printf '%s/%s\n' "${l%/}" "${p##*/}"
+    fi
+}
+
+# Whether this user can read all of $1: a file, or a folder (or a symlink to
+# one) and everything in it. find fails at a folder it can't read; a symlink in
+# it is left out, as one that leads nowhere no chown can fix.
+all_readable() {
+    local p=$1
+    [ ! -d "$p" ] || p=$p/
+    find "$p" ! -type l -exec sh -c 'for f do if [ -d "$f" ]; then [ -r "$f" ] && [ -x "$f" ]; else [ -r "$f" ]; fi || exit 1; done' sh {} + >/dev/null 2>&1
+}
+
+# A script-owned file, the manifest or a folder they're in that this run can't
+# read or write (a blog made with sudo, or by another user) would stop it
+# partway, with only awk's or the shell's error: said first, before anything is
+# looked up, installed or written.
+check_blog_writable() {
+    local path fn bad=() at=() up gd="" said refused="" listed="" gitout="" out=() top o q
+    [ -w . ] || { bad+=("$BLOG_DIR itself"); at+=(.); }
+    # public/: the build deletes it and makes it again; a symlink there it
+    # replaces, which takes only the blog's folder. static/processed_images/:
+    # resize_image writes there whenever a photo changes.
+    for path in templates static static/processed_images .github/workflows public; do
+        [ "$path" != public ] || [ ! -L public ] || continue
+        [ ! -d "$path" ] || [ -w "$path" ] || { bad+=("$path/"); at+=("$path"); }
+    done
+    # .github/workflows/ made in a .github/ that's there already
+    [ -z "$GIT_REPO_URL" ] || [ -d .github/workflows ] || [ ! -d .github ] || [ -w .github ] || { bad+=(".github/"); at+=(.github); }
+    while read -r path fn; do
+        [ -e "$path" ] || continue
+        # Yours once edited, and then only read.
+        if [ "$path" = README.md ] && [ -r README.md ] && { [ ! -f "$OWNED_MANIFEST" ] || [ -r "$OWNED_MANIFEST" ]; } \
+            && readme_is_yours; then continue; fi
+        if ! { [ -r "$path" ] && [ -w "$path" ]; }; then bad+=("$path"); at+=("$path")
+        # write_owned_files makes these executable, which only their owner (or
+        # root) can do.
+        else case $path in serve|build|new|attach|genbook) [ -x "$path" ] || [ -O "$path" ] || [ "$EUID" -eq 0 ] || { bad+=("$path"); at+=("$path"); } ;; esac
+        fi
+    done < <(owned_files; printf '%s -\n' "$OWNED_MANIFEST")
+    # update_git_remote writes the config in the blog's git folder (.git, or the
+    # one a .git file names: a worktree's or a submodule's), and git won't work in
+    # a repository another user owns ("dubious ownership"): its reason, said.
+    if [ -n "$GIT_REPO_URL" ] && [ -e .git ] && command -v git >/dev/null 2>&1; then
+        if ! git --git-dir=.git rev-parse --git-common-dir >/dev/null 2>&1 && ! all_readable .git; then
+            # Something in it this user can't read, which git, named the .git
+            # outright, takes for no repository, and its search passes by for
+            # one around the blog: another user's .git closed to others (as
+            # sudo leaves one under a umask of 077 or 027), the user's own
+            # with files of root's a sudo git command left in it, or one closed
+            # with chmod. The chown and chmod below give it back.
+            said=$(git --git-dir=.git rev-parse --git-common-dir 2>&1 >/dev/null | grep -m 1 . | sed 's/^fatal: //' || true)
+            bad+=(".git/ (git: $said)") gd=.git listed=1
+        # A .git git can't take for a repository (one emptied by hand) leaves the
+        # repository the blog sits in, whose origin update_git_remote would set.
+        # Asked with ownership set aside (safe.directory, for rev-parse alone, whose
+        # answer is all that's used, so nothing in that repository runs), so the
+        # one around the blog is found when it's another user's too: from git 2.38,
+        # which reads safe.directory from -c; before, the stop below names the .git.
+        # --show-cdup is empty at the top of a work tree, so no paths are compared
+        # (Git Bash's are C:/…); the folder is named from the physical one, as git
+        # counts from it, not through a symlink to the blog's.
+        elif up=$(git -c safe.directory='*' rev-parse --show-cdup 2>/dev/null) && [ -n "$up" ]; then
+            die "$BLOG_DIR/.git isn't a repository git can read, so git takes the blog for part of the one at $(cd -P -- "$up" && pwd -P). nothing has been changed. move $BLOG_DIR/.git aside (an empty one can go), then run this again."
+        elif gd=$(git rev-parse --git-common-dir 2>/dev/null); then
+            [ -w "$gd" ] || bad+=("${gd%/}/") listed=1
+        # Named outright (--git-dir), a repository isn't checked for its owner by
+        # any git, and -c safe.directory is read only from git 2.38: this names
+        # the repository git refuses.
+        elif gd=$(git --git-dir=.git rev-parse --git-common-dir 2>/dev/null); then
+            said=$(git rev-parse --git-common-dir 2>&1 >/dev/null | grep -m 1 . | sed 's/^fatal: //' || true)
+            bad+=("${gd%/}/ (git: $said)") refused=1 listed=1
+        else
+            # All of it readable, and still no repository: a .git emptied by
+            # hand, or naming one that's moved or gone.
+            said=$(git --git-dir=.git rev-parse --git-common-dir 2>&1 >/dev/null | grep -m 1 . | sed 's/^fatal: //' || true)
+            die "$BLOG_DIR/.git isn't a repository git can read (git: $said). nothing has been changed. move $BLOG_DIR/.git aside (an empty one can go), or fix what git says, then run this again."
+        fi
+        # The repository's own folder, outside the blog's: a worktree's, a
+        # submodule's, or the one a .git symlink names.
+        if [ -n "$listed" ]; then
+            at+=("$gd")
+            o=$(physical "$gd") && case "$o/" in "$(pwd -P)"/*) ;; *) gitout=$o ;; esac
+        fi
+    fi
+    [ "${#bad[@]}" -eq 0 ] && return 0
+    warn "this run rewrites these in $BLOG_DIR, and can't read or write them:"
+    for path in "${bad[@]}"; do warn "  - $path"; done
+    warn "a run with sudo, or as another user, may have made them. nothing has been changed."
+    if [ "$OS" = windows ] && [ -n "$refused" ]; then
+        # git checks the owner, not the permissions.
+        warn "make them writable for you, and the repository yours: git refuses one it takes for another user's, whatever its permissions (on a USB drive formatted FAT32 or exFAT, which records no owner, or a network folder, git config --global --add safe.directory with the folder git names lets git use it). then run this again."
+    elif [ "$OS" = windows ]; then
+        warn "make them writable for you, then run this again."
+    elif [ "$EUID" -eq 0 ]; then
+        # git's refusal of another user's repository, which chown to root would
+        # only move.
+        if [ -n "$refused" ]; then
+            warn "this run is root's: run this as the user who owns ${gitout:-$BLOG_DIR/.git}."
+        else
+            warn "this run is root's, and root can't write them either: a read-only filesystem, a file marked immutable, or a network folder or container that treats root as another user does that. fix that, then run this again."
+        fi
+    else
+        # The folder itself, not a symlink to it, and each listed path that
+        # leads outside it (a symlinked folder, a repository elsewhere):
+        # chown -R changes a symlink, not what it points to, and follows none
+        # inside the folder.
+        top=$(pwd -P)
+        printf -v q '%q' "$top"
+        for path in "${at[@]}"; do
+            o=$(physical "$path") || continue
+            case "$o/" in "$top"/*) continue ;; esac
+            for fn in ${out[@]+"${out[@]}"}; do case "$o/" in "$fn"/*) continue 2 ;; esac; done
+            out+=("$o")
+            printf -v q '%s %q' "$q" "$o"
+        done
+        warn "make them yours and writable (sudo chown -R \"\$(id -un)\" $q && chmod -R u+rwX $q does that), then run this again."
+    fi
+    exit 1
+}
+
 # The script-owned set as "path render_function" pairs: the one list the writer,
-# the manifest and the drift check all read. The last three are conditional on
+# the manifest and the drift check all read. The last four are conditional on
 # purpose: a file this run doesn't write (your own favicon, with FAVICON_TEXT="")
 # must not be claimed, or the manifest records your bytes and a later run deletes
 # them.
@@ -342,6 +580,7 @@ OWNED
     [ -n "$FAVICON_MARK" ] && printf '%s\n' "static/favicon.svg render_favicon_svg"
     [ "$ENABLE_SEARCH" = true ] && printf '%s\n' "static/search.js render_search_js"
     [ -n "$GIT_REPO_URL" ] && printf '%s\n' ".github/workflows/deploy.yml render_github_workflow"
+    [ "$BOOK_MODE" = true ] && printf '%s\n' "genbook render_genbook"
     return 0
 }
 
@@ -360,11 +599,7 @@ manifest_sha() {
 # counts as edited, the safe answer for a blog that predates it.
 check_owned_file_drift() {
     [ "$REGENERATE_TEMPLATES" = true ] && return 0
-    local path fn recorded actual drifted=() no_manifest=""
-    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
-        warn "no sha256sum or shasum: cannot tell a hand edit from an update, so the drift check is skipped."
-        return 0
-    fi
+    local path fn recorded actual drifted=() no_manifest="" again
     [ -f "$OWNED_MANIFEST" ] || no_manifest=1
     while read -r path fn; do
         [ -f "$path" ] || continue
@@ -387,9 +622,11 @@ check_owned_file_drift() {
     local f
     for f in "${drifted[@]}"; do warn "  - $f"; done
     warn ""
+    again="REGENERATE_TEMPLATES=true $SELF_CMD"
+    [ "$KEEP_PINS" != true ] || again="KEEP_PINS=true $again"
     warn "they are script-owned: change the matching render_* function or a configuration"
     warn "variable rather than the file. to overwrite them anyway, run once with"
-    warn "    REGENERATE_TEMPLATES=true bash zola-blog-setup.sh"
+    warn "    $again"
     warn "nothing has been changed."
     exit 1
 }
@@ -413,10 +650,12 @@ write_owned_manifest() {
 # README.md turns into yours once you edit it: nothing builds from it, so keeping
 # an edited one can't break the site or hold back a fix, and it's the page GitHub
 # shows for the repository, where people edit it. Yours: there, and not the bytes
-# the manifest says this script last wrote, or not in the manifest at all.
-# Deleting it, or REGENERATE_TEMPLATES=true, gets the script's back.
+# the manifest says this script last wrote, or not in the manifest at all, or
+# with no manifest to tell (kept, and said), under REGENERATE_TEMPLATES too,
+# which is for the script's files. Deleting it gets the script's back.
 readme_is_yours() {
-    [ "$REGENERATE_TEMPLATES" != true ] && [ -f README.md ] && [ -f "$OWNED_MANIFEST" ] || return 1
+    [ -f README.md ] || return 1
+    [ -f "$OWNED_MANIFEST" ] || return 0
     local actual
     actual=$(sha256_of README.md) || return 1
     [ "$actual" != "$(manifest_sha README.md)" ]
@@ -428,7 +667,9 @@ write_owned_files() {
     while read -r path fn; do
         if [ "$path" = README.md ] && readme_is_yours; then
             README_KEPT=1
-            if [ -n "$(manifest_sha README.md)" ]; then
+            if [ ! -f "$OWNED_MANIFEST" ]; then
+                say "README.md was left as it is: with no $OWNED_MANIFEST, this run can't tell an edit from the script's own (delete it to get the script's back)"
+            elif [ -n "$(manifest_sha README.md)" ]; then
                 say "README.md was edited, so it's yours now: runs leave it alone (delete it to get the script's back)"
             fi
             continue
@@ -438,9 +679,13 @@ write_owned_files() {
         [ "$path" = "${path%/*}" ] || mkdir -p "${path%/*}"
         "$fn" > "$path"
     done < <(owned_files)
-    chmod +x serve build new attach
+    local f
+    for f in serve build new attach genbook; do [ ! -f "$f" ] || [ -x "$f" ] || chmod +x "$f"; done
     # Owned in both directions: clearing the variable that produced a file removes
     # the file, but only if the manifest says these are the bytes this script wrote.
+    if [ "$BOOK_MODE" != true ] && [ -f genbook ] && remove_if_ours genbook; then
+        say "removed genbook (BOOK_MODE is false)"
+    fi
     if [ -z "$FAVICON_MARK" ]; then
         local why="FAVICON_TEXT is empty" fix="add static/favicon.svg yourself"
         if [ "$FAVICON_TEXT" = "auto" ]; then
@@ -468,9 +713,10 @@ write_owned_files() {
     fi
     write_deploy_workflow
     write_owned_manifest
-    local readme=" README.md,"
+    local readme=" README.md," genbook=""
     [ -z "$README_KEPT" ] || readme=""
-    say "wrote the script-owned files (config.toml, templates/, serve, build, new, attach,${readme} .gitignore)"
+    [ "$BOOK_MODE" != true ] || genbook=" genbook,"
+    say "wrote the script-owned files (config.toml, templates/, serve, build, new, attach,${genbook}${readme} .gitignore)"
 }
 
 validate_config() {
@@ -525,6 +771,22 @@ validate_config() {
     validate_bool ENABLE_SEARCH       "$ENABLE_SEARCH"
     validate_bool START_PREVIEW       "$START_PREVIEW"
     validate_bool REGENERATE_TEMPLATES "$REGENERATE_TEMPLATES"
+    validate_bool KEEP_PINS           "$KEEP_PINS"
+    validate_bool BOOK_MODE           "$BOOK_MODE"
+    # A book's pages have no dates or tags, so the feed and the tags page would
+    # be empty, and the menu would still offer them.
+    if [ "$BOOK_MODE" = true ]; then
+        [ "$GENERATE_FEEDS" != true ] || die "BOOK_MODE is true, and so is GENERATE_FEEDS: a book's pages have no dates, so the feed would be empty. set GENERATE_FEEDS=false (SHOW_RSS_LINK then does nothing). nothing has been changed."
+        [ "$ENABLE_TAGS" != true ] || die "BOOK_MODE is true, and so is ENABLE_TAGS: a book's pages have no tags, so the tags page would be empty. set ENABLE_TAGS=false. nothing has been changed."
+    fi
+    # Atom requires an author on the feed unless every entry has one, and no
+    # post sets one (atom.xml): with SITE_AUTHOR empty the feed isn't valid, and
+    # a feed reader or email service may refuse it.
+    if [ "$GENERATE_FEEDS" = true ] && [ -z "$SITE_AUTHOR" ]; then
+        die "GENERATE_FEEDS is true, and SITE_AUTHOR is empty: the feed format requires an author, so the feed wouldn't be valid. set SITE_AUTHOR to your name, or GENERATE_FEEDS=false. nothing has been changed."
+    fi
+    [ -z "${ZOLA_VERSION_OVERRIDE+x}" ] \
+        || die "ZOLA_VERSION_OVERRIDE is gone: each run takes the newest zola $ZOLA_SERIES release out $RELEASE_WAIT_DAYS days, and KEEP_PINS=true keeps the one the workflow pins. unset it and run this again; nothing has been changed."
 
     # Tera prints a format with no % code as it is, the same text for every date.
     case "$DATE_FORMAT" in
@@ -536,7 +798,8 @@ validate_config() {
 }
 
 # One name per word: content/NAME.md, or a folder's content/NAME/_index.md
-# (menu_page_path). base.html looks each one up.
+# (menu_page_path). base.html looks each one up. In book mode each is a file
+# in book/, which has no folders, and genbook writes content/NAME.md from it.
 validate_menu_pages() {
     local name names=()
     read -r -a names <<< "$MENU_PAGES"
@@ -546,6 +809,12 @@ validate_menu_pages() {
             /*|*/|.*|*/.*|-*|*..*|*[!A-Za-z0-9._/-]*|*.md|index|*/index|_index|*/_index)
                 die "MENU_PAGES takes the names of pages in content/, without .md, separated by spaces, such as \"about now\"; got: '$name'" ;;
         esac
+        if [ "$BOOK_MODE" = true ]; then
+            case "$name" in
+                */*|*[!a-z0-9-]*|-*|*-|*--*|unlisted|attachments)
+                    die "in book mode a MENU_PAGES name is a file in book/, book/$name.md, named like a page: lowercase letters and digits with single dashes between them, and not unlisted or attachments; got: '$name'" ;;
+            esac
+        fi
     done
 }
 
@@ -597,12 +866,18 @@ menu_page_path() {
 }
 
 # Every MENU_PAGES name needs a page to link to, or the build stops at base.html's
-# get_page. Runs before anything is written on a re-run.
+# get_page. Runs before anything is written on a re-run. In book mode the page
+# is book/NAME.md, which genbook turns into content/NAME.md, hidden = true and
+# all, at every build: content/ may not be there yet (a fresh clone ignores it).
 check_menu_pages() {
     local name file names=()
     read -r -a names <<< "$MENU_PAGES"
     [ "${#names[@]}" -gt 0 ] || return 0
     for name in "${names[@]}"; do
+        if [ "$BOOK_MODE" = true ]; then
+            [ -f "book/$name.md" ] || die "MENU_PAGES names $name, but there's no book/$name.md. make that page first (guide: \"Book mode\"), or take $name out of MENU_PAGES. nothing has been changed."
+            continue
+        fi
         if [ -f "content/$name.md" ] && [ -f "content/$name/_index.md" ]; then
             die "MENU_PAGES names $name, but there's both content/$name.md and content/$name/_index.md, and Zola won't build two pages at one address. keep one. nothing has been changed."
         fi
@@ -628,9 +903,11 @@ warn_placeholders() {
     [ "$SITE_DESCRIPTION" != "one-line description" ] || left+=("SITE_DESCRIPTION")
     [ "$SITE_AUTHOR" != "your name" ] || left+=("SITE_AUTHOR")
     case "$FOOTER_LINKS" in *yourhandle*|*npub1yourkeyhere*|*yourrepo*) left+=("FOOTER_LINKS") ;; esac
-    if [ -f content/about.md ] \
-       && grep -q -e 'you@yourdomain.com' -e 'Your name. One or two sentences' content/about.md; then
-        left+=("content/about.md")
+    local about=content/about.md
+    [ "$BOOK_MODE" != true ] || about=book/about.md
+    if [ -f "$about" ] \
+       && grep -q -e 'you@yourdomain.com' -e 'Your name. One or two sentences' "$about"; then
+        left+=("$about")
     fi
     [ "${#left[@]}" -gt 0 ] || return 0
     local list
@@ -665,18 +942,697 @@ update_git_remote() {
 }
 
 # =============================================================================
-# HTTP download and Zola install
+# Releases: looked up, checked, installed
 # =============================================================================
-http_download() {
-    local url="$1" dest="$2"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL --proto '=https' --tlsv1.2 \
-            --connect-timeout 30 --max-time 300 "$url" -o "$dest"
-    elif command -v wget >/dev/null 2>&1; then
-        wget -nv --https-only --timeout=30 --tries=2 "$url" -O "$dest"
+# The ways out to the network, each its own function. GitHub's API allows 60
+# requests an hour from one address, and a run makes four (one without
+# GIT_REPO_URL); no token is sent or needed, since everything asked is public.
+# None of them reads a config file: curl runs with -q (which must come first),
+# so ~/.curlrc can't turn TLS checks off, and git ls-remote with no system,
+# global or repository config, so no setting can turn its checks off, send it
+# elsewhere (url.<base>.insteadOf) or trust another CA. The environment still
+# applies: https_proxy, and CURL_CA_BUNDLE and GIT_SSL_CAINFO for a proxy's
+# certificate.
+github_api() {
+    curl -q --fail -sSL --proto =https --proto-redir =https --tlsv1.2 --connect-timeout 30 --max-time 120 \
+        -H "Accept: application/vnd.github+json" "https://api.github.com/$1"
+}
+
+fetch() {
+    curl -q --fail -sSL --proto =https --proto-redir =https --tlsv1.2 --connect-timeout 30 --max-time 900 "$1" -o "$2"
+}
+
+# The commit a tag of github.com/$1 names (an annotated tag's, peeled); nothing
+# for no such tag, and git's failure, with its own message, when github.com
+# can't be asked.
+tag_commit() {
+    # GIT_DIR names no repository, so no folder's .git applies; HOME and
+    # XDG_CONFIG_HOME for a git older than 2.32, which has no GIT_CONFIG_GLOBAL;
+    # no askpass program, which a refused request would wait on.
+    env -u GIT_SSL_NO_VERIFY -u GIT_CONFIG_COUNT -u GIT_CONFIG_PARAMETERS -u XDG_CONFIG_HOME -u GIT_ASKPASS -u SSH_ASKPASS \
+        HOME=/nonexistent GIT_DIR=/nonexistent GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_TERMINAL_PROMPT=0 \
+        git -c http.sslVerify=true -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=60 ls-remote "https://github.com/$1" "refs/tags/$2" "refs/tags/$2^{}" |
+        awk -v t="refs/tags/$2" '$2 == t "^{}" { peeled = $1 } $2 == t { plain = $1 }
+            END { print (peeled != "" ? peeled : plain) }'
+}
+
+# GitHub's JSON for a list of releases, on stdin, as lines of tab-separated
+# fields: "R tag draft prerelease published_at" for each release, then "A tag
+# name state created_at updated_at digest" for each of its files, and a last
+# line "E" when the input was one well-formed JSON array; exit 1 otherwise. awk,
+# not python3, which macOS and Git for Windows don't have; LC_ALL=C, so it reads
+# bytes whatever the locale. RS is the double quote, so records alternate between
+# text outside strings and a string's contents, and a string goes on past a
+# quote with an odd run of backslashes before it. Escapes are left as they are
+# (no value used has any: each is checked against a strict pattern before use),
+# a control character in a value is printed as "?", and a kept field given as an
+# object or an array as its opening bracket. The input must not end in a quote,
+# which awk would drop unseen: callers add a newline.
+releases_flat() {
+    LC_ALL=C awk '
+    function fail() { bad = 1; exit 1 }
+    function clean(v) { gsub(/[\001-\037\177]/, "?", v); return v }
+    function want_value() {
+        if (depth == 0) { if (st[0] != "v") fail(); return }
+        if (type[depth] == "o") { if (st[depth] != "v") fail() }
+        else if (st[depth] != "f" && st[depth] != "v") fail()
+    }
+    function got_value(v) {
+        if (depth == 0) { st[0] = "done"; return }
+        if (type[depth] == "o") {
+            if (depth == 2 && inrel && (key[2] in wr)) rel[key[2]] = v
+            else if (depth == 4 && inasset && (key[4] in wa)) ast[key[4]] = v
+        }
+        st[depth] = ","
+    }
+    function opened(c) {
+        want_value()
+        # Not null: a form this script does not know, which fails every check
+        # made of the field.
+        if (depth == 2 && inrel && (key[2] in wr)) rel[key[2]] = c
+        if (depth == 4 && inasset && (key[4] in wa)) ast[key[4]] = c
+        if (depth == 0) st[0] = "in"; else st[depth] = ","
+        depth++
+        type[depth] = c == "{" ? "o" : "a"
+        st[depth] = c == "{" ? "k" : "f"
+        if (depth == 1) { if (c != "[") fail(); root = 1 }
+        if (depth == 2 && c == "{") { inrel = 1; split("", rel); na = 0 }
+        if (depth == 3 && c == "[" && inrel && key[2] == "assets") inassets = 1
+        if (depth == 4 && c == "{" && inassets) { inasset = 1; split("", ast) }
+    }
+    function closed(c,   t, i) {
+        t = c == "}" ? "o" : "a"
+        if (depth < 1 || type[depth] != t) fail()
+        if (st[depth] != (t == "o" ? "k" : "f") && st[depth] != ",") fail()
+        if (depth == 4 && inasset) {
+            na++; an[na] = ast["name"]; as[na] = ast["state"]; ac[na] = ast["created_at"]
+            au[na] = ast["updated_at"]; ad[na] = ast["digest"]; inasset = 0
+        }
+        if (depth == 3 && inassets) inassets = 0
+        if (depth == 2 && inrel) {
+            printf "R\t%s\t%s\t%s\t%s\n", clean(rel["tag_name"]), clean(rel["draft"]), clean(rel["prerelease"]), clean(rel["published_at"])
+            for (i = 1; i <= na; i++)
+                printf "A\t%s\t%s\t%s\t%s\t%s\t%s\n", clean(rel["tag_name"]), clean(an[i]), clean(as[i]), clean(ac[i]), clean(au[i]), clean(ad[i])
+            inrel = 0
+        }
+        depth--
+        if (depth == 0) st[0] = "done"
+    }
+    function literal(   v) {
+        v = lit; lit = ""
+        if (v != "true" && v != "false" && v != "null" && v !~ /^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?$/) fail()
+        want_value()
+        got_value(v == "null" ? "" : v)
+    }
+    function outside(s,   i, n, c) {
+        n = length(s)
+        for (i = 1; i <= n; i++) {
+            c = substr(s, i, 1)
+            if (c ~ /[A-Za-z0-9.+-]/) { lit = lit c; continue }
+            if (lit != "") literal()
+            if (c == " " || c == "\t" || c == "\n" || c == "\r") continue
+            if (c == "{" || c == "[") opened(c)
+            else if (c == "}" || c == "]") closed(c)
+            else if (c == ":") { if (depth < 1 || type[depth] != "o" || st[depth] != ":") fail(); st[depth] = "v" }
+            else if (c == ",") { if (depth < 1 || st[depth] != ",") fail(); st[depth] = type[depth] == "o" ? "K" : "v" }
+            else fail()
+        }
+        if (lit != "") literal()
+    }
+    # An odd run of backslashes at the end of s: the quote after it is escaped.
+    function escaped(s,   n, k) {
+        n = length(s); k = 0
+        while (n > 0 && substr(s, n, 1) == "\\") { k++; n-- }
+        return k % 2
+    }
+    BEGIN {
+        RS = "\""
+        split("tag_name draft prerelease published_at", w, " "); for (i in w) wr[w[i]] = 1
+        split("name state created_at updated_at digest", w, " "); for (i in w) wa[w[i]] = 1
+        st[0] = "v"
+    }
+    NR == 1 { outside($0); next }
+    !instr {
+        # A string starts: a key where an object expects one, else a value, kept
+        # only when it is one of the fields above.
+        if (depth > 0 && type[depth] == "o" && (st[depth] == "k" || st[depth] == "K")) iskey = 1
+        else { iskey = 0; want_value() }
+        keep = iskey || (depth == 2 && inrel && (key[2] in wr)) || (depth == 4 && inasset && (key[4] in wa))
+        buf = keep ? $0 : ""; tail = $0; instr = 1; next
+    }
+    escaped(tail) { if (keep) buf = buf "\"" $0; tail = $0; next }
+    {
+        instr = 0
+        if (iskey) { key[depth] = buf; st[depth] = ":" } else got_value(buf)
+        outside($0)
+    }
+    END {
+        if (bad || instr || depth != 0 || !root || st[0] != "done") exit 1
+        print "E"
+    }'
+}
+
+# From releases_flat's lines on stdin, the highest-numbered stable release tagged
+# $1 + x.y.z, published RELEASE_WAIT_DAYS ago or more, with each file in $2
+# ({tag} for the tag), each uploaded that long ago too: "tag digest ...", a
+# digest per file, "-" for a file GitHub has none for and "?" for one in a form
+# this script doesn't know, and after them, when a higher-numbered release out
+# that long lacks one of the files or has one uploaded since, its tag and that
+# file's name. With $3 (0.23), only that x.y; with $4 (0.23.3), only
+# from there. Highest number, not latest date: a fix to an older series can come
+# out after the newest release. Nothing when none qualifies; exit 1 when the
+# answer wasn't read whole.
+pick_release() {
+    LC_ALL=C awk -F '\t' -v prefix="$1" -v files="$2" -v series="$3" -v floor="$4" -v cut="$CUTOFF" '
+    function num(t,   r) {
+        if (index(t, prefix) != 1) return ""
+        r = substr(t, length(prefix) + 1)
+        if (r !~ /^[0-9]+\.[0-9]+\.[0-9]+$/) return ""
+        gsub(/\./, " ", r)
+        return r
+    }
+    function newer(a, b,   x, y, i) {
+        split(a, x, " "); split(b, y, " ")
+        for (i = 1; i <= 3; i++) if (x[i] + 0 != y[i] + 0) return x[i] + 0 > y[i] + 0
+        return 0
+    }
+    function when(d) { return d ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/ }
+    function fill(s, t,   i) { while ((i = index(s, "{tag}")) > 0) s = substr(s, 1, i - 1) t substr(s, i + 5); return s }
+    function hex(d) { return d == "" ? "-" : length(d) == 71 && substr(d, 1, 7) == "sha256:" && substr(d, 8) ~ /^[0-9a-f]+$/ ? substr(d, 8) : "?" }
+    $1 == "R" { tags[++n] = $2; draft[$2] = $3; pre[$2] = $4; pub[$2] = $5; next }
+    $1 == "A" { k = $2 SUBSEP $3; state[k] = $4; made[k] = $5; upd[k] = $6; dig[k] = $7; next }
+    $1 == "E" { whole = 1 }
+    END {
+        if (!whole) exit 1
+        nf = split(files, want, " ")
+        for (i = 1; i <= n; i++) {
+            t = tags[i]; v = num(t)
+            if (v == "" || draft[t] != "false" || pre[t] != "false" || !when(pub[t]) || pub[t] > cut) continue
+            split(v, p, " ")
+            if (series != "" && p[1] "." p[2] != series) continue
+            if (floor != "" && newer(num(prefix floor), v)) continue
+            ok = 1; out = t
+            for (j = 1; j <= nf; j++) {
+                k = t SUBSEP fill(want[j], t)
+                if (!(k in state) || state[k] != "uploaded" || !when(made[k]) || !when(upd[k]) || made[k] > cut || upd[k] > cut) { ok = 0; break }
+                out = out " " hex(dig[k])
+            }
+            if (!ok) { if (passed == "" || newer(v, num(passed))) { passed = t; miss = fill(want[j], t) }; continue }
+            if (best == "" || newer(v, num(best))) { best = t; bestout = out }
+        }
+        if (best == "") exit 0
+        if (passed != "" && newer(num(passed), num(best))) bestout = bestout " " passed " " miss
+        print bestout
+    }'
+}
+
+# GitHub's digest now for the file $2 ({tag} for the tag) of the release tagged
+# $1, from releases_flat's lines on stdin: its 64 hex digits, "-" when GitHub has
+# none, "?" for one in a form this script doesn't know, nothing when the release
+# or the file isn't there. With $3, a time as CUTOFF has it: "new" for a file
+# GitHub doesn't show as uploaded and last changed by then, which pick_release
+# would pass over.
+file_digest() {
+    LC_ALL=C awk -F '\t' -v tag="$1" -v name="$2" -v cut="${3:-}" '
+    function when(d) { return d ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/ }
+    function fill(s, t,   i) { while ((i = index(s, "{tag}")) > 0) s = substr(s, 1, i - 1) t substr(s, i + 5); return s }
+    function hex(d) { return d == "" ? "-" : length(d) == 71 && substr(d, 1, 7) == "sha256:" && substr(d, 8) ~ /^[0-9a-f]+$/ ? substr(d, 8) : "?" }
+    $1 == "A" && $2 == tag && $3 == fill(name, tag) && $4 == "uploaded" {
+        d = cut != "" && (!when($5) || !when($6) || $5 > cut || $6 > cut) ? "new" : hex($7) }
+    $1 == "E" { whole = 1 }
+    END { if (!whole) exit 1; if (d != "") print d }'
+}
+
+# GitHub's releases of github.com/$1, as releases_flat's lines; exit 2 when
+# GitHub can't be asked, 1 when its answer can't be read.
+releases_of() {
+    local json
+    json=$(github_api "repos/$1/releases?per_page=100") || return 2
+    printf '%s\n' "$json" | releases_flat || return 1
+}
+
+# The workflow's pins from the last run, as "name value [value]" lines: zola (its
+# release tag, from the download's address), zola-sha, and each action as
+# "actions/x commit tag", the tag "-" for a commit pinned alone or with a
+# comment that isn't a release's tag (# v7), whatever the spacing, and a uses:
+# written as a step's first key (- uses:) too. A workflow
+# edited past recognition pins nothing, and so does one GIT_REPO_URL no longer
+# asks for (the run removes it). By its full path: the lookup runs before the cd
+# into the blog folder.
+pins() {
+    local wf="$BLOG_DIR/.github/workflows/deploy.yml"
+    [ -n "$GIT_REPO_URL" ] && [ -f "$wf" ] || return 0
+    sed -n \
+        -e 's|.*/getzola/zola/releases/download/\(v[0-9][0-9.]*\)/zola-v[0-9][0-9.]*-x86_64-unknown-linux-gnu\.tar\.gz".*|zola \1|p' \
+        -e 's|^[[:blank:]]*echo[[:blank:]]\{1,\}"\([0-9a-f]\{64\}\)[[:blank:]]\{1,\}\*\{0,1\}zola\.tar\.gz".*|zola-sha \1|p' \
+        -e 's|^[[:blank:]]*-\{0,1\}[[:blank:]]*uses:[[:blank:]]*\(actions/[a-z-]*\)@\([0-9a-f]\{40\}\)[[:blank:]]\{1,\}#[[:blank:]]*\(v[0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\)[[:space:]]*$|\1 \2 \3|p' \
+        -e 's|^[[:blank:]]*-\{0,1\}[[:blank:]]*uses:[[:blank:]]*\(actions/[a-z-]*\)@\([0-9a-f]\{40\}\)[[:blank:]]\{1,\}#.*$|\1 \2 -|p' \
+        -e 's|^[[:blank:]]*-\{0,1\}[[:blank:]]*uses:[[:blank:]]*\(actions/[a-z-]*\)@\([0-9a-f]\{40\}\)[[:space:]]*$|\1 \2 -|p' \
+        "$wf"
+}
+pin() {
+    pins | awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print; exit }'
+}
+
+# An action's pin ($2, "commit tag" from pins) as the workflow's uses: value for
+# github.com/$1; and a uses: value as a run names it: the tag, or the commit for
+# one pinned alone.
+pin_uses() {
+    if [ "${2#* }" = - ]; then printf '%s@%s' "$1" "${2%% *}"; else printf '%s@%s # %s' "$1" "${2%% *}" "${2#* }"; fi
+}
+uses_name() {
+    local c=${1##*@}
+    case "$1" in *" # "*) printf '%s' "${1##*# }" ;; *) printf 'commit %s' "${c:0:12}" ;; esac
+}
+
+# The hint for a lookup GitHub didn't answer: in full the first time, then "as
+# above" (when one fails, the others usually do too).
+NET_SAID=""
+PIN_OFFERED=""
+net_hint() { if [ -n "$NET_SAID" ]; then printf 'as above'; else printf '%s' "$LIMIT_HINT"; fi; }
+readonly LIMIT_HINT="no network (behind a proxy, set https_proxy: ~/.curlrc isn't read), a proxy refusing api.github.com (its 403 reads like GitHub's), or GitHub's limit of 60 requests an hour from one address, which a shared one (an office, a VPN) can use up: try again within the hour"
+readonly DL_HINT="no network (behind a proxy, set https_proxy: ~/.curlrc isn't read), a proxy refusing github.com or release-assets.githubusercontent.com, where github.com sends release downloads, or, with a 404, the release pulled or its file removed: a run that can ask GitHub, without KEEP_PINS, takes another"
+
+# True when release $1 is numbered higher than $2, both vX.Y.Z (or X.Y.Z): in
+# awk, since sort -V isn't in the sort older macOS ships.
+newer_than() {
+    awk -v a="${1#v}" -v b="${2#v}" 'BEGIN {
+        n = split(a, x, "."); m = split(b, y, ".")
+        for (i = 1; i <= (n > m ? n : m); i++) if (x[i] + 0 != y[i] + 0) exit !(x[i] + 0 > y[i] + 0)
+        exit 1 }'
+}
+
+# True for x.y.z in ZOLA_SERIES, from ZOLA_FLOOR on.
+in_series() {
+    local p=${1#"$ZOLA_SERIES".}
+    [ "$p" != "$1" ] || return 1
+    case "$p" in ""|*[!0123456789]*) return 1 ;; esac
+    [ "$p" -ge "${ZOLA_FLOOR#"$ZOLA_SERIES".}" ]
+}
+
+installed_zola_version() {
+    [ -x "$ZOLA_BIN" ] || return 0
+    "$ZOLA_BIN" --version 2>/dev/null | awk 'NR == 1 { print $2 }' || true
+}
+
+# The Zola release this run installs and pins: the newest that qualifies
+# (pick_release), with this computer's file and, with GIT_REPO_URL, the Linux
+# file the workflow downloads. If GitHub can't be asked, the workflow's pin, or,
+# without one, on a blog with no workflow, the zola installed. Whichever it
+# takes, the release the workflow pins must still have the Linux file it pinned:
+# a file replaced this week fails the wait, and the run would otherwise drop back
+# a release without a word. Sets ZOLA_VERSION, ZOLA_SHA256 and LOCAL_DIGEST.
+lookup_zola() {
+    local flat rc=0 got ptag psha now files shown newest passed="" pmiss="" stays="" inst
+    ptag=$(pin zola) psha=$(pin zola-sha)
+    files=$LOCAL_ASSET
+    [ -z "$GIT_REPO_URL" ] || [ "$LOCAL_ASSET" = "$LINUX_ASSET" ] || files="$LOCAL_ASSET $LINUX_ASSET"
+    shown=${files//\{tag\}/vX.Y.Z}; shown=${shown/ / and }
+    flat=$(releases_of getzola/zola) || rc=$?
+    if [ "$rc" -eq 2 ]; then
+        # A version pinned without its digest (the line deleted after a refusal)
+        # leaves nothing to check a download against: as on a first run, then.
+        if [ -n "$ptag" ] && [ -n "$psha" ]; then
+            warn "could not look up getzola/zola's releases ($(net_hint)): keeping zola $ptag, which the workflow pins"
+            NET_SAID=1
+            ZOLA_VERSION=$ptag ZOLA_SHA256=$psha
+            [ "$LOCAL_ASSET" != "$LINUX_ASSET" ] || LOCAL_DIGEST=$psha
+            return 0
+        fi
+        inst=$(installed_zola_version)
+        if [ -z "$GIT_REPO_URL" ] && [ -n "$inst" ] && in_series "$inst"; then
+            warn "could not look up getzola/zola's releases ($(net_hint)): keeping zola $inst, installed in $ZOLA_DIR"
+            NET_SAID=1
+            ZOLA_VERSION=v$inst
+            return 0
+        fi
+        die "could not look up getzola/zola's releases ($LIMIT_HINT). nothing has been changed; run this again later."
+    fi
+    [ "$rc" -eq 0 ] || die "could not read GitHub's answer about getzola/zola's releases. nothing has been changed; run this again later."
+    # The release the workflow pins first: a run refused says nothing else, and a
+    # file replaced is refused even when no release qualifies.
+    if [ -n "$ptag" ] && [ -n "$psha" ]; then
+        now=$(printf '%s\n' "$flat" | file_digest "$ptag" "$LINUX_ASSET") \
+            || die "could not read GitHub's answer about getzola/zola's releases. nothing has been changed; run this again later."
+        if [ -n "$now" ] && [ "$now" != - ] && [ "$now" != "?" ] && [ "$now" != "$psha" ]; then
+            die "GitHub's digest for zola $ptag's Linux file is $now, but the workflow pins $psha for it: the file has changed since it was pinned. nothing has been changed. check the release's page on GitHub before trusting it. to go on, delete the line with $psha from .github/workflows/deploy.yml, then run this again with REGENERATE_TEMPLATES=true in front (the hand-edit check would stop at the workflow): zola is then looked up as on a first run."
+        fi
+    fi
+    # Whether GitHub still offers the release the workflow pins as one a run
+    # could take (stable, out the wait, its files up that long): only then do
+    # unknown_form and runs_here offer KEEP_PINS.
+    if [ -n "$ptag" ] && [ -n "$psha" ] && [ -n "$(printf '%s\n' "$flat" | awk -F '\t' -v t="$ptag" '$1 == "E" || $2 == t' | pick_release v "$files" "$ZOLA_SERIES" "$ZOLA_FLOOR")" ]; then
+        PIN_OFFERED=1
+    fi
+    got=$(printf '%s\n' "$flat" | pick_release v "$files" "$ZOLA_SERIES" "$ZOLA_FLOOR") \
+        || die "could not read GitHub's answer about getzola/zola's releases. nothing has been changed; run this again later."
+    [ -n "$got" ] || die "no stable zola $ZOLA_SERIES release from $ZOLA_FLOOR on with $shown has been out $RELEASE_WAIT_DAYS days yet. nothing has been changed."
+    # Only to say so: a newer series is never taken.
+    newest=$(printf '%s\n' "$flat" | pick_release v "$files" "" "") || newest=""
+    [ -z "$newest" ] || [ "${newest%% *}" = "${got%% *}" ] \
+        || stays="zola ${newest%% *} is out, but this script's templates are written for zola $ZOLA_SERIES: using ${got%% *}"
+    if [ "$files" = "$LOCAL_ASSET" ]; then
+        read -r ZOLA_VERSION LOCAL_DIGEST passed pmiss <<< "$got"
+        [ -z "$GIT_REPO_URL" ] || ZOLA_SHA256=$LOCAL_DIGEST
     else
-        warn "need curl or wget"
-        return 1
+        read -r ZOLA_VERSION LOCAL_DIGEST ZOLA_SHA256 passed pmiss <<< "$got"
+    fi
+    [ -z "$stays" ] || say "$stays"
+    # A newer release without the files, or with one uploaded again since: said,
+    # or a renamed file would hold every run at the last release with the old
+    # name. The pinned release passed over is said below.
+    if [ -n "$passed" ] && { [ "$passed" != "$ptag" ] || [ -z "$psha" ]; }; then
+        warn "zola $passed is out, but has no $pmiss uploaded $RELEASE_WAIT_DAYS days ago or more: using $ZOLA_VERSION. a file uploaded again is taken once it's $RELEASE_WAIT_DAYS days old; if the release names its files differently now, this script needs the new name."
+    fi
+    # A file from before GitHub made digests has none, and one in a form this
+    # script doesn't know can't be checked: for the release the workflow pins,
+    # its Linux file's pinned digest; otherwise nothing checks the download.
+    if [ "$ZOLA_VERSION" = "$ptag" ] && [ -n "$psha" ] && { [ "$ZOLA_SHA256" = - ] || [ "$ZOLA_SHA256" = "?" ]; }; then
+        ZOLA_SHA256=$psha
+        [ "$LOCAL_ASSET" != "$LINUX_ASSET" ] || LOCAL_DIGEST=$psha
+    fi
+    # This computer's file matters only for a download; the Linux file, for the
+    # workflow's pin.
+    inst=$(installed_zola_version)
+    # A blog without a workflow keeps the zola installed, if it's in the series,
+    # as when GitHub can't be asked: nothing could check the download.
+    if [ "$LOCAL_DIGEST" = "?" ] && [ -z "$GIT_REPO_URL" ] && [ -n "$inst" ] && [ "$inst" != "${ZOLA_VERSION#v}" ] && in_series "$inst"; then
+        warn "GitHub gives the digest of zola $ZOLA_VERSION's ${LOCAL_ASSET//\{tag\}/$ZOLA_VERSION} in a form this script doesn't know, so the download couldn't be checked: keeping zola $inst, installed in $ZOLA_DIR"
+        ZOLA_VERSION=v$inst LOCAL_DIGEST=""
+        return 0
+    fi
+    [ "$inst" = "${ZOLA_VERSION#v}" ] || unknown_form "$LOCAL_DIGEST" "$LOCAL_ASSET"
+    [ -z "$GIT_REPO_URL" ] || unknown_form "$ZOLA_SHA256" "$LINUX_ASSET"
+    [ -n "$ptag" ] && [ -n "$psha" ] || return 0
+    # The pin passed over (pulled, marked a pre-release, its file removed or
+    # uploaded again within the wait): a step back, said.
+    if [ "$ZOLA_VERSION" != "$ptag" ] && in_series "${ptag#v}" \
+        && newer_than "$ptag" "$ZOLA_VERSION"; then
+        warn "the workflow pins zola $ptag, which GitHub doesn't offer now as a stable release out $RELEASE_WAIT_DAYS days (too new, pulled, marked a pre-release, its file removed, or its file uploaded again in the last $RELEASE_WAIT_DAYS days): using $ZOLA_VERSION. if it was pulled or its file removed, zola's releases page or security advisories on GitHub may say why."
+    fi
+}
+
+# For a stop on ZOLA_VERSION's download, on a re-run: KEEP_PINS as a way on
+# when it keeps another release, one GitHub still offers, and gets through with
+# it: on Linux x86_64, whose file the workflow pins the digest of; elsewhere,
+# with that release installed already.
+keep_hint() {
+    local pinned
+    pinned=$(pin zola)
+    if [ "$KEEP_PINS" != true ] && [ -n "$PIN_OFFERED" ] && [ "$pinned" != "$ZOLA_VERSION" ] \
+        && { [ "$LOCAL_ASSET" = "$LINUX_ASSET" ] || [ "$(installed_zola_version)" = "${pinned#v}" ]; }; then
+        printf ' KEEP_PINS=true keeps zola %s, which the workflow pins.' "${pinned#v}"
+    fi
+}
+
+# The stop for a digest of file $2 ({tag} for the tag) of ZOLA_VERSION that
+# GitHub gives in a form this script doesn't know ("?"): nothing to check the
+# download against.
+unknown_form() {
+    [ "$1" = "?" ] || return 0
+    die "GitHub gives the digest of zola $ZOLA_VERSION's ${2//\{tag\}/$ZOLA_VERSION} in a form this script doesn't know, so the download can't be checked. nothing has been changed; a newer version of this script may know the form.$(keep_hint)"
+}
+
+# GitHub's digest for this computer's file of ZOLA_VERSION, when the run didn't
+# ask about that release (KEEP_PINS, or GitHub out of reach) and must download
+# it: a download nothing checks isn't installed, and a file up less than the
+# wait isn't taken, as a plain run wouldn't take it. Not asked again when GitHub
+# has just not answered.
+lookup_local_digest() {
+    local flat rc=0 name=${LOCAL_ASSET//\{tag\}/$ZOLA_VERSION}
+    if [ -n "$NET_SAID" ]; then rc=2; else flat=$(releases_of getzola/zola) || rc=$?; fi
+    [ "$rc" -ne 2 ] || die "zola ${ZOLA_VERSION#v} isn't installed in $ZOLA_DIR, and $name, the file for this computer, can't be checked: GitHub's digest for it couldn't be looked up ($(net_hint)). nothing has been changed; run this again later."
+    [ "$rc" -eq 0 ] || die "could not read GitHub's answer about getzola/zola's releases. nothing has been changed; run this again later."
+    LOCAL_DIGEST=$(printf '%s\n' "$flat" | file_digest "$ZOLA_VERSION" "$LOCAL_ASSET" "$CUTOFF") \
+        || die "could not read GitHub's answer about getzola/zola's releases. nothing has been changed; run this again later."
+    [ -n "$LOCAL_DIGEST" ] || die "zola's release $ZOLA_VERSION has no $name on GitHub now (pulled, or its file removed). nothing has been changed. without KEEP_PINS, a run that can ask GitHub takes another."
+    [ "$LOCAL_DIGEST" != new ] || die "GitHub doesn't show zola $ZOLA_VERSION's $name, the file for this computer, as uploaded $RELEASE_WAIT_DAYS days ago or more, so it isn't taken yet. nothing has been changed. check the release's page on GitHub; run this again once the file has been up $RELEASE_WAIT_DAYS days, or without KEEP_PINS, which takes the newest release whose files have been up that long."
+    unknown_form "$LOCAL_DIGEST" "$LOCAL_ASSET"
+}
+
+# The Linux file, downloaded for its digest: GitHub has none for it (a file
+# uploaded before June 2025), and the workflow pins none for this release. On a
+# computer whose own file it is, the install takes this download.
+PREFETCHED=""
+hash_linux_file() {
+    local url="https://github.com/getzola/zola/releases/download/$ZOLA_VERSION/${LINUX_ASSET//\{tag\}/$ZOLA_VERSION}"
+    [ -n "$TMP_ZOLA" ] || TMP_ZOLA=$(mktemp -d)
+    fetch "$url" "$TMP_ZOLA/linux.tar.gz" || die "could not download $url ($DL_HINT). nothing has been changed."
+    ZOLA_SHA256=$(sha256_of "$TMP_ZOLA/linux.tar.gz") || die "could not compute the sha256 of $url"
+    warn "GitHub has no digest for $url, and the workflow pins none for it: pinning its own, $ZOLA_SHA256"
+    if [ "$LOCAL_ASSET" = "$LINUX_ASSET" ]; then LOCAL_DIGEST=$ZOLA_SHA256 PREFETCHED="$TMP_ZOLA/linux.tar.gz"; fi
+}
+
+# The refusal for an action whose pinned tag ($2, "commit tag") names $3 now.
+tag_moved() {
+    die "$1's tag ${2#* } now names commit $3, but the workflow pins ${2%% *} for it: the tag has been moved since. nothing has been changed. check the release's page on GitHub before trusting it. to go on, delete its 'uses:' line from .github/workflows/deploy.yml, then run this again with REGENERATE_TEMPLATES=true in front (the hand-edit check would stop at the workflow): the action is then looked up as on a first run."
+}
+
+# An action of github.com/$1 at the newest release out RELEASE_WAIT_DAYS days, as
+# "actions/x@<commit> # <tag>": the commit, since a tag can be moved. The tag the
+# workflow pins, whichever release this run takes, must still name the commit
+# pinned for it. If GitHub can't be asked, the workflow's pin, a commit pinned
+# alone too. Sets USES.
+lookup_action() {
+    local repo=$1 flat rc=0 got tag sha old was
+    old=$(pin "$repo")
+    flat=$(releases_of "$repo") || rc=$?
+    if [ "$rc" -eq 2 ]; then
+        [ -n "$old" ] || die "could not look up $repo's releases ($(net_hint)). nothing has been changed; run this again later."
+        USES=$(pin_uses "$repo" "$old")
+        warn "could not look up $repo's releases ($(net_hint)): keeping $repo $(uses_name "$USES"), which the workflow pins"
+        NET_SAID=1
+        return 0
+    fi
+    [ "$rc" -eq 0 ] || die "could not read GitHub's answer about $repo's releases. nothing has been changed; run this again later."
+    got=$(printf '%s\n' "$flat" | pick_release v "" "" "") \
+        || die "could not read GitHub's answer about $repo's releases. nothing has been changed; run this again later."
+    if [ -z "$got" ]; then
+        # The tag the workflow pins first: a moved one is refused even when no
+        # release qualifies. git failing here changes nothing (the run stops
+        # either way), so its message isn't shown.
+        if [ -n "$old" ] && [ "${old#* }" != - ] && was=$(tag_commit "$repo" "${old#* }" 2>/dev/null) \
+            && [ -n "$was" ] && [ "${old%% *}" != "$was" ]; then
+            tag_moved "$repo" "$old" "$was"
+        fi
+        die "no stable $repo release has been out $RELEASE_WAIT_DAYS days yet. nothing has been changed."
+    fi
+    tag=${got%% *}
+    # git failing (no route to github.com) is GitHub out of reach, as when the API
+    # can't be asked.
+    if ! sha=$(tag_commit "$repo" "$tag"); then
+        [ -n "$old" ] || die "could not ask github.com which commit $repo's tag $tag names (git ls-remote https://github.com/$repo failed, as git says above; it reads no git config: behind a proxy that inspects TLS, name its certificate in GIT_SSL_CAINFO). nothing has been changed; run this again later."
+        USES=$(pin_uses "$repo" "$old")
+        warn "could not ask github.com which commit $repo's tag $tag names (git ls-remote https://github.com/$repo failed, as git says above; it reads no git config: behind a proxy that inspects TLS, name its certificate in GIT_SSL_CAINFO): keeping $repo $(uses_name "$USES"), which the workflow pins"
+        return 0
+    fi
+    case "$sha" in
+        *[!0123456789abcdef]*|"") die "could not find the commit $repo's tag $tag names (git ls-remote https://github.com/$repo). nothing has been changed." ;;
+    esac
+    [ "${#sha}" -eq 40 ] || die "could not find the commit $repo's tag $tag names (git ls-remote https://github.com/$repo). nothing has been changed."
+    # A pinned tag that's gone (its release pulled) proves nothing, and a commit
+    # pinned alone has no tag to check.
+    if [ -n "$old" ] && [ "${old#* }" != - ]; then
+        was=$sha
+        if [ "${old#* }" != "$tag" ] && ! was=$(tag_commit "$repo" "${old#* }"); then
+            USES=$(pin_uses "$repo" "$old")
+            warn "could not ask github.com which commit $repo's tag ${old#* } names (git ls-remote https://github.com/$repo failed, as git says above; it reads no git config: behind a proxy that inspects TLS, name its certificate in GIT_SSL_CAINFO): keeping $repo $(uses_name "$USES"), which the workflow pins"
+            return 0
+        fi
+        if [ -n "$was" ] && [ "${old%% *}" != "$was" ]; then
+            tag_moved "$repo" "$old" "$was"
+        fi
+        if newer_than "${old#* }" "$tag"; then
+            warn "the workflow pins $repo ${old#* }, which GitHub doesn't offer now as a stable release out $RELEASE_WAIT_DAYS days (too new, pulled, or marked a pre-release): using $tag. if it was pulled, the project's releases page or security advisories on GitHub may say why."
+        fi
+    fi
+    USES="$repo@$sha # $tag"
+}
+
+# KEEP_PINS, a release the workflow doesn't pin whole: a workflow this run writes
+# for the first time, or a line deleted (a digest after a refusal) or edited past
+# recognition. Looked up as usual, and said.
+unpinned() {
+    [ -z "$1" ] || say "KEEP_PINS: nothing to keep for $2 in the workflow; looking it up"
+}
+
+keep_or_lookup_action() {
+    local v
+    v=$(pin "$1")
+    if [ -n "$2" ] && [ -n "$v" ]; then
+        USES=$(pin_uses "$1" "$v") KEPT=1
+    else
+        unpinned "$2" "$1"
+        lookup_action "$1"
+    fi
+}
+
+# Every release this run uses, each the newest that qualifies; with
+# KEEP_PINS=true, each the workflow pins as it pins it, and only the rest looked
+# up. Before anything is installed or written: a run that stops here has changed
+# nothing.
+CUTOFF=""
+lookup_releases() {
+    local keep="" now
+    [ "$KEEP_PINS" != true ] || keep=1
+    # The wait as a time to compare GitHub's with (both UTC, so as text): GNU
+    # date takes -d @seconds, BSD's (macOS) -r seconds.
+    now=$(( $(date -u +%s) - RELEASE_WAIT_DAYS * 86400 ))
+    if date --version >/dev/null 2>&1; then
+        CUTOFF=$(date -u -d "@$now" +%Y-%m-%dT%H:%M:%SZ)
+    else
+        CUTOFF=$(date -u -r "$now" +%Y-%m-%dT%H:%M:%SZ)
+    fi
+    # Said first, so a slow network doesn't look like a hang.
+    [ -n "$keep" ] || say "looking up the newest releases on GitHub"
+    if [ -n "$keep" ] && [ -n "$(pin zola)" ] && [ -n "$(pin zola-sha)" ]; then
+        ZOLA_VERSION=$(pin zola) ZOLA_SHA256=$(pin zola-sha) KEPT=1
+        [ "$LOCAL_ASSET" != "$LINUX_ASSET" ] || LOCAL_DIGEST=$ZOLA_SHA256
+    else
+        unpinned "$keep" zola
+        lookup_zola
+    fi
+    # Also for a release kept, by KEEP_PINS or because GitHub couldn't be asked.
+    if ! in_series "${ZOLA_VERSION#v}"; then
+        [ -z "$keep" ] || die "this script's templates are written for zola $ZOLA_SERIES, from $ZOLA_FLOOR on, and the workflow pins $ZOLA_VERSION, which KEEP_PINS=true keeps. nothing has been changed. run this without KEEP_PINS to take the newest $ZOLA_SERIES release."
+        die "this script's templates are written for zola $ZOLA_SERIES, from $ZOLA_FLOOR on, and with GitHub out of reach this run would keep $ZOLA_VERSION, which the workflow pins. nothing has been changed. run this again when GitHub can be asked."
+    fi
+    if [ -z "$LOCAL_DIGEST" ] && [ "$(installed_zola_version)" != "${ZOLA_VERSION#v}" ]; then
+        lookup_local_digest
+    fi
+    [ -z "$GIT_REPO_URL" ] || [ "$ZOLA_SHA256" != - ] || hash_linux_file
+    if [ -n "$GIT_REPO_URL" ]; then
+        keep_or_lookup_action actions/checkout "$keep"; CHECKOUT_USES=$USES
+        keep_or_lookup_action actions/upload-pages-artifact "$keep"; UPLOAD_USES=$USES
+        keep_or_lookup_action actions/deploy-pages "$keep"; DEPLOY_USES=$USES
+        say "releases: zola $ZOLA_VERSION; $(uses_name "$CHECKOUT_USES"), $(uses_name "$UPLOAD_USES"), $(uses_name "$DEPLOY_USES") of the actions${KEPT:+ (KEEP_PINS: those the workflow pins, kept)}"
+    else
+        say "release: zola $ZOLA_VERSION"
+    fi
+}
+
+# Downloads $1 to $2 and checks it against $3, GitHub's digest or the pinned one;
+# "-" (GitHub has none for an old upload, and nothing is pinned for it) takes the
+# file as it came, and says so. Prints the file's digest.
+fetch_checked() {
+    local got
+    fetch "$1" "$2" || die "could not download $1 ($DL_HINT). nothing has been changed."
+    [ -s "$2" ] || die "the download of $1 is empty. nothing has been changed."
+    got=$(sha256_of "$2") || die "could not compute the sha256 of $2"
+    case "$got" in
+        [0-9a-f]*) ;;
+        *) die "could not compute the sha256 of $2" ;;
+    esac
+    if [ "$3" = - ]; then
+        warn "GitHub has no digest for $1, so it can't be checked: its sha256 is $got"
+    elif [ "$got" != "$3" ]; then
+        die "$1 isn't the file it should be: its sha256 is $got, not $3. it wasn't installed, and nothing has been changed."
+    fi
+    printf '%s' "$got"
+}
+
+# A gnu Linux build runs only on a glibc with every symbol version it links
+# (zola 0.23.6's needs 2.35): checked before it goes into ZOLA_DIR, so a system
+# too old for it keeps the zola it had.
+runs_here() {
+    local out need have keep="" pinned rc
+    out=$("$1" --version 2>&1) && return 0
+    rc=$?
+    [ -n "$out" ] || out="its --version printed nothing and exited $rc"
+    # KEEP_PINS is a way on only when it keeps the release the workflow pins
+    # (its digest pinned too, and a release the templates take), another than
+    # this one, and ZOLA_DIR has it, running.
+    pinned=$(pin zola)
+    if [ "$KEEP_PINS" != true ] && [ -n "$PIN_OFFERED" ] && [ "$pinned" != "$ZOLA_VERSION" ] \
+        && [ "$(installed_zola_version)" = "${pinned#v}" ]; then
+        keep=" KEEP_PINS=true keeps zola ${pinned#v}, which the workflow pins and $ZOLA_DIR has."
+    fi
+    if [ "$OS" = linux ]; then
+        need=$(printf '%s\n' "$out" | grep -o 'GLIBC_[0-9][0-9.]*' | sort -V | tail -n 1 || true)
+        have=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}' || true)
+        [ -z "$need" ] || die "zola ${ZOLA_VERSION#v}'s Linux build needs glibc ${need#GLIBC_} or later, and this system has ${have:-an older one}: it wasn't installed, and $ZOLA_DIR keeps the zola it had, if any. nothing has been changed. run this on a system with glibc ${need#GLIBC_} or later.${keep}"
+    fi
+    die "zola ${ZOLA_VERSION#v} doesn't run here ($(printf '%s' "$out" | head -n 2 | tr '\n' ' ')): it wasn't installed, and $ZOLA_DIR keeps the zola it had, if any. nothing has been changed.${keep}"
+}
+
+# Every blog on this computer runs one zola, ZOLA_BIN: the release this run pins,
+# kept when it's that release already, else downloaded, checked against GitHub's
+# digest, run, and moved into place, through a temporary name in ZOLA_DIR so a
+# preview starting meanwhile never finds half a file. Then this run's PATH starts
+# with ZOLA_DIR, and a terminal's that wouldn't run it is said.
+install_zola() {
+    local current first archive url digest bin on_path=""
+    current=$(installed_zola_version)
+    # Both before the export below, or the answers are always yes and ZOLA_BIN.
+    case ":$PATH:" in *":$ZOLA_DIR:"*) on_path=1 ;; esac
+    first=$(command -v zola 2>/dev/null || true)
+    if [ "$current" = "${ZOLA_VERSION#v}" ]; then
+        say "zola $current is installed in $ZOLA_DIR"
+    else
+        if [ -n "$current" ] && newer_than "$current" "${ZOLA_VERSION#v}"; then
+            say "replacing zola $current in $ZOLA_DIR with ${ZOLA_VERSION#v}, an older release: every blog on this computer runs this one"
+        elif [ -n "$current" ]; then
+            say "updating zola in $ZOLA_DIR from $current to ${ZOLA_VERSION#v}: every blog on this computer runs this one"
+        else
+            say "installing zola ${ZOLA_VERSION#v} into $ZOLA_DIR..."
+        fi
+        archive=${LOCAL_ASSET//\{tag\}/$ZOLA_VERSION}
+        url="https://github.com/getzola/zola/releases/download/$ZOLA_VERSION/$archive"
+        [ -n "$TMP_ZOLA" ] || TMP_ZOLA=$(mktemp -d)
+        if [ -n "$PREFETCHED" ]; then
+            mv "$PREFETCHED" "$TMP_ZOLA/$archive"; digest=$LOCAL_DIGEST
+        else
+            digest=$(fetch_checked "$url" "$TMP_ZOLA/$archive" "$LOCAL_DIGEST")
+        fi
+        # Unpacked and run in a folder of its own in ZOLA_DIR, not in /tmp, which
+        # can be mounted noexec; then renamed into place, in one step.
+        mkdir -p "$ZOLA_DIR" || die "could not make $ZOLA_DIR. nothing has been changed."
+        NEW_ZOLA=$(mktemp -d "$ZOLA_DIR/.zola-new.XXXXXX") || die "could not make a folder in $ZOLA_DIR. nothing has been changed."
+        bin="$NEW_ZOLA/zola"
+        if [ "$OS" = windows ]; then
+            bin="$bin.exe"
+            unzip -q "$TMP_ZOLA/$archive" zola.exe -d "$NEW_ZOLA" || bin=""
+        else
+            # As root, tar would keep the archive's owner (the uid GitHub
+            # built it as); the option before the member's name, or bsdtar
+            # takes it for one.
+            tar --no-same-owner -xzf "$TMP_ZOLA/$archive" -C "$NEW_ZOLA" zola || bin=""
+        fi
+        if [ -z "$bin" ] || [ ! -f "$bin" ]; then
+            die "could not take zola out of $archive: this release may lay its archive out differently, which this script doesn't know yet. nothing has been changed; a newer version of this script may know it.$(keep_hint)"
+        fi
+        chmod +x "$bin"
+        runs_here "$bin"
+        mv -f "$bin" "$ZOLA_BIN" \
+            || die "could not put zola in $ZOLA_DIR (on Windows, a zola running from there, such as another blog's preview, keeps its file: stop it, then run this again). nothing has been changed."
+        rmdir "$NEW_ZOLA" 2>/dev/null || true
+        NEW_ZOLA=""
+        say "installed: $("$ZOLA_BIN" --version) (sha256 ${digest:0:12}...)"
+    fi
+    export PATH="$ZOLA_DIR:$PATH"
+    # New terminals take PATH from the login: on Linux ~/.profile, so the next
+    # login; a Mac terminal is a login shell, so a new one is enough.
+    if [ -z "$on_path" ]; then
+        say ""
+        say "note: $ZOLA_DIR is not on your PATH, so a new terminal will not run this zola${first:+ (it finds $first)}."
+        case "$OS" in
+            linux)
+                say "log out and back in; on Debian, Devuan and Ubuntu that is usually all it"
+                say "takes. if a new terminal still cannot find it, add this line to"
+                say "$HOME/.profile, then log out and back in again:"
+                say "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+                ;;
+            macos)
+                say "add this line to $HOME/.zprofile, then open a new terminal:"
+                say "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+                ;;
+            windows)
+                say "add this line to $HOME/.bashrc, then open a new Git Bash window:"
+                say "    export PATH=\"\$HOME/bin:\$PATH\""
+                ;;
+        esac
+    elif [ -n "$first" ] && [ "${first%.exe}" != "${ZOLA_BIN%.exe}" ]; then
+        warn "a terminal here runs $first, which comes before $ZOLA_DIR in your PATH: ./serve and ./build would run it, not zola ${ZOLA_VERSION#v}, the one in $ZOLA_DIR${GIT_REPO_URL:+, which the workflow pins} (guide: \"Two Zolas\")."
     fi
 }
 
@@ -691,227 +1647,37 @@ sha256_of() {
     fi
 }
 
-# Hard-required: one of curl/wget, plus tar on Linux/macOS and unzip on Windows.
+# One stop naming everything missing: curl, tar (unzip in Git Bash), sha256sum
+# or shasum for the digest checks, and, with GIT_REPO_URL, git, which also asks
+# github.com which commit an action's tag names. Without GIT_REPO_URL git is
+# only said: the blog builds without it.
 check_required_tools() {
-    local missing=()
-
-    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-        missing+=("curl or wget (one is required)")
-    fi
+    local missing=() pkgs=() tool
+    command -v curl >/dev/null 2>&1 || { missing+=("curl"); pkgs+=(curl); }
     case "$OS" in
-        linux|macos) command -v tar   >/dev/null 2>&1 || missing+=("tar") ;;
+        linux|macos) command -v tar   >/dev/null 2>&1 || { missing+=("tar"); pkgs+=(tar); } ;;
         windows)     command -v unzip >/dev/null 2>&1 || missing+=("unzip") ;;
     esac
-
+    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+        missing+=("sha256sum or shasum"); pkgs+=(coreutils)
+    fi
+    if [ -n "$GIT_REPO_URL" ] && ! command -v git >/dev/null 2>&1; then
+        missing+=("git, for GIT_REPO_URL"); pkgs+=(git)
+    fi
     if [ "${#missing[@]}" -gt 0 ]; then
         warn "missing required tools:"
-        local tool
         for tool in "${missing[@]}"; do
             warn "  - $tool"
         done
+        if [ "$OS" = linux ] && [ "${#pkgs[@]}" -gt 0 ]; then
+            warn "on Debian, Devuan or Ubuntu: sudo apt install ${pkgs[*]}"
+        fi
+        warn "install them, then run this again. nothing has been changed."
         exit 1
     fi
-
     command -v git >/dev/null 2>&1 \
         || warn "warning: git not found - repo init will be skipped."
-    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
-        warn "warning: no sha256sum or shasum - the run will stop rather than install a"
-        warn "         binary whose digest it cannot record. install coreutils and re-run."
-    fi
-}
-
-# The release to install and pin, into ZOLA_VERSION: ZOLA_VERSION_OVERRIDE if
-# set, else the latest tag via the releases/latest redirect (no API token, no
-# rate limit), refused if it's outside the band.
-resolve_zola_release() {
-    [ -n "$ZOLA_VERSION" ] && return 0
-    if [ -n "${ZOLA_VERSION_OVERRIDE:-}" ]; then
-        ZOLA_VERSION="${ZOLA_VERSION_OVERRIDE#v}"; ZOLA_VERSION="v${ZOLA_VERSION}"
-        version_in_band "${ZOLA_VERSION#v}" || warn "warning: ZOLA_VERSION_OVERRIDE names ${ZOLA_VERSION}, outside this script's supported band (>= ${ZOLA_MIN_VERSION}, < ${ZOLA_MAX_VERSION}). the templates are written for Tera v2 and may not build."
-        return 0
-    fi
-    local tag=""
-    # curl only; a wget-only machine falls through to the API path below.
-    if command -v curl >/dev/null 2>&1; then
-        tag=$(curl -fsSLI -o /dev/null -w '%{url_effective}\n' \
-            https://github.com/getzola/zola/releases/latest 2>/dev/null \
-            | sed -n 's#.*/tag/##p' || true)
-    fi
-    tag="${tag%%[[:space:]]*}"
-    if [ -z "$tag" ]; then
-        tag=$(http_download https://api.github.com/repos/getzola/zola/releases/latest /dev/stdout 2>/dev/null \
-            | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1 || true)
-        tag="${tag%%[[:space:]]*}"
-    fi
-    [ -n "$tag" ] || die "could not resolve the latest zola release from GitHub (network?). run this again, or install a ${ZOLA_MIN_VERSION}.x release yourself from https://github.com/getzola/zola/releases and run this again."
-    if ! version_in_band "${tag#v}"; then
-        die "zola ${tag#v} is the latest release, but this script supports >= ${ZOLA_MIN_VERSION} and < ${ZOLA_MAX_VERSION}.
-the templates it writes are written for one template-language generation, and a newer
-zola may not run them. nothing has been changed. either update this script, or pin a
-tested release for this run, with the newest v${ZOLA_MIN_VERSION} release's last number in place of x:
-    ZOLA_VERSION_OVERRIDE=v${ZOLA_MIN_VERSION}.x bash zola-blog-setup.sh
-releases: https://github.com/getzola/zola/releases"
-    fi
-    ZOLA_VERSION="$tag"
-}
-
-# Return 0 if dotted-numeric version $1 >= $2.
-version_ge() {
-    [ "$1" = "$2" ] && return 0
-    local lower
-    lower=$(printf '%s\n%s\n' "$1" "$2" | sort -V | sed -n '1p')
-    [ "$lower" = "$2" ]
-}
-
-# Return 0 if $1 is inside [ZOLA_MIN_VERSION, ZOLA_MAX_VERSION). One predicate,
-# used by the local-binary check and by the workflow pin, so the two cannot
-# disagree about what this script supports.
-version_in_band() {
-    version_ge "$1" "$ZOLA_MIN_VERSION" && ! version_ge "$1" "$ZOLA_MAX_VERSION"
-}
-
-# Keep a local Zola inside the band, else install one. Replacing a newer one is
-# said out loud: ~/.local/bin/zola is shared with every other site here.
-ensure_zola_installed() {
-    local current=""
-    if command -v zola >/dev/null 2>&1; then
-        current=$(zola --version 2>/dev/null | awk '{print $2}')
-    fi
-    if [ -n "$current" ] && version_in_band "$current"; then
-        ZOLA_VERSION="v${current}"
-        say "zola $current present (inside the supported band >= $ZOLA_MIN_VERSION, < $ZOLA_MAX_VERSION); using it."
-        return
-    fi
-    resolve_zola_release
-    if [ -n "$current" ] && version_ge "$current" "$ZOLA_MAX_VERSION"; then
-        # Replaced only if it lives where install_zola puts one; else it stays beside it.
-        local where dest="$HOME/.local/bin/zola"
-        [ "$OS" = windows ] && dest="$HOME/bin/zola.exe"
-        where=$(command -v zola)
-        warn "zola $current, at $where, is newer than this script supports (< $ZOLA_MAX_VERSION)."
-        if [ "${where%/*}" = "${dest%/*}" ]; then
-            warn "replacing it with ${ZOLA_VERSION#v}: any other zola site on this machine will build"
-            warn "with ${ZOLA_VERSION#v} until you reinstall."
-        else
-            warn "installing ${ZOLA_VERSION#v} as $dest, beside it. a terminal runs whichever comes"
-            warn "first in its PATH (guide: \"Two Zolas\")."
-        fi
-    elif [ -n "$current" ]; then
-        say "zola $current is below the $ZOLA_MIN_VERSION floor; installing ${ZOLA_VERSION#v}..."
-    else
-        say "zola not found; installing ${ZOLA_VERSION#v}..."
-    fi
-    install_zola "$OS" "$ARCH" "$ZOLA_VERSION"
-}
-
-install_zola() {
-    local os="$1" arch="$2" version="$3"
-    local triple ext=tar.gz
-
-    case "${os}_${arch}" in
-        linux_x86_64)    triple="x86_64-unknown-linux-gnu" ;;
-        linux_aarch64)   triple="aarch64-unknown-linux-gnu" ;;
-        macos_x86_64)    triple="x86_64-apple-darwin" ;;
-        macos_aarch64)   triple="aarch64-apple-darwin" ;;
-        windows_x86_64)  triple="x86_64-pc-windows-msvc"; ext=zip ;;
-        windows_aarch64) die "zola publishes no arm64 Windows build; install zola yourself and re-run" ;;
-        *)               die "unsupported platform ${os}/${arch}" ;;
-    esac
-
-    local url="https://github.com/getzola/zola/releases/download/${version}/zola-${version}-${triple}.${ext}"
-
-    # No trap here: it would replace cleanup_all and disable the partial-blog
-    # cleanup on first runs. cleanup_all already calls cleanup_tmp.
-    TMP_ZOLA=$(mktemp -d)
-    local archive="$TMP_ZOLA/zola.$ext"
-
-    say "downloading zola $version..."
-    http_download "$url" "$archive" \
-        || die "could not download zola $version from $url. check the network, and that $version is a release listed at https://github.com/getzola/zola/releases."
-
-    [ -s "$archive" ] || die "download produced an empty file"
-
-    # Zola publishes no checksums, so this digest is printed, not compared; trust
-    # rests on https to github.com.
-    local digest
-    digest=$(sha256_of "$archive") || die "need sha256sum or shasum to record the download's digest"
-    say "sha256 of the downloaded archive: $digest"
-
-    if [ "$ext" = "zip" ]; then
-        command -v unzip >/dev/null 2>&1 || die "need unzip"
-        unzip -q "$archive" -d "$TMP_ZOLA"
-    else
-        tar xzf "$archive" -C "$TMP_ZOLA"
-    fi
-
-    local bin
-    bin=$(find "$TMP_ZOLA" -maxdepth 2 \( -name zola -o -name zola.exe \) -print -quit)
-    [ -z "$bin" ] && die "zola binary not found"
-    chmod +x "$bin"
-
-    # Checked before the export below, or the answer is always yes.
-    local on_path=""
-    case ":$PATH:" in *":$HOME/.local/bin:"*) on_path=1 ;; esac
-
-    case "$os" in
-        linux|macos)
-            mkdir -p "$HOME/.local/bin"
-            say "installing to $HOME/.local/bin..."
-            mv "$bin" "$HOME/.local/bin/zola"
-            export PATH="$HOME/.local/bin:$PATH" ;;
-        windows)
-            mkdir -p "$HOME/bin"
-            mv "$bin" "$HOME/bin/zola.exe"
-            export PATH="$HOME/bin:$PATH"
-            say "installed to $HOME/bin/zola.exe (ensure this is on your PATH)" ;;
-    esac
-
-    command -v zola >/dev/null 2>&1 || die "zola not on PATH"
-    say "installed: $(zola --version)"
-
-    # New terminals take PATH from the login: on Linux ~/.profile, so the next login;
-    # a Mac terminal is a login shell, so a new one is enough.
-    if [ -z "$on_path" ]; then
-        case "$os" in
-            linux)
-                say ""
-                say "note: $HOME/.local/bin is not on your PATH, so a new terminal will not"
-                say "find zola. log out and back in; on Debian, Devuan and Ubuntu that is usually"
-                say "all it takes. if a new terminal still cannot find it, add this line to"
-                say "$HOME/.profile, then log out and back in again:"
-                say "    export PATH=\"\$HOME/.local/bin:\$PATH\""
-                ;;
-            macos)
-                say ""
-                say "note: $HOME/.local/bin is not on your PATH, so a new terminal will not"
-                say "find zola. add this line to $HOME/.zprofile, then open a new terminal:"
-                say "    export PATH=\"\$HOME/.local/bin:\$PATH\""
-                ;;
-        esac
-    fi
-}
-
-# =============================================================================
-# update-zola — install the latest Zola release (deliberate; verified)
-# =============================================================================
-cmd_update_zola() {
-    detect_platform
-    check_required_tools
-    local current=""
-    if command -v zola >/dev/null 2>&1; then
-        current=$(zola --version 2>/dev/null | awk '{print $2}')
-    fi
-    resolve_zola_release
-    if [ -n "$current" ] && [ "v${current}" = "$ZOLA_VERSION" ]; then
-        say "zola $current is already the latest (${ZOLA_VERSION#v})."
-        return
-    fi
-    say "updating zola: ${current:-none} -> ${ZOLA_VERSION#v}"
-    install_zola "$OS" "$ARCH" "$ZOLA_VERSION"
-    say ""
-    say "zola is now at ${ZOLA_VERSION#v}."
-    say "existing blogs keep the version their workflow pins. re-run zola-blog-setup"
-    say "against a blog to re-pin it to this version, then commit and push."
+    return 0
 }
 
 # =============================================================================
@@ -970,8 +1736,8 @@ resolve_dates() {
 # =============================================================================
 # Filesystem and git
 # =============================================================================
+# run_create_mode has checked that nothing is there.
 create_blog_directory() {
-    [ -e "$BLOG_DIR" ] && die "'$BLOG_DIR' exists but holds no config.toml; move it aside or point BLOG_NAME somewhere else."
     say ""
     say "creating $BLOG_DIR ..."
     # Just the folder; each writer makes the subfolders it fills.
@@ -993,23 +1759,55 @@ init_git_repo() {
         say "git init failed - run manually later"
         return
     fi
-    local name email
-    name=$(git config --get user.name  2>/dev/null || true)
-    email=$(git config --get user.email 2>/dev/null || true)
-    if [ -n "$name" ] && [ -n "$email" ]; then
-        if git add -A >/dev/null 2>&1 && \
-           git commit -q -m "initial commit: zola blog scaffolding" >/dev/null 2>&1; then
-            say "made initial commit"
+    # Only with a name and email you set (user.useConfigOnly): git would otherwise
+    # make them up from your account's full name and this computer's name, and
+    # say so only in a warning. In UTC, so the commit doesn't carry your time
+    # zone; who it's from is said, since a push publishes both.
+    local err when as by off also
+    git add -A >/dev/null 2>&1 || true
+    if err=$(TZ=UTC git -c user.useConfigOnly=true commit -q -m "initial commit: zola blog scaffolding" 2>&1); then
+        # As a push publishes it: the committer too when it isn't the author
+        # (author.* and committer.* settings, and GIT_AUTHOR_* and
+        # GIT_COMMITTER_*, can make them two), and the offset of each time,
+        # UTC's unless GIT_AUTHOR_DATE or GIT_COMMITTER_DATE gives another.
+        # Signatures off: log.showSignature would put gpg's lines among these.
+        as=$(git -c log.showSignature=false log -1 --format='%an <%ae>')
+        by=$(git -c log.showSignature=false log -1 --format='%cn <%ce>')
+        off=$(git -c log.showSignature=false log -1 --format='%ad %cd' --date=raw | awk '{ print $2, $4 }')
+        also=""
+        case "$off" in
+            "+0000 +0000") when="timed in UTC" ;;
+            "${off% *} ${off% *}") when="with the offset ${off% *}" also=", and that offset" ;;
+            *) when="with the offsets ${off% *} (author) and ${off#* } (committer)" also=", and those offsets" ;;
+        esac
+        if [ "$by" = "$as" ]; then
+            say "made initial commit as $as, $when; a push publishes that name and address$also (guide: \"What a push publishes\")"
         else
-            say "(initial commit skipped)"
+            say "made initial commit as $as, committed by $by, $when; a push publishes both names and addresses$also (guide: \"What a push publishes\")"
         fi
+    # The identity asked of git, not read from its message, which is in your
+    # language.
+    # The dates emptied: git var also stops at a GIT_AUTHOR_DATE or
+    # GIT_COMMITTER_DATE it can't read, which isn't about the identity.
+    elif ! GIT_AUTHOR_DATE='' GIT_COMMITTER_DATE='' git -c user.useConfigOnly=true var GIT_AUTHOR_IDENT >/dev/null 2>&1 \
+        || ! GIT_AUTHOR_DATE='' GIT_COMMITTER_DATE='' git -c user.useConfigOnly=true var GIT_COMMITTER_IDENT >/dev/null 2>&1; then
+        say "(no initial commit: $(printf '%s\n' "$err" | grep -m 1 . || true))"
+        say "(set your name and email, as in the guide's \"Your first blog\", step 1, then make it yourself,"
+        say " from inside the blog folder: git add -A && TZ=UTC git commit -m \"First commit\")"
     else
-        say "(git user.name/user.email not configured - initial commit skipped)"
-        say "(set them later with:"
-        say "     git config --global user.name \"Your Name\""
-        say "     git config --global user.email \"Your Email\" )"
+        say "(no initial commit; git says:"
+        printf '%s\n' "$err" | sed 's/^/    /'
+        say " fix what it says, then make it yourself, from inside the blog folder:"
+        say " git add -A && TZ=UTC git commit -m \"First commit\")"
     fi
     update_git_remote
+}
+
+# The check the deploy runs, preview or not: ./build lists each broken link and
+# stops, and so does the run. Through bash, as the preview is.
+build_site() {
+    say ""
+    bash "$BLOG_DIR/build" || exit 1
 }
 
 # exec replaces this process, so the EXIT trap never fires: clean up first. It runs
@@ -1035,18 +1833,34 @@ start_preview_server() {
 # =============================================================================
 # Writers (thin orchestrators dispatching to the render_* functions below)
 # =============================================================================
-# content/ and the placeholder assets: written once, never rewritten.
+# content/ and the placeholder assets: written once, never rewritten. In book
+# mode the writing is book/, and content/ is genbook's output.
 write_content_if_absent() {
-    mkdir -p content/attachments
-    write_absent content/_index.md                render_home_index
-    write_absent content/attachments/_index.md    render_attachments_index
-    write_absent content/about.md                 render_about
-    write_absent content/hello-world.md           render_hello_world
-    write_absent content/attachments/demo.svg     render_demo_svg
-    write_absent content/second-post.md           render_second_post
-    # A starter page for each other MENU_PAGES name, so a new blog builds.
     local name names=()
     read -r -a names <<< "$MENU_PAGES"
+    mkdir -p content/attachments
+    write_absent content/attachments/_index.md    render_attachments_index
+    write_absent content/attachments/demo.svg     render_demo_svg
+    if [ "$BOOK_MODE" = true ]; then
+        mkdir -p book
+        write_absent book/SUMMARY.md              render_book_summary
+        write_absent book/about.md                render_book_about
+        write_absent book/hello-world.md          render_book_hello_world
+        write_absent book/second-page.md          render_book_second_page
+        write_absent book/colophon.md             render_book_colophon
+        if [ "${#names[@]}" -gt 0 ]; then
+            for name in "${names[@]}"; do
+                [ -e "book/$name.md" ] || render_book_menu_page "$name" > "book/$name.md"
+            done
+        fi
+        say "wrote book/ (yours from here; a re-run will not touch it; ./build makes content/ from it)"
+        return 0
+    fi
+    write_absent content/_index.md                render_home_index
+    write_absent content/about.md                 render_about
+    write_absent content/hello-world.md           render_hello_world
+    write_absent content/second-post.md           render_second_post
+    # A starter page for each other MENU_PAGES name, so a new blog builds.
     if [ "${#names[@]}" -gt 0 ]; then
         for name in "${names[@]}"; do
             if [ -e "content/$name.md" ] || [ -e "content/$name/_index.md" ]; then continue; fi
@@ -1067,96 +1881,6 @@ write_absent() {
     local path="$1" fn="$2"
     [ -e "$path" ] && return 0
     "$fn" > "$path"
-}
-
-# Does the tag name a downloadable linux asset? One HEAD before a 15 MB download.
-release_asset_exists() {
-    local tag="$1"
-    local url="https://github.com/getzola/zola/releases/download/${tag}/zola-${tag}-x86_64-unknown-linux-gnu.tar.gz"
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSLI -o /dev/null --connect-timeout 30 --max-time 60 "$url" >/dev/null 2>&1
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q --spider --timeout=30 --tries=1 "$url" >/dev/null 2>&1
-    else
-        return 1
-    fi
-}
-
-# The version the workflow pins: the local one only if it's inside the band and a
-# real release asset (a distro build such as 0.22.1+dfsg names no release), else
-# the latest release. One exact release, not the newest on every build: Zola is
-# pre-1.0 and even patch releases change what a template does (0.23.5 brought back
-# the date filter's locale), so a pinned build keeps doing what the preview did,
-# and only a fixed file can have its checksum recorded.
-resolve_zola_version_for_workflow() {
-    [ -n "$CI_ZOLA_VERSION" ] && return 0
-    local local_ver=""
-    if command -v zola >/dev/null 2>&1; then
-        local_ver=$(zola --version 2>/dev/null | awk '{print $2}')
-    fi
-    # A version this blog's workflow already pins was a real release when it was
-    # recorded, so keeping it needs no network.
-    if [ -n "$local_ver" ] && version_in_band "$local_ver" \
-       && { recorded_workflow_sha "v${local_ver}" >/dev/null || release_asset_exists "v${local_ver}"; }; then
-        CI_ZOLA_VERSION="v${local_ver}"
-        say "pinning zola ${local_ver} into the workflow (same build as this machine)"
-        return 0
-    fi
-    # ensure_zola_installed left the local version in ZOLA_VERSION; cleared, or
-    # resolve_zola_release returns it and the version just rejected gets pinned.
-    ZOLA_VERSION=""
-    resolve_zola_release
-    CI_ZOLA_VERSION="$ZOLA_VERSION"
-    if [ -n "$local_ver" ]; then
-        # ensure_zola_installed has replaced an out-of-band zola, so two causes remain.
-        say "local zola ${local_ver} isn't a published release, or GitHub couldn't be reached"
-        say "to check; pinning ${CI_ZOLA_VERSION#v} into the workflow instead."
-    else
-        say "pinning zola ${CI_ZOLA_VERSION#v} into the workflow"
-    fi
-}
-
-# The digest is recorded once, at setup, and CI checks against it; one fetched
-# beside the file at build time would prove nothing. Nothing here can vouch for
-# the bytes when first recorded: every source is github over https.
-resolve_zola_sha_for_workflow() {
-    [ -n "$ZOLA_SHA256" ] && return 0
-    if ZOLA_SHA256=$(recorded_workflow_sha "$CI_ZOLA_VERSION"); then
-        say "reusing the digest already pinned in .github/workflows/deploy.yml for ${CI_ZOLA_VERSION#v}"
-    else
-        local url tmpdir
-        # Always the Linux x86_64 build the runner uses; downloaded only to be hashed.
-        url="https://github.com/getzola/zola/releases/download/${CI_ZOLA_VERSION}/zola-${CI_ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-        tmpdir=$(mktemp -d)
-        say "hashing the linux zola ${CI_ZOLA_VERSION#v} build to pin it into the workflow..."
-        if http_download "$url" "$tmpdir/zola.tar.gz" && [ -s "$tmpdir/zola.tar.gz" ]; then
-            ZOLA_SHA256=$(sha256_of "$tmpdir/zola.tar.gz") || ZOLA_SHA256=""
-        fi
-        rm -rf "$tmpdir"
-    fi
-    [ -n "$ZOLA_SHA256" ] || die "could not hash the linux zola ${CI_ZOLA_VERSION} build, which the workflow pins; nothing was created. check the network and run this again."
-    say "pinned the zola builder digest into the workflow"
-}
-
-# Reuse the digest deploy.yml already pins for this version: no download, works
-# offline, proves the same. A version change forces a fresh hash.
-recorded_workflow_sha() {
-    # Absolute: resolve_workflow_pin runs before the cd into the blog folder.
-    local want="$1" wf="$BLOG_DIR/.github/workflows/deploy.yml" pinned_ver pinned_sha
-    [ -f "$wf" ] || return 1
-    pinned_ver=$(sed -n 's|.*releases/download/\(v[0-9][0-9.]*\)/zola-.*|\1|p' "$wf" | head -n1)
-    [ -n "$pinned_ver" ] && [ "$pinned_ver" = "$want" ] || return 1
-    pinned_sha=$(sed -n 's|^[[:space:]]*echo "\([0-9a-f]\{64\}\)[[:space:]].*|\1|p' "$wf" | head -n1)
-    [ -n "$pinned_sha" ] || return 1
-    printf '%s' "$pinned_sha"
-}
-
-# Settle everything the workflow pins before a single file is created, so a
-# failure here leaves no half-written blog behind.
-resolve_workflow_pin() {
-    [ -n "$GIT_REPO_URL" ] || return 0   # no workflow, nothing to pin
-    resolve_zola_version_for_workflow
-    resolve_zola_sha_for_workflow
 }
 
 # The workflow is written by the owned_files loop. This is the removal side.
@@ -1225,14 +1949,32 @@ Desktop.ini
 # location and camera data still in it
 *_original
 EOF
+    [ "$BOOK_MODE" = true ] || return 0
+    cat << 'EOF'
+
+# Book mode: content/ is made from book/ by ./genbook, which ./build runs, on
+# GitHub too; only content/attachments/ is kept. .genbook.*: where genbook
+# writes before the move into content/, gone when it finishes
+/content/*
+!/content/attachments/
+/.genbook.*
+EOF
 }
 
+# In book mode, genbook first: zola serve reloads on a change in content/, so
+# an edit in book/ needs ./genbook run again, in another terminal.
 render_serve() {
     cat << 'EOF'
 #!/usr/bin/env bash
 # preview the blog locally at http://127.0.0.1:1111 with live reload; drafts
 # are shown, marked "(draft)", and are never published
-cd "$(dirname "$0")"
+cd "$(dirname "$0")" || exit 1
+EOF
+    [ "$BOOK_MODE" != true ] || cat << 'EOF'
+# content/ from book/ first; after an edit in book/, run ./genbook again
+bash ./genbook || exit 1
+EOF
+    cat << 'EOF'
 exec zola serve --open --drafts
 EOF
 }
@@ -1241,7 +1983,17 @@ EOF
 # the list. Weights are read from the top of content/ only: posts and folders,
 # which share one numbering, not children.
 # The title is made from the name, so it needs no escaping; the author edits it.
+# In book mode there are no posts: it says where a page goes, and exits 2.
 render_new() {
+    if [ "$BOOK_MODE" = true ]; then
+        cat << 'EOF'
+#!/usr/bin/env bash
+# this site is in book mode, so there are no posts to make: see below
+echo "this site is in book mode: a page is a file in book/, starting with its title as a # heading, and a line in book/SUMMARY.md that names it, such as - [Tea in the hills](tea-in-the-hills.md). then ./genbook, or ./build, makes content/ from it. guide: \"Book mode\"." >&2
+exit 2
+EOF
+        return 0
+    fi
     cat << 'EOF'
 #!/usr/bin/env bash
 # make a new post, as a draft at the end of the list: ./new tea-in-the-hills
@@ -1290,12 +2042,14 @@ render_attach() {
 # copy a picture, GIF or video into content/attachments/ without its location
 # and camera data: ./attach ~/Pictures/IMG_0001.jpg tea-hills
 set -euo pipefail
+# An exported CDPATH would take the cd below elsewhere, and print a line into src.
+unset CDPATH
 src="${1:-}" name="${2:-}"
 if [ ! -f "$src" ] || [ -z "$name" ]; then
     echo "usage: ./attach path/to/file new-name   (the file keeps its own extension)" >&2
     exit 2
 fi
-case "$(basename "$src")" in
+case "$(basename -- "$src")" in
     ?*.?*) ;;
     *) echo "$src has no extension, such as .jpg or .mp4, to tell what kind of file it is" >&2; exit 2 ;;
 esac
@@ -1314,7 +2068,7 @@ if ! command -v exiftool >/dev/null 2>&1; then
     echo "needs exiftool: on Debian, Devuan or Ubuntu, sudo apt install libimage-exiftool-perl; on a Mac, brew install exiftool; otherwise see exiftool.org" >&2
     exit 1
 fi
-src="$(cd "$(dirname "$src")" && pwd)/$(basename "$src")"
+src="$(cd -- "$(dirname -- "$src")" && pwd)/$(basename -- "$src")"
 cd "$(dirname "$0")"
 dest="content/attachments/$name.$ext"
 if [ -e "$dest" ]; then
@@ -1333,26 +2087,550 @@ esac
 EOF
 }
 
+# In book mode, genbook first, here as on GitHub: content/ isn't committed.
 render_build() {
     cat << 'EOF'
 #!/usr/bin/env bash
-# build the static site into ./public for deployment
+# build the static site into ./public for deployment, after checking the links
+# in content/; the deploy workflow runs this same file
 set -euo pipefail
 cd "$(dirname "$0")"
+EOF
+    [ "$BOOK_MODE" != true ] || cat << 'EOF'
+
+# content/ from book/: the outline and the pages it names (guide: "Book mode").
+bash ./genbook
+EOF
+    cat << 'EOF'
+
+# Zola checks @/ links, but stops at the first missing file and passes links
+# written any other way. This lists, by file and line, each link it can tell is
+# broken: an @/ link, or a video's src, naming a file that isn't in content/, or
+# one in content/attachments/ while Zola isn't publishing that folder (no
+# _index.md, or render = false); an @/ link in HTML, which Zola leaves as it is;
+# a link to a .md file without @/; a file named relative to a page that isn't
+# index.md or _index.md, which the page looks for under its own address; and, on
+# a site under a path such as /notes/, a link starting with /. Drafts are
+# skipped, as zola build skips them. #anchors are left to Zola, which lists
+# every missing one.
+us=$(printf '\037')
+base_path=$(sed -n 's|^base_url = "[a-z]*://[^/"]*\([^"]*\)"$|\1|p' config.toml)
+broken=$(find content ! -type d | LC_ALL=C sort | LC_ALL=C BASE_PATH="${base_path%/}" awk '
+    function unhex(s,   out, i, c) {
+        out = ""
+        for (i = 1; i <= length(s); i++) {
+            c = substr(s, i, 1)
+            if (c == "%" && substr(s, i + 1, 2) ~ /^[0-9A-Fa-f][0-9A-Fa-f]$/) {
+                c = tolower(substr(s, i + 1, 2)); i += 2
+                c = sprintf("%c", (index(hex, substr(c, 1, 1)) - 1) * 16 + index(hex, substr(c, 2, 1)) - 1)
+            }
+            out = out c
+        }
+        return out
+    }
+    function norm(p,   n, i, k, part, out) {          # a/./b/../c -> a/c
+        n = split(p, part, "/"); k = 0
+        for (i = 1; i <= n; i++) {
+            if (part[i] == "" || part[i] == ".") continue
+            if (part[i] == "..") { if (k > 0) k--; continue }
+            seg[++k] = part[i]
+        }
+        out = ""
+        for (i = 1; i <= k; i++) out = out (i > 1 ? "/" : "") seg[i]
+        return out
+    }
+    function at(p) { gsub(/ /, "%20", p); return "@/" p }   # a space breaks a Markdown link
+    # A file genbook made is reported as the file in book/ it was made from,
+    # at the line there, which its marker line gives.
+    function report(why) { printf "%s\037%d\037%s\037%s\n", (src != "" ? src : file), lineno - delta, shown, why }
+    function check(dest, html, as_written,   p, r, name, away) {
+        shown = as_written != "" ? as_written : dest
+        if (substr(dest, 1, 2) == "@/") {
+            if (html) { report("Zola leaves @/ as it is in HTML; write this as a Markdown link or picture"); return }
+            p = unhex(substr(dest, 3)); sub(/[#?].*$/, "", p)
+            if (("content/" p) in exists) {
+                if (unpub != "" && p ~ /^attachments\// && p !~ /\.md$/) report(unpub)
+                return
+            }
+            if (("content/" p ".md") in exists) report(no "content/" p "; write " at(p ".md"))
+            else if (p ~ /\/$/ && (("content/" p "_index.md") in exists)) report(no "content/" p "; write " at(p "_index.md"))
+            else report(no "content/" p)
+            return
+        }
+        if (dest ~ /^#/ || dest ~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || dest ~ /^\/\//) return
+        p = unhex(dest); sub(/[#?].*$/, "", p)
+        if (p == "") return
+        if (p ~ /\.md$/) {
+            r = norm((p ~ /^\// ? "content" : dir) "/" p)
+            if (r in exists) report("without @/ this leads to \"page not found\"; write " at(substr(r, 9)))
+            else report(no r)
+            return
+        }
+        if (p ~ /^\//) {
+            if (ENVIRON["BASE_PATH"] != "") report("the blog lives under " ENVIRON["BASE_PATH"] "/, and this leaves it; write @/ and the path from content/, or a relative link")
+            return
+        }
+        if (p !~ /\.[A-Za-z0-9]+$/ || p ~ /^\.\.\//) return
+        r = norm(dir "/" p)
+        if (bundle) { if (!(r in exists)) report(no r); return }
+        name = p; sub(/^.*\//, "", name)
+        away = "a page looks for this under its own address; "
+        if (r in exists) report(away "write " at(substr(r, 9)))
+        else if (("content/attachments/" name) in exists) report(away "write " at("attachments/" name))
+        else report(away "put it in content/attachments/ and write " at("attachments/" name))
+    }
+    { exists[$0] = 1; if ($0 ~ /\.md$/) md[++n] = $0 }
+    END {
+        hex = "0123456789abcdef"; q = sprintf("%c", 39); no = "there" q "s no "
+        attr = "(href|src)=[\"" q "][^\"" q "]*[\"" q "]"
+        # Why Zola is not publishing content/attachments/, if it is not: then no
+        # @/ link to a file in it resolves, though the file is there.
+        unpub = ""; af = "content/attachments/_index.md"
+        if (!(af in exists)) unpub = no af ", so Zola publishes nothing in content/attachments/; the guide" q "s \"Pictures, GIFs and video\" gives the file"
+        else {
+            ast = 0
+            while ((getline al < af) > 0) {
+                sub(/\r$/, "", al); ak = al; gsub(/[ \t]/, "", ak)
+                if (ast == 0) { if (ak == "") continue; if (ak != "+++" && ak != "---") break; afm = ak; ast = 1; continue }
+                if (ak == afm) break
+                if (al ~ /^[ \t]*render[ \t]*[=:][ \t]*false([ \t#]|$)/) { unpub = af " says render = false, so Zola publishes nothing in content/attachments/; delete that line"; break }
+            }
+            close(af)
+        }
+        for (i = 1; i <= n; i++) {
+            file = md[i]; dir = file; sub(/\/[^\/]*$/, "", dir)
+            bundle = file ~ /(^|\/)_?index\.md$/
+            lineno = 0; state = 0; fence = 0; src = ""; delta = 0
+            while ((getline line < file) > 0) {
+                lineno++; sub(/\r$/, "", line)
+                if (state == 0) {                      # before the front matter
+                    if (line ~ /^[ \t]*$/) continue
+                    if (line ~ /^[ \t]*(\+\+\+|---)[ \t]*$/) { fm = line; gsub(/[ \t]/, "", fm); state = 1; continue }
+                    state = 2
+                } else if (state == 1) {               # in it: a draft is skipped
+                    t = line; gsub(/[ \t]/, "", t)
+                    if (t == fm) { state = 2; continue }
+                    if (line ~ /^[ \t]*draft[ \t]*[=:][ \t]*true([ \t#]|$)/) break
+                    if (lineno == 2 && index(line, "# genbook: made from book/") == 1) {   # genbook: its marker
+                        src = substr(line, 22); sub(/[,;].*$/, "", src)
+                        if (match(line, /whose line [0-9]+ is line [0-9]+ here/)) {
+                            split(substr(line, RSTART, RLENGTH), w, " "); delta = w[6] - w[3]
+                        }
+                    }
+                    continue
+                }
+                if (line ~ /^[ \t]*([`][`][`]|~~~)/) { fence = !fence; continue }
+                if (fence) continue
+                gsub(/`[^`]*`/, "", line)              # code spans
+                while (match(line, /\{\{<[ \t]*video[ \t][^}]*\}\}/)) {
+                    comp = substr(line, RSTART, RLENGTH)
+                    line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
+                    if (match(comp, /src="[^"]*"/)) { s = substr(comp, RSTART + 5, RLENGTH - 6); check("@/" s, 0, s) }
+                }
+                s = line                               # [text](dest) and ![alt](dest)
+                while (match(s, /\]\([^)]*\)/)) {
+                    d = substr(s, RSTART + 2, RLENGTH - 3); s = substr(s, RSTART + RLENGTH)
+                    sub(/^[ \t]+/, "", d)
+                    if (substr(d, 1, 1) == "<") { d = substr(d, 2); sub(/>.*$/, "", d) } else sub(/[ \t].*$/, "", d)
+                    check(d, 0, "")
+                }
+                if (match(line, /^ ? ? ?\[[^]^][^]]*\]:[ \t]*/)) {   # [label]: dest
+                    d = substr(line, RSTART + RLENGTH)
+                    if (substr(d, 1, 1) == "<") { d = substr(d, 2); sub(/>.*$/, "", d) } else sub(/[ \t].*$/, "", d)
+                    check(d, 0, "")
+                }
+                s = line                               # href="..." and src="..."
+                while (match(s, attr)) {
+                    d = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+                    sub(/^(href|src)=./, "", d); check(substr(d, 1, length(d) - 1), 1, "")
+                }
+            }
+            close(file)
+        }
+    }' | LC_ALL=C sort -t "$us" -k1,1 -k2,2n)
+if [ -n "$broken" ]; then
+    printf '%s\n' "$broken" | LC_ALL=C awk -F "$us" '
+        !seen[$0]++ { printf "%s:%s: %s\n    %s\n", $1, $2, $3, $4; n++ }
+        END { printf "\nstopped: %d broken link%s, listed above. fix %s, then run ./build again.\n", n, (n == 1 ? "" : "s"), (n == 1 ? "it" : "them") }' >&2
+    exit 1
+fi
 
 # Zola drops a page missing its section's sort field, warns, exits 0, and still
 # lists its URL in sitemap.xml: turn that warning into a failure.
 out=$(zola build 2>&1) || { printf '%s\n' "$out" >&2; exit 1; }
 printf '%s\n' "$out"
-if printf '%s\n' "$out" | grep -q 'page(s) ignored'; then
-    {
-        printf '\n%s\n' "the page(s) named above produced no HTML, but sitemap.xml still lists"
-        printf '%s\n'    "their URLs, so the published site would point crawlers at a 404."
-        printf '%s\n'    "give the page a weight, or add hidden = true to its front matter if it"
-        printf '%s\n'    "should exist without being listed. nothing was published."
-    } >&2
-    exit 1
+# Matched in the shell: piped to grep -q, a long log could die of the broken
+# pipe when grep quits at the match, and pipefail would make that a miss.
+case $out in
+    *'page(s) ignored'*)
+        {
+            printf '\n%s\n' "the page(s) named above produced no HTML, but sitemap.xml still lists"
+            printf '%s\n'    "their URLs, so the published site would point crawlers at a 404."
+            printf '%s\n'    "give the page a weight, or add hidden = true to its front matter if it"
+            printf '%s\n'    "should exist without being listed. nothing was published."
+        } >&2
+        exit 1 ;;
+esac
+EOF
+}
+
+# ./genbook, in book mode: content/ from book/. It reads the outline, checks
+# everything, writes every file into a temporary folder beside content/, and
+# only then moves them in: a stop changes nothing, and a running preview never
+# sees half a site. Each file it writes carries a marker line, by which it
+# tells its own files from anything hand-made, which stops it. bash and awk,
+# mawk's awk included: GitHub's build runs this too. Vars: MENU_PAGES.
+render_genbook() {
+    cat << EOF
+#!/usr/bin/env bash
+# make content/ from book/: the outline, book/SUMMARY.md, and the pages it
+# names. ./build and ./serve run this first; after an edit in book/ while the
+# preview runs, run it yourself. Guide: "Book mode".
+set -euo pipefail
+cd "\$(dirname "\$0")"
+
+# MENU_PAGES, as the setup script last wrote it: book/<name>.md, one each.
+menu="${MENU_PAGES}"
+EOF
+    cat << 'EOF'
+
+# The line after +++ in every file this script writes: its mark.
+marker='# genbook:'
+stop() { printf '%s\n' "$*" >&2; exit 1; }
+ours() { case "$(sed -n 2p "$1" 2>/dev/null)" in "$marker"*) return 0 ;; esac; return 1; }
+
+[ -f book/SUMMARY.md ] || stop "there's no book/SUMMARY.md, the outline the site is built from: a part is a line # Title, a page a line - [Title](file.md), each file in book/ (guide: \"Book mode\"). nothing has been changed."
+
+# Everything is written here first, in the blog's folder, so the moves into
+# content/ are renames; a stop leaves content/ as it was.
+tmp=$(mktemp -d .genbook.XXXXXX) || stop "could not make a temporary folder in $PWD"
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/content/unlisted"
+
+# The outline, read as mdBook reads SUMMARY.md: "# Title" is a part, a heading;
+# "- [Title](file.md)" a page; "- [Title]()" a name with no page, a plain item,
+# or, with items indented under it, a heading one level down; "[Title](file.md)"
+# without the dash an unlisted page. Written out as the home page's text
+# ($tmp/outline), and as one "L stem" or "U stem" line per page ($tmp/pages),
+# in outline order. An item waits (pend) until the next line says whether
+# anything is indented under it. A page after a name with items under it would
+# read, on the page, as one of those items, so it stops.
+if ! msg=$(LC_ALL=C awk -v outline="$tmp/outline" -v pages="$tmp/pages" -v menu="$menu" '
+    function stop(msg, at) { printf "book/SUMMARY.md, line %d: %s. nothing has been changed.\n", (at ? at : NR), msg; bad = 1; exit 1 }
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    # The pending item, placed as a plain item or a page in the list of its
+    # container; a container that already has a heading in it stops.
+    function place_pending() {
+        if (!pend) return
+        if (hseen[n]) stop("\"" pend_title "\" comes after \"" hname[n] "\", which has items under it; on the home page it would look like one of them. put the pages before the names with items under them")
+        if (prev != "leaf") out = out "\n"
+        if (pend_draft) out = out "1. " pend_title "\n"
+        else out = out "1. [" pend_title "](@/" pend_stem ".md)\n"
+        prev = "leaf"; pend = 0; partitems++
+    }
+    # The pending item as a heading: a name with no page, with items under it.
+    function heading_pending(   level, h) {
+        if (!pend_draft) stop("\"" pend_title "\" has items indented under it, and a page can'"'"'t: put a name with no page, - [Name](), above them, or unindent them")
+        level = (inpart ? 3 : 2) + n
+        if (level > 6) stop("\"" pend_title "\" is nested too deep: headings go six levels down at most")
+        h = ""; while (length(h) < level) h = h "#"
+        out = out "\n" h " " pend_title "\n"
+        prev = "head"; hseen[n] = 1; hname[n] = pend_title; pend = 0; partitems++
+        n++; ind[n] = child_indent; hseen[n] = 0
+    }
+    # A part with no item under it would be a heading over nothing: mdBook'"'"'s
+    # title line, # Summary, mostly, which this outline doesn'"'"'t have.
+    function end_part() {
+        if (inpart && partitems == 0) stop("the part \"" partname "\" has nothing under it. every # line is a part, a heading on the home page (an unlisted page, written without a dash, isn'"'"'t shown under it); there is no title line, so mdBook'"'"'s # Summary goes: SITE_TITLE names the site", partline)
+    }
+    # A link, checked and recorded: a file in book/, listed once.
+    function take_link(link, title, kind,   stem) {
+        if (link !~ /^[a-z0-9]+(-[a-z0-9]+)*\.md$/) stop("\"" title "\" links to \"" link "\", which should be the name of a file in book/, such as tea-hills.md: lowercase letters and digits, with single dashes between them, then .md, with no folder in front and no # after")
+        stem = substr(link, 1, length(link) - 3)
+        if (stem == "unlisted" || stem == "attachments") stop("a page can'"'"'t be named " stem ".md: content/" stem "/ is a folder of the site")
+        if (stem in menus) stop(link " is a page in the menu (MENU_PAGES), so it isn'"'"'t listed in the outline too")
+        if (stem in seen) stop(link " is listed twice: also on line " seen[stem])
+        seen[stem] = NR
+        print kind "\t" stem > pages
+        return stem
+    }
+    BEGIN {
+        nm = split(menu, m, " "); for (i = 1; i <= nm; i++) menus[m[i]] = 1
+        n = 0; ind[0] = 0; hseen[0] = 0; pend = 0; prev = ""; inpart = 0; partitems = 0; out = ""
+        printf "" > pages
+    }
+    # A byte-order mark some Windows editors put first, and Windows line ends.
+    NR == 1 { sub(/^\357\273\277/, "") }
+    { sub(/\r$/, "") }
+    /^[ \t]*$/ { next }
+    /^#/ {
+        place_pending()
+        end_part()
+        title = $0; sub(/^#+[ \t]*/, "", title); sub(/[ \t]+#+[ \t]*$/, "", title); title = trim(title)
+        if (title == "") stop("a part with no title")
+        out = out "\n## " title "\n"
+        prev = "head"; inpart = 1; n = 0; hseen[0] = 0
+        partitems = 0; partname = title; partline = NR
+        next
+    }
+    /^[ \t]*[-*+][ \t]+\[/ {
+        lead = $0; sub(/[-*+].*$/, "", lead)
+        indent = 0; for (j = 1; j <= length(lead); j++) indent += substr(lead, j, 1) == "\t" ? 4 : 1
+        rest = $0; sub(/^[ \t]*[-*+][ \t]+\[/, "", rest)
+        if (!match(rest, /\]\([^()]*\)[ \t]*$/)) stop("not an outline line: a page is - [Title](file.md), and a name with no page is - [Title]()")
+        title = trim(substr(rest, 1, RSTART - 1)); link = substr(rest, RSTART + 2); sub(/\)[ \t]*$/, "", link); link = trim(link)
+        if (title == "") stop("an item with no title")
+        if (pend && indent > ind[n]) { child_indent = indent; heading_pending() }
+        else {
+            place_pending()
+            while (n > 0 && indent < ind[n]) n--
+            if (indent != ind[n]) stop("\"" title "\" is indented with nothing above it to go under; items under a name line up with each other, and the rest start at the left")
+        }
+        pend = 1; pend_title = title; pend_draft = link == ""
+        if (!pend_draft) pend_stem = take_link(link, title, "L")
+        next
+    }
+    /^[ \t]*\[[^]]*\]\([^()]*\)[ \t]*$/ {
+        rest = $0; sub(/^[ \t]*\[/, "", rest)
+        match(rest, /\]\([^()]*\)[ \t]*$/)
+        title = trim(substr(rest, 1, RSTART - 1)); link = substr(rest, RSTART + 2); sub(/\)[ \t]*$/, "", link); link = trim(link)
+        if (title == "") stop("an unlisted page with no title")
+        if (link == "") stop("\"" title "\" is an unlisted page, written without a dash, and needs a file: [" title "](file.md)")
+        take_link(link, title, "U")
+        next
+    }
+    { stop("not an outline line: a part is # Title, a page is - [Title](file.md), a name with no page is - [Title](), and an unlisted page is [Title](file.md) without the dash") }
+    END {
+        if (bad) exit 1
+        place_pending()
+        end_part()
+        if (bad) exit 1
+        printf "%s", out > outline
+    }' book/SUMMARY.md); then
+    stop "$msg"
 fi
+
+listed=() unlisted=()
+while IFS=$'\t' read -r kind stem; do
+    case "$kind" in L) listed+=("$stem") ;; U) unlisted+=("$stem") ;; esac
+done < "$tmp/pages"
+# The menu's pages, each a file in book/; and the map every link is resolved
+# with: stem, then the file content/ gets.
+menus=()
+read -r -a menus <<< "$menu"
+: > "$tmp/map"
+for stem in ${listed[@]+"${listed[@]}"} ${menus[@]+"${menus[@]}"}; do printf '%s\t%s.md\n' "$stem" "$stem" >> "$tmp/map"; done
+for stem in ${unlisted[@]+"${unlisted[@]}"}; do printf '%s\tunlisted/%s.md\n' "$stem" "$stem" >> "$tmp/map"; done
+cut -f1 "$tmp/map" > "$tmp/stems"
+
+missing=()
+for stem in ${listed[@]+"${listed[@]}"} ${unlisted[@]+"${unlisted[@]}"}; do [ -f "book/$stem.md" ] || missing+=("book/$stem.md, named in book/SUMMARY.md"); done
+for stem in ${menus[@]+"${menus[@]}"}; do [ -f "book/$stem.md" ] || missing+=("book/$stem.md, named in MENU_PAGES"); done
+if [ "${#missing[@]}" -gt 0 ]; then
+    printf '%s\n' "these pages have no file:" >&2
+    printf '  - %s\n' "${missing[@]}" >&2
+    stop "make each file, starting with its title as a line # Title, or take it out of book/SUMMARY.md or MENU_PAGES. nothing has been changed."
+fi
+
+# A file in book/ that nothing names would be left out of the site without a
+# word: said, instead.
+stray=()
+for f in book/*.md; do
+    [ -f "$f" ] || continue
+    stem=${f#book/}; stem=${stem%.md}
+    [ "$stem" != SUMMARY ] || continue
+    grep -qxF "$stem" "$tmp/stems" || stray+=("$f")
+done
+if [ "${#stray[@]}" -gt 0 ]; then
+    printf '%s\n' "these files in book/ are neither in book/SUMMARY.md nor in MENU_PAGES, so the site would leave them out:" >&2
+    printf '  - %s\n' "${stray[@]}" >&2
+    stop "add each to book/SUMMARY.md, as a page (- [Title](file.md)) or an unlisted page ([Title](file.md)), or move it out of book/. nothing has been changed."
+fi
+
+# content/ is this script's output, and only its own files are replaced: one
+# without the marker, any file that isn't a page, or an empty folder (a file
+# moved into one would be lost in it) stops the run. Pictures go in
+# content/attachments/, which is left alone.
+foreign=()
+while IFS= read -r f; do
+    case "$f" in
+        content/unlisted) ;;
+        *.md) if [ -d "$f" ] || ! ours "$f"; then foreign+=("$f"); fi ;;
+        *) foreign+=("$f") ;;
+    esac
+done < <(find content -path content/attachments -prune -o ! -type d -print -o -type d -empty -print 2>/dev/null | LC_ALL=C sort)
+if [ "${#foreign[@]}" -gt 0 ]; then
+    printf '%s\n' "content/ is made from book/ by ./genbook, and these files in it weren't:" >&2
+    printf '  - %s\n' "${foreign[@]}" >&2
+    stop "a page goes in book/, with a line in book/SUMMARY.md; a picture, GIF or video goes in content/attachments/. move each, then run this again. nothing has been changed."
+fi
+
+# One page: the title from its first line, which must be # Title, and the rest
+# as the body, with links to the book's pages rewritten to the files content/
+# gets: [the spec](spec.md), (./spec.md) or (@/spec.md) alike, by the map. A
+# link to a .md file that isn't a page of the book stops. Fenced code and
+# code spans are left as they are, as the link check in ./build leaves them.
+# Prints two lines, how many lines the body starts after (the title and any
+# blank lines before it) and the title; a stop prints its message instead.
+page_body() {
+    LC_ALL=C awk -v src="$1" -v out="$2" -v mapfile="$tmp/map" '
+    function stop(msg) { printf "%s, line %d: %s. nothing has been changed.\n", src, NR, msg; bad = 1; exit 1 }
+    function fixplain(p,   frag, lead, stem) {
+        frag = ""; if (match(p, /[#?]/)) { frag = substr(p, RSTART); p = substr(p, 1, RSTART - 1) }
+        if (p == "" || p ~ /^[A-Za-z][A-Za-z0-9+.-]*:/ || p ~ /^\/\//) return p frag
+        lead = p; sub(/^(\.\/|@\/)/, "", lead)
+        if (lead ~ /^[a-z0-9-]+\.md$/) {
+            stem = substr(lead, 1, length(lead) - 3)
+            if (stem in map) return "@/" map[stem] frag
+            stop("a link to " p ", and no page " stem ".md is in book/SUMMARY.md or MENU_PAGES")
+        }
+        if (p ~ /\.md$/) stop("a link to " p ": the pages of this book are files in book/, linked by name, such as (tea.md)")
+        return p frag
+    }
+    # The inside of (...) or the rest of a [label]: line: the destination, then
+    # a title or nothing; or <destination>.
+    function fixdest(d,   inner, after) {
+        if (substr(d, 1, 1) == "<" && match(d, />/)) { inner = substr(d, 2, RSTART - 2); after = substr(d, RSTART); return "<" fixplain(inner) after }
+        if (match(d, /[ \t]/)) { after = substr(d, RSTART); d = substr(d, 1, RSTART - 1) } else after = ""
+        if (d == "") return after
+        return fixplain(d) after
+    }
+    # RSTART and RLENGTH belong to awk, and every match() moves them: taken
+    # into st and ln before a call that matches again.
+    function fixlinks(s,   res, d, st, ln) {
+        res = ""
+        while (match(s, /\]\([^)]*\)/)) {
+            st = RSTART; ln = RLENGTH
+            d = substr(s, st + 2, ln - 3)
+            res = res substr(s, 1, st + 1) fixdest(d) ")"
+            s = substr(s, st + ln)
+        }
+        return res s
+    }
+    function fixline(s,   res, st, ln) {
+        if (match(s, /^ ? ? ?\[[^]^][^]]*\]:[ \t]*/)) { ln = RLENGTH; return substr(s, 1, ln) fixdest(substr(s, ln + 1)) }
+        res = ""
+        while (match(s, /`[^`]*`/)) { st = RSTART; ln = RLENGTH; res = res fixlinks(substr(s, 1, st - 1)) substr(s, st, ln); s = substr(s, st + ln) }
+        return res fixlinks(s)
+    }
+    BEGIN { while ((getline l < mapfile) > 0) { split(l, a, "\t"); map[a[1]] = a[2] }; close(mapfile); printf "" > out }
+    # A byte-order mark some Windows editors put first, and Windows line ends.
+    NR == 1 { sub(/^\357\273\277/, "") }
+    { sub(/\r$/, "") }
+    !got_title {
+        skipped++
+        if ($0 ~ /^[ \t]*$/) next
+        if ($0 ~ /^[ \t]*\+\+\+/) stop("it starts with +++, and the pages of a book carry no front matter: start it with its title, a line # Title")
+        if ($0 !~ /^#[ \t]+/) stop("its first line isn'"'"'t the title: a page starts with a line # Title (one #, then the title)")
+        title = $0; sub(/^#[ \t]+/, "", title); sub(/[ \t]+#+[ \t]*$/, "", title); sub(/[ \t]+$/, "", title)
+        if (title == "") stop("its title line, # Title, has no title after the #")
+        got_title = 1
+        next
+    }
+    /^[ \t]*([`][`][`]|~~~)/ { fence = !fence; print > out; next }
+    fence { print > out; next }
+    { print fixline($0) > out }
+    END {
+        if (bad) exit 1
+        if (!got_title) { printf "%s: has no title line: a page starts with a line # Title. nothing has been changed.\n", src; exit 1 }
+        print skipped + 0
+        print title
+    }' "$1"
+}
+
+# The marker line, the second line of every file this script writes: the file
+# it was made from, and, for a page, which line of that file is which line of
+# this one ($2 and $3), so the link check in ./build can name the line in book/.
+mark() {
+    if [ -n "${2:-}" ]; then
+        printf '%s made from book/%s, whose line %d is line %d here; edit that file, not this one\n' "$marker" "$1" "$2" "$3"
+    else
+        printf '%s made from book/%s; edit that file, not this one\n' "$marker" "$1"
+    fi
+}
+
+# TOML, for the title: backslash first, then the double quote.
+toml() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
+
+# The pages, each with its front matter: title and weight for a listed page,
+# title and path for an unlisted one, so its address is /name/ like the rest,
+# and title and hidden for a page in the menu. The body follows the closing
+# +++ straight away: its first line is usually the blank one after the title.
+# The list of what this run makes, for the moves and the cleanup after them.
+: > "$tmp/written"
+weight=0
+for stem in ${listed[@]+"${listed[@]}"}; do
+    out=$(page_body "book/$stem.md" "$tmp/body") || stop "$out"
+    skipped=${out%%$'\n'*} title=${out#*$'\n'}
+    weight=$((weight + 10))
+    {
+        printf '+++\n'
+        mark "$stem.md" "$((skipped + 1))" 8
+        printf 'title = "%s"\nweight = %d\n[extra]\ntoc = true\n+++\n' "$(toml "$title")" "$weight"
+        cat "$tmp/body"
+    } > "$tmp/content/$stem.md"
+    printf '%s\n' "$stem.md" >> "$tmp/written"
+done
+for stem in ${unlisted[@]+"${unlisted[@]}"}; do
+    out=$(page_body "book/$stem.md" "$tmp/body") || stop "$out"
+    skipped=${out%%$'\n'*} title=${out#*$'\n'}
+    {
+        printf '+++\n'
+        mark "$stem.md" "$((skipped + 1))" 8
+        printf 'title = "%s"\npath = "%s"\n[extra]\ntoc = true\n+++\n' "$(toml "$title")" "$stem"
+        cat "$tmp/body"
+    } > "$tmp/content/unlisted/$stem.md"
+    printf '%s\n' "unlisted/$stem.md" >> "$tmp/written"
+done
+for stem in ${menus[@]+"${menus[@]}"}; do
+    out=$(page_body "book/$stem.md" "$tmp/body") || stop "$out"
+    skipped=${out%%$'\n'*} title=${out#*$'\n'}
+    {
+        printf '+++\n'
+        mark "$stem.md" "$((skipped + 1))" 6
+        printf 'title = "%s"\nhidden = true\n+++\n' "$(toml "$title")"
+        cat "$tmp/body"
+    } > "$tmp/content/$stem.md"
+    printf '%s\n' "$stem.md" >> "$tmp/written"
+done
+# The home page: the outline. sort_by = "weight" orders the pages for Previous
+# and Next; the list itself is the text below.
+{
+    printf '+++\n'
+    mark SUMMARY.md
+    printf 'title = "Home"\nsort_by = "weight"\n+++\n'
+    cat "$tmp/outline"
+} > "$tmp/content/_index.md"
+printf '%s\n' "_index.md" >> "$tmp/written"
+# The unlisted pages' folder: a section Zola builds the pages of, and puts in
+# the search index, with no list (nothing is sorted) and no page of its own:
+# /unlisted/ redirects home, as /attachments/ does. Not render = false: Zola
+# then still indexes the section itself, as a page at /unlisted/ that isn't
+# there.
+if [ "${#unlisted[@]}" -gt 0 ]; then
+    {
+        printf '+++\n'
+        mark SUMMARY.md
+        printf 'title = "Unlisted"\nsort_by = "none"\nredirect_to = "/"\n+++\n'
+    } > "$tmp/content/unlisted/_index.md"
+    printf '%s\n' "unlisted/_index.md" >> "$tmp/written"
+fi
+
+# Into place: each file renamed over the old one, then the files of an earlier
+# run that this one didn't write, removed. Only files with the marker go.
+mkdir -p content
+while IFS= read -r rel; do
+    [ "$rel" = "${rel%/*}" ] || mkdir -p "content/${rel%/*}"
+    mv -f "$tmp/content/$rel" "content/$rel"
+done < "$tmp/written"
+while IFS= read -r f; do
+    rel=${f#content/}
+    grep -qxF "$rel" "$tmp/written" && continue
+    ours "$f" && rm -f "$f"
+done < <(find content -path content/attachments -prune -o -name '*.md' -print 2>/dev/null)
+rmdir content/unlisted 2>/dev/null || true
+printf 'made content/ from book/: %d page%s, %d unlisted, %d in the menu\n' \
+    "${#listed[@]}" "$([ "${#listed[@]}" -eq 1 ] || printf s)" "${#unlisted[@]}" "${#menus[@]}"
 EOF
 }
 
@@ -1380,6 +2658,23 @@ EOF
 ## Made with zola-blog-setup
 
 These files are script-owned, rewritten on every run of the setup script:
+EOF
+    if [ "$BOOK_MODE" = true ]; then
+        cat << 'EOF'
+`config.toml`, `templates/`, `serve`, `build`, `new`, `attach`, `genbook` and
+`.gitignore`; also `static/favicon.svg` while FAVICON_TEXT draws it,
+`static/search.js` while search is on, and `.github/workflows/deploy.yml` while
+GIT_REPO_URL is set.
+Change them through the script's settings or its `render_` functions, not here.
+`book/` and the rest of `static/` are yours: the script never touches them
+after the first run. So is this README, once you edit it. `content/` is made
+from `book/` by `./genbook` at every build, and isn't committed.
+
+How to write pages and change the site: the guide that comes with the setup
+script, zola-blog-guide.md, under "Book mode".
+EOF
+    else
+        cat << 'EOF'
 `config.toml`, `templates/`, `serve`, `build`, `new`, `attach` and
 `.gitignore`; also `static/favicon.svg` while FAVICON_TEXT draws it,
 `static/search.js` while search is on, and `.github/workflows/deploy.yml` while
@@ -1391,6 +2686,7 @@ after the first run. So is this README, once you edit it.
 How to write posts and change the blog: the guide that comes with the setup
 script, zola-blog-guide.md.
 EOF
+    fi
 }
 
 # Vars: most of the configuration block, FAVICON_MARK, and BASE_URL, SOURCE_URL,
@@ -1463,6 +2759,10 @@ dark_theme = "${darkt}"
 [extra]
 # Read by the templates; each value comes from a setting in the setup script.
 masthead = "${masthead_v}"
+
+# true in book mode: the home page is the outline, Previous and Next lead back
+# to it as "Contents", and there are no breadcrumbs.
+book = ${BOOK_MODE}
 
 # true while the script draws static/favicon.svg, so its URL can carry a hash;
 # false for your own file, which may be missing (a missing file's hash fails).
@@ -1577,7 +2877,8 @@ EOF
 # Markdown style reference, written as content/hello-world.md; its picture is
 # content/attachments/demo.svg. Published two days ago and updated today, to show
 # both dates; the update does not move it, because the list follows weight.
-# Vars: TWO_DAYS_AGO, TODAY.
+# The tour of Markdown after the opening is render_markdown_tour, shared with
+# the book-mode hello-world. Vars: TWO_DAYS_AGO, TODAY.
 render_hello_world() {
     cat << EOF
 +++
@@ -1595,6 +2896,16 @@ This blog links to its own pages with Zola's internal-link syntax, here is [the 
 
 The home page lists posts in the order of their \`weight\` — this one is 10, the second post is 20 — and numbers them where they land. Editing a post never moves it. The previous/next links at the foot of a post walk that same order. The dates are still here and still shown: this post carries an \`updated\` field, so its header gives both a publish date and a "last updated" date, and the feed reads both.
 
+EOF
+    render_markdown_tour @/second-post.md
+}
+
+# From "Heading 2" to the footnote: the part of hello-world that shows each kind
+# of Markdown. Vars: $1, the page the collapsible's link leads to, as written in
+# a link: @/second-post.md in a blog, colophon.md in a book.
+render_markdown_tour() {
+    local link="$1"
+    cat << EOF
 ## Heading 2
 
 Proin porttitor, orci nec nonummy molestie, enim est eleifend mi, non fermentum diam nisl sit amet erat.
@@ -1669,7 +2980,7 @@ A collapsible hides a digression until it is wanted.
 <details>
 <summary>the same blank-line rule applies here</summary>
 
-So \`code\`, [links](@/second-post.md), and lists all work:
+So \`code\`, [links](${link}), and lists all work:
 
 - like this one
 
@@ -1754,6 +3065,92 @@ A short companion post. It exists to give the previous/next navigation at the fo
 Unlike hello-world, this post has no \`updated\` field, so its header shows only a publish date.
 
 Delete it together with hello-world.md. Deleted on its own, it breaks the link in hello-world, and the build stops.
+EOF
+}
+
+# A new book's book/: the outline, the About page, the hello-world page, a
+# second page for Previous and Next to lead to, and one unlisted page, which
+# About links to. None carries front matter; each page's first line is its
+# title. Guide: "Book mode".
+render_book_summary() {
+    cat << 'EOF'
+# Getting started
+
+- [Hello world](hello-world.md)
+- [Second page](second-page.md)
+
+[Colophon](colophon.md)
+EOF
+}
+
+render_book_second_page() {
+    cat << 'EOF'
+# Second page
+
+A short second page. It exists to give the Previous and Next links at the foot of each page somewhere to lead: from here, Previous goes to the hello-world page, and Contents goes back to the outline on the home page.
+
+Delete it together with hello-world.md, and take its line out of `book/SUMMARY.md`: a line there naming a file that isn't in `book/` stops the build.
+EOF
+}
+
+render_book_about() {
+    cat << 'EOF'
+# About
+
+## Who
+
+Your name. One or two sentences about what this site is for.
+
+## What is here
+
+A sentence or two on what the pages are, and who they are for.
+
+## Contact
+
+Email: you@yourdomain.com
+
+## Also on this site
+
+- [Colophon](colophon.md): how this site is made. It is an unlisted page: the outline doesn't show it, and this link is the way to it.
+EOF
+}
+
+render_book_colophon() {
+    cat << 'EOF'
+# Colophon
+
+This page is unlisted. In `book/SUMMARY.md` it is written without a dash in front, `[Colophon](colophon.md)`, so it is built and searchable, but the outline on the home page doesn't show it, and no Previous or Next link leads here. Readers reach it through links, like the one on the About page.
+
+The site is made with Zola, by the zola-blog-setup script in book mode: the pages are plain Markdown files in `book/`, and the outline is `book/SUMMARY.md`.
+EOF
+}
+
+# The book's hello-world: the same tour of Markdown as a blog's, after an
+# opening about the book itself. Its picture is content/attachments/demo.svg.
+render_book_hello_world() {
+    cat << 'EOF'
+# Hello world
+
+Lorem ipsum dolor sit amet[^1], consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.
+
+This site links to its own pages by file name, as mdBook does, here is [the colophon](colophon.md), and to the wider web with ordinary Markdown links, like [the Zola documentation](https://www.getzola.org). Both kinds are explained in the guide.
+
+The home page shows the outline, `book/SUMMARY.md`, and the Previous and Next links at the foot of each page follow it. This page's title is its first line, `# Hello world`, and there is no front matter: the pages here carry none.
+
+EOF
+    render_markdown_tour colophon.md
+}
+
+# A new book's starter page for a MENU_PAGES name other than about. Vars: $1,
+# the name; the title is the name, capitalised.
+render_book_menu_page() {
+    local title="$1"
+    title="${title//-/ }"
+    title="$(printf '%s' "${title:0:1}" | tr '[:lower:]' '[:upper:]')${title:1}"
+    cat << EOF
+# ${title}
+
+This page is book/$1.md.
 EOF
 }
 
@@ -1880,11 +3277,16 @@ render_base_html() {
     {%- if config.build_search_index %}
     <script src="{{ get_url(path='search.js', cachebust=true) }}" defer></script>
     {%- endif %}
-    {#- Previous and Next (post_nav, components.html), worked out once: the
-        <link>s here, for readers and extensions; the bar at the foot of
-        page.html and section.html. -#}
-    {%- set_global reading %}{% if page is defined %}{{<post_nav node={page} extra={config.extra} />}}{% elif section is defined %}{{<post_nav node={section} extra={config.extra} />}}{% endif %}{% endset %}
-    {{- reading | split(pat="<!--bar-->") | first | safe }}
+    {#- Previous and Next, for readers and extensions: the pages either side of
+        this one in its section's list (page.html has the links). -#}
+    {%- if page is defined %}
+    {%- if page.higher %}
+    <link rel="next" href="{{ page.higher.permalink | safe }}">
+    {%- endif %}
+    {%- if page.lower %}
+    <link rel="prev" href="{{ page.lower.permalink | safe }}">
+    {%- endif %}
+    {%- endif %}
     <style>
     /* ===================================================================
        YOUR DESIGN: the tokens and element styles to change (guide: "Colours,
@@ -1981,12 +3383,15 @@ render_base_html() {
 
     /* A link takes the colour of the text around it, underlined, and turns blue
        once followed (:visited can change colours only). Footnote numbers are
-       blue either way. */
-    a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+       blue either way. :any-link, so an <a id> that leads nowhere isn't
+       underlined; inside :where(), so the rule weighs nothing and every rule
+       below for one kind of link still wins over it. */
+    :where(a:any-link) { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
     a:visited { color: var(--link); }
     /* Lists of links keep the text colour, followed or not: every item in them
-       is a link anyway. */
-    .post-list li > a, .tag-list a, .search-results a { color: var(--fg); }
+       is a link anyway. .outline is a book's home page, the outline genbook
+       writes. */
+    .post-list li > a, .outline a, .tag-list a, .search-results a { color: var(--fg); }
 
     main h1, main h2, main h3, main h4, main h5, main h6 { font-weight: bold; line-height: 1.18; }
     /* Margins in em of each heading's own size, so the rhythm survives any base size. */
@@ -2145,10 +3550,11 @@ render_base_html() {
     main ol[start] ol > li, main ol ol[start] > li { list-style: revert; }
     main ol[start] ol > li::before, main ol ol[start] > li::before { content: none; }
 
-    /* The browser numbers the <ol>; the padding holds the markers, 10 to 99 flush. */
-    .post-list { padding-inline-start: 1.7em; }
-    .post-list li { margin-bottom: 0.5rem; }
-    .post-list li::marker { color: var(--muted); }
+    /* The browser numbers the <ol>; the padding holds the markers, 10 to 99 flush.
+       A book's outline lists its pages the same way. */
+    .post-list, .outline ol { padding-inline-start: 1.7em; }
+    .post-list li, .outline li { margin-bottom: 0.5rem; }
+    .post-list li::marker, .outline li::marker { color: var(--muted); }
     /* Tag pages: no numbers, because a tag's list isn't a sequence. */
     .unordered .post-list { list-style: none; padding-inline-start: 0; }
     .post-list .desc { display: block; color: var(--muted); font-style: italic; font-size: 0.9em; line-height: 1.35; }
@@ -2201,13 +3607,11 @@ render_base_html() {
     .post-nav .label { color: var(--muted); font-style: italic; font-size: 0.9em; margin-right: 0.5em; }
     .post-nav-prev { text-align: left; }
     .post-nav-next { text-align: right; }
-    /* All posts: in the middle, or on a phone on a row of its own. Empty on the
-       first entry, whose Previous is the home page already. */
+    /* All posts: in the middle, or on a phone on a row of its own. */
     .post-nav-home { text-align: center; }
     @media (max-width: 36rem) {
         .post-nav { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
         .post-nav-home { grid-row: 2; grid-column: 1 / -1; }
-        .post-nav-home:empty { display: none; }
         .post-nav .label { display: block; margin-right: 0; }
     }
 
@@ -2278,9 +3682,10 @@ render_base_html() {
         {#- Breadcrumbs: Home, then the folders above this page, top one first, so even
             one folder reads as a trail; the title follows, so it isn't repeated. A page
             with no folder above it has none, and so does a page in a transparent
-            folder: Zola leaves that folder out of its ancestors. -#}
+            folder: Zola leaves that folder out of its ancestors. None in a book: its
+            only folder, unlisted/, is a redirect home, not a page. -#}
         {%- set trail = page?.ancestors or section?.ancestors or [] %}
-        {%- if config.extra.show_breadcrumbs and trail | length > 1 %}
+        {%- if config.extra.show_breadcrumbs and not config.extra.book and trail | length > 1 %}
         <nav class="crumbs" aria-label="Breadcrumb"><ol>
             <li><a href="{{ get_url(path='/', trailing_slash=true) }}">Home</a></li>
             {%- for path in trail[1:] %}{% set crumb = get_section(path=path) %}
@@ -2318,9 +3723,9 @@ render_base_html() {
 EOF
 }
 
-# The numbered lists (post_list), the contents box, videos, bare addresses as
-# links, and Previous and Next along the lists (post_nav, beside). Zola gives
-# templates no weights, so front_value reads them from the files.
+# The numbered lists (post_list), the contents box, videos, and bare addresses
+# as links. Zola gives templates no weights, so front_value reads them from the
+# files.
 render_components() {
     cat << 'EOF'
 {#- Tera v2 components, not macros (Zola 0.23 removed those), registered
@@ -2351,6 +3756,8 @@ render_components() {
 {%- else %}
 {%- set entries = [...listed, ...pages] %}
 {%- endif %}
+{#- Nothing to list, no list: an empty <ol> still takes up space. -#}
+{%- if entries %}
 <ol class="post-list">
 {% for e in entries %}
 <li>
@@ -2360,6 +3767,7 @@ render_components() {
 </li>
 {% endfor %}
 </ol>
+{%- endif %}
 {% endcomponent post_list %}
 
 {#- The contents box: a post's headings, or those of a page without a date that
@@ -2396,107 +3804,6 @@ render_components() {
     after an address stays outside it. atom.xml uses it too. -#}
 {% component linkify(html) %}{{ html | regex_replace(pattern=`(?s)(<a\\b[^>]*>.*?</a>|<pre\\b.*?</pre>|<code\\b.*?</code>|<script\\b.*?</script>|<style\\b.*?</style>|<[^>]*>)|(https?://(?:[^\\s<>"()&]|&amp;|\\([^\\s<>"()]*\\))*(?:[^\\s<>"().,;:!?'*_~&]|&amp;|\\([^\\s<>"()]*\\)))`, rep=`${1}<!--L-->${2}<!--/L-->`) | replace(from="<!--L--><!--/L-->", to="") | regex_replace(pattern=`<!--L-->(.*?)<!--/L-->`, rep=`<a rel="noopener nofollow noreferrer external" href="$1" target="_blank">$1</a>`) | safe }}{% endcomponent linkify %}
 
-{#- Previous and Next: down the home page's list, and into each folder's own
-    list straight after the folder, at any depth, as post_list shows them. The
-    home page, a folder in the menu, and a folder inside a transparent one
-    (which no list above it shows) each start an order; a page no list shows
-    gets no links. Worked out once per page, into <head>: the <link>s, then
-    <!--bar-->, then the bar for the foot. -#}
-{% component post_nav(node, extra) %}
-{%- set skip = ["attachments/_index.md", ...extra.menu_pages] %}
-{%- set here = node.relative_path %}
-{%- set up = node.ancestors | last %}
-{%- set is_folder = here is ending_with(pat="_index.md") %}
-{%- set_global start = is_folder and (not up or here in skip) %}
-{%- if is_folder and not start %}{% set parent = get_section(path=up) %}{% if parent.transparent %}{% set_global start = not node.transparent %}{% endif %}{% endif %}
-{%- set around %}{% if start %}//{% elif up %}{{<beside section={up} item={here} extra={extra} />}}{% endif %}{% endset %}
-{%- set placed = around != "" %}
-{%- set_global prev = around | split(pat="//") | first %}
-{%- set_global next = around | split(pat="//") | last %}
-{#- Previous: for the first entry in a list, its folder; when it's a folder,
-    that folder's last entry, and on down. -#}
-{%- if placed and not start and not prev %}{% set_global prev = up %}
-{%- else %}{% for step in range(end=100) %}{% if prev is not ending_with(pat="_index.md") %}{% break %}{% endif %}{% set last %}{{<beside section={prev} item="" extra={extra} />}}{% endset %}{% set last = last | split(pat="//") | first %}{% if not last %}{% break %}{% endif %}{% set_global prev = last %}{% endfor %}{% endif %}
-{#- Next: a folder's own first entry; at the end of a list, what follows its
-    folder in the list above, and on up to the order's start. -#}
-{%- if placed and is_folder %}{% set first %}{{<beside section={here} item="" extra={extra} />}}{% endset %}{% set first = first | split(pat="//") | last %}{% if first %}{% set_global next = first %}{% endif %}{% endif %}
-{%- if placed and not start and not next %}
-{%- set_global c = up %}
-{%- for step in range(end=100) %}
-{%- set cs = get_section(path=c) %}
-{%- if c == "_index.md" or c in skip or not cs.ancestors %}{% break %}{% endif %}
-{%- set g = cs.ancestors | last %}
-{%- set gs = get_section(path=g) %}
-{%- if gs.transparent %}{% break %}{% endif %}
-{%- set after %}{{<beside section={g} item={c} extra={extra} />}}{% endset %}
-{%- if not after %}{% break %}{% endif %}
-{%- set after = after | split(pat="//") | last %}
-{%- if after %}{% set_global next = after %}{% break %}{% endif %}
-{%- set_global c = g %}
-{%- endfor %}
-{%- endif %}
-{%- if prev %}{% if prev is ending_with(pat="_index.md") %}{% set_global prev = get_section(path=prev) %}{% else %}{% set_global prev = get_page(path=prev) %}{% endif %}{% endif %}
-{%- if next %}{% if next is ending_with(pat="_index.md") %}{% set_global next = get_section(path=next) %}{% else %}{% set_global next = get_page(path=next) %}{% endif %}{% endif %}
-{#- A list page that starts an order shows no bar: its list is right there.
-    The first entry's Previous is the home page, so All posts would repeat it. -#}
-{%- if next %}<link rel="next" href="{{ next.permalink | safe }}">{% endif %}
-{%- if prev %}<link rel="prev" href="{{ prev.permalink | safe }}">{% endif %}
-<!--bar-->
-{%- if placed and not start %}
-<nav class="post-nav" aria-label="Previous and next">
-<div class="post-nav-prev">{% if prev %}<a href="{{ prev.permalink }}"><span class="label">&larr;&nbsp;Previous</span>{{ prev.title }}</a>{% endif %}</div>
-<div class="post-nav-home">{% if prev.relative_path != "_index.md" %}<a href="{{ get_url(path='/', trailing_slash=true) }}">All posts</a>{% endif %}</div>
-<div class="post-nav-next">{% if next %}<a href="{{ next.permalink }}"><span class="label">Next</span>{{ next.title }}&nbsp;&rarr;</a>{% endif %}</div>
-</nav>
-{%- endif %}
-{% endcomponent post_nav %}
-
-{#- The entries just before and after item in section's list, the list
-    post_list shows, as "before//after" paths ("//" can't occur in a path), one
-    of them empty at an end of the list; item "" gives the list's
-    "last//first". Nothing at all when the list doesn't show item. -#}
-{% component beside(section, item, extra) -%}
-{%- set s = get_section(path=section) %}
-{%- set skip = ["attachments/_index.md", ...extra.menu_pages] %}
-{%- set fs = [f for f in [get_section(path=p) for p in s.subsections] if not f.transparent and f.relative_path not in skip] %}
-{%- set ps = s.pages %}
-{%- set weighted %}{% if fs and ps %}{{<front_value path={section} key="sort_by" />}}{% endif %}{% endset %}
-{%- set weighted = weighted == "weight" %}
-{%- set_global f0 = fs | last %}{% set_global f1 = fs | first %}{% set_global p0 = ps | last %}{% set_global p1 = ps | first %}
-{%- set_global found = item == "" %}
-{%- set_global seen = none %}
-{%- if item is ending_with(pat="_index.md") %}
-{#- A folder: the folders either side of it, and the pages either side of its weight. -#}
-{%- for f in fs %}{% if f.relative_path == item %}{% set_global found = true %}{% set_global f1 = fs | nth(n=loop.index) %}{% break %}{% endif %}{% set_global seen = f %}{% endfor %}
-{%- set_global f0 = seen %}
-{%- set w %}{% if found and weighted %}{{<front_value path={item} key="weight" default="-1" />}}{% endif %}{% endset %}
-{%- set n %}{% if found and weighted %}{{<lighter pages={ps} weight={w | int} />}}{% else %}0{% endif %}{% endset %}
-{%- set n = n | int %}
-{%- set_global p0 = none %}{% if n > 0 %}{% set_global p0 = ps | nth(n=n - 1) %}{% endif %}
-{%- set_global p1 = ps | nth(n=n) %}
-{%- elif item %}
-{#- A page: its neighbours, from Zola, or found in a list without sort_by; and
-    the folders either side of its weight. -#}
-{%- set pg = get_page(path=item) %}
-{%- set_global p0 = pg.lower %}{% set_global p1 = pg.higher %}
-{%- if p0 or p1 %}{% set_global found = true %}
-{%- else %}{% for p in ps %}{% if p.relative_path == item %}{% set_global found = true %}{% set_global p0 = seen %}{% set_global p1 = ps | nth(n=loop.index) %}{% break %}{% endif %}{% set_global seen = p %}{% endfor %}{% endif %}
-{%- set w %}{% if found and weighted %}{{<front_value path={item} key="weight" default="-1" />}}{% endif %}{% endset %}
-{%- set m %}{% if found and weighted %}{{<lighter pages={fs} weight={(w | int) + 1} />}}{% else %}{{ fs | length }}{% endif %}{% endset %}
-{%- set m = m | int %}
-{%- set_global f0 = none %}{% if m > 0 %}{% set_global f0 = fs | nth(n=m - 1) %}{% endif %}
-{%- set_global f1 = fs | nth(n=m) %}
-{%- endif %}
-{%- if found %}
-{#- Before it, the later of the two; after it, the earlier. A folder comes
-    first on an equal weight, and in a list not sorted by weight. -#}
-{%- if f0 and p0 %}{% set a %}{{<front_value path={f0.relative_path} key="weight" default="-1" />}}{% endset %}{% set b %}{{<front_value path={p0.relative_path} key="weight" default="-1" />}}{% endset %}{% if not weighted or (a | int) <= (b | int) %}{% set_global f0 = none %}{% else %}{% set_global p0 = none %}{% endif %}{% endif %}
-{%- if f1 and p1 %}{% set a %}{{<front_value path={f1.relative_path} key="weight" default="-1" />}}{% endset %}{% set b %}{{<front_value path={p1.relative_path} key="weight" default="-1" />}}{% endset %}{% if not weighted or (a | int) <= (b | int) %}{% set_global p1 = none %}{% else %}{% set_global f1 = none %}{% endif %}{% endif %}
-{%- set before = f0 or p0 %}{% set after = f1 or p1 %}
-{%- if before %}{{ before.relative_path | safe }}{% endif %}//{% if after %}{{ after.relative_path | safe }}{% endif %}
-{%- endif %}
-{%- endcomponent beside %}
-
 {#- One front matter value of a file in content/, as text, or default: a
     weight or a sort_by, which Zola reads but doesn't give templates. The two
     patterns are Zola's own (front_matter/split.rs), so the front matter ends
@@ -2530,7 +3837,7 @@ EOF
 }
 
 # Home: the numbered list, posts and folders in the order their weights give.
-# It starts the reading order, so it has a <link rel="next"> and no bar.
+# In book mode, the outline genbook writes into content/_index.md, and no list.
 render_index_html() {
     cat << 'EOF'
 {% extends "base.html" %}
@@ -2544,16 +3851,20 @@ render_index_html() {
 {#- Hidden, not deleted: the page keeps one h1 for the outline and screen readers. -#}
 <h1 class="visually-hidden">{{ config.title }}</h1>
 
+{%- if config.extra.book %}
+{#- The outline: parts and names as headings, pages as numbered lists. -#}
+<div class="outline">{{<linkify html={section.content} />}}</div>
+{%- else %}
 {#- Whatever is written below the front matter of content/_index.md. -#}
 {{<linkify html={section.content} />}}
 
 {{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}
+{%- endif %}
 {% endblock %}
 EOF
 }
 
-# A post, or any other page: title, date line, text, tags, then the Previous and
-# Next bar, worked out in base.html.
+# A post, or any other page: title, date line, text, tags, then Previous and Next.
 render_page_html() {
     cat << 'EOF'
 {% extends "base.html" %}
@@ -2597,9 +3908,17 @@ render_page_html() {
 <div class="post-tags">Tags: {% for tag in page.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
 {% endif %}
 
-{#- The bar: not on a page no list shows, such as About; the masthead already
-    leads home. -#}
-{{ reading | split(pat="<!--bar-->") | last | safe }}
+{#- Previous and Next: the pages either side of this one in its section's list,
+    Zola's lower and higher, which leave out folders and hidden pages. None on a
+    page no list shows, such as About; the masthead already leads home. In a
+    book, the way back to the outline is Contents. -#}
+{%- if page.lower or page.higher %}
+<nav class="post-nav" aria-label="Previous and next">
+<div class="post-nav-prev">{% if page.lower %}<a href="{{ page.lower.permalink }}"><span class="label">&larr;&nbsp;Previous</span>{{ page.lower.title }}</a>{% endif %}</div>
+<div class="post-nav-home"><a href="{{ get_url(path='/', trailing_slash=true) }}">{% if config.extra.book %}Contents{% else %}All posts{% endif %}</a></div>
+<div class="post-nav-next">{% if page.higher %}<a href="{{ page.higher.permalink }}"><span class="label">Next</span>{{ page.higher.title }}&nbsp;&rarr;</a>{% endif %}</div>
+</nav>
+{%- endif %}
 {% endblock %}
 EOF
 }
@@ -2607,7 +3926,7 @@ EOF
 # A section's page: any folder with an _index.md, such as the parent of child
 # pages. Its title, subtitle (description), the contents box if it sets
 # toc = true under [extra], its text, then its folders and child pages, in the
-# same numbered list the home page uses, then the Previous and Next bar.
+# same numbered list the home page uses.
 render_section_html() {
     cat << 'EOF'
 {% extends "base.html" %}
@@ -2622,7 +3941,6 @@ render_section_html() {
 {% endif %}
 {% if section.content %}{{<linkify html={section.content} />}}{% endif %}
 {% if section.pages or section.subsections %}{{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}{% endif %}
-{{ reading | split(pat="<!--bar-->") | last | safe }}
 {% endblock %}
 EOF
 }
@@ -2904,8 +4222,8 @@ render_atom_xml() {
 EOF
 }
 
-# Vars: CI_ZOLA_VERSION, ZOLA_SHA256. \${{...}} and \$ keep Actions and runner
-# syntax literal. Actions are pinned by SHA (tag in the trailing comment), Node 24.
+# Vars: ZOLA_VERSION, ZOLA_SHA256, CHECKOUT_USES, UPLOAD_USES, DEPLOY_USES, from
+# lookup_releases. \${{...}} and \$ keep Actions and runner syntax literal.
 render_github_workflow() {
     cat << EOF
 name: Deploy to GitHub Pages
@@ -2924,32 +4242,28 @@ concurrency:
 
 jobs:
   build:
-    # Pinned like the actions and Zola: the last input that could shift.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: ${CHECKOUT_USES}
         with:
           # The build runs code from the repo; it has no use for a git token.
           persist-credentials: false
-      - name: Build with Zola ${CI_ZOLA_VERSION} (pinned)
+      - name: Build with Zola ${ZOLA_VERSION} (pinned)
         run: |
           set -euo pipefail
-          url="https://github.com/getzola/zola/releases/download/${CI_ZOLA_VERSION}/zola-${CI_ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          url="https://github.com/getzola/zola/releases/download/${ZOLA_VERSION}/zola-${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           curl -fsSL --proto '=https' --tlsv1.2 -o zola.tar.gz "\$url"
-          # The digest setup recorded for these exact bytes. No fallback, no skip.
+          # GitHub's digest for these bytes, which setup checked and pinned. No
+          # fallback, no skip.
           echo "${ZOLA_SHA256}  zola.tar.gz" | sha256sum -c -
-          tar xzf zola.tar.gz
-          # Print Zola's output whether the build passes or fails.
-          out=\$(./zola build 2>&1) || { printf '%s\n' "\$out"; exit 1; }
-          printf '%s\n' "\$out"
-          # As in ./build: a dropped page still goes into sitemap.xml, and zola exits 0.
-          if printf '%s\n' "\$out" | grep -q 'page(s) ignored'; then
-            echo "::error::pages were dropped but sitemap.xml still lists their URLs; give them a weight, or hidden = true if they shouldn't be listed"
-            exit 1
-          fi
+          # The binary alone: the archive's licence files and man pages would
+          # land in the checkout.
+          tar xzf zola.tar.gz zola
+          # The ./build the author runs: the link check, then the build.
+          PATH="\$PWD:\$PATH" bash ./build
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: ${UPLOAD_USES}
         with:
           path: public
   deploy:
@@ -2958,14 +4272,14 @@ jobs:
     permissions:
       pages: write
       id-token: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: \${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        uses: ${DEPLOY_USES}
 EOF
 }
 

@@ -21,16 +21,16 @@ import tempfile
 import zipfile
 from urllib.parse import unquote
 
-# A commit that changes any of these is a version (split-headings.py stays: old numbers hold).
+# A commit that changes any of these is a version.
 SOURCES = ["book.toml", "src", "theme", "custom.css", "custom.js", "version.js",
-           "split-headings.py", "offline.py", "build", ".github/workflows/deploy.yml"]
+           "offline.py", "build", ".github/workflows/deploy.yml"]
 # The download and its checksum, inside the built book.
 FOLDER = "offline"
 # The deploy stamp: version.js, or its fingerprinted name when mdBook hashes files.
 STAMP = re.compile(r"version(-[0-9a-f]{8})?\.js")
-FONT_TYPES = {".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf"}
+FONT_TYPES = {".woff2": "font/woff2"}
 # Mask images: the image masthead (src/logo.svg).
-MASK_TYPES = {".svg": "image/svg+xml", ".png": "image/png"}
+MASK_TYPES = {".svg": "image/svg+xml"}
 
 
 def die(msg):
@@ -68,9 +68,6 @@ def sha256(path):
 
 
 def write(path, data):
-    """A new file in place of path (in a copy, path is a hard link to the book's)."""
-    if os.path.lexists(path):
-        os.unlink(path)
     with open(path, "wb") as f:
         f.write(data if isinstance(data, bytes) else data.encode("utf-8", "surrogateescape"))
 
@@ -101,14 +98,11 @@ def language(book):
 
 
 def stage(book, files, to):
-    """A copy of the book's files under to, as hard links where it can."""
+    """A copy of the book's files under to."""
     for rel in files:
         dst = os.path.join(to, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        try:
-            os.link(os.path.join(book, rel), dst)
-        except OSError:
-            shutil.copy2(os.path.join(book, rel), dst)
+        shutil.copy2(os.path.join(book, rel), dst)
 
 
 def mark_copy(where, files, info, commit):
@@ -203,15 +197,6 @@ offers a checksum file. Save that file in the folder with the download, then:
 Newer versions:
 %s
 """ % (TITLE, version, built[:10], stem, stem, stem, stem, home)
-
-
-def refresh_target(path):
-    """Where a redirect page sends the reader, or None for any other file."""
-    if not path.endswith(".html") or os.path.getsize(path) > 65536:
-        return None
-    with open(path, encoding="utf-8", errors="replace") as f:
-        m = re.search(r"""<meta\s+http-equiv=["']?refresh["']?\s+content=["'][^"']*?url=([^"']*)""", f.read(), re.I)
-    return m.group(1) if m else None
 
 
 def first_chapter(book, files):
@@ -309,15 +294,14 @@ def main(argv):
     stem = "%s-v%d" % (NAME, version)
     skip = {"sw.js", "version.json"} | {"%s/%s%s" % (FOLDER, stem, ext) for ext in (".zip", ".zip.sha256")}
     files = files_of(book, skip)
-    info = {"book": NAME, "version": version, "built": built, "commit": commit,
-            "history": versions, "copies": copies(book, files, version, built, commit)}
+    info = {"version": version, "built": built, "copies": copies(book, files, version, built, commit)}
     if MODE == "full":
-        # [size, SHA-256], then 1 for a redirect page, 2 for index.html copying the first chapter.
+        # [size, SHA-256], then 2 for index.html copying the first chapter.
         listed = {}
         for rel in files:
             path = os.path.join(book, rel)
-            listed[rel] = [os.path.getsize(path), sha256(path)] + ([1] if refresh_target(path) is not None else [])
-        if first_chapter(book, files) and len(listed["index.html"]) == 2:
+            listed[rel] = [os.path.getsize(path), sha256(path)]
+        if first_chapter(book, files):
             listed["index.html"].append(2)
         # The stamp changes with every commit; the book doesn't.
         info["fingerprint"] = hashlib.sha256("".join(

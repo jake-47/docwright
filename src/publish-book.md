@@ -5,11 +5,11 @@ The [bootstrap-mdbook script](./bootstrap-mdbook.md) scaffolds an mdBook book, i
 
 It is a one-shot bootstrapper. It seeds the project once; after that you own the files and edit `src/` directly. Re-running is the *update* path (new releases, changed toggles), and it regenerates the script-owned files — see "Re-running vs. hand edits."
 
-Linux x86_64 only, with a glibc new enough for mdBook's and lychee's Linux builds. For macOS or ARM, see "Other platforms" at the end.
+Linux x86_64 only. For macOS or ARM, see "Other platforms" at the end.
 
-## Two ways to set this up
+## Three ways to set this up
 
-There are two ways to build a site like this one. They differ only in how the files arrive; the result — the theme, the deploy workflow, the furniture — is identical.
+There are three ways to build a site like this one. They differ only in how the files arrive; the result — the theme, the deploy workflow, the furniture — is identical.
 
 1. **Clone the reference repo.** The fastest start: you get a working tree, and change the title, author, and repo rather than writing scaffolding.
 
@@ -21,9 +21,10 @@ There are two ways to build a site like this one. They differ only in how the fi
 
    Replace `REPLACE_WITH_REPO_URL` with the repository URL. Don't skip `rm -rf .git`, which prints nothing: it deletes the clone's history. Kept, the reference repo's commits would go into your repo with your first push, each with its author's name, email and time zone, and with `OFFLINE` on (the default) the book's versions would count them. With the history gone, the script makes a fresh repository and a first commit of your own.
 
-   A clone also carries *that* repo's URL baked into `book.toml` (`site-url`, `edit-url-template`), `README.md`, `custom.js` (`MDB_REPO`) and `offline.py` (`HOME`). Point them at *your own* empty repo: delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set. It adds `origin` there, regenerates `book.toml`, `custom.js` and `offline.py`, and writes a new `README.md` because there is none. It does that in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match. (Or add `origin` yourself, with `git init -b main && git remote add origin git@github.com:USER/REPO.git`, and run the script with `GIT_REPO_URL` empty: it reads the repo from `origin`.) Fonts, tagging, and Pages are then the same as the path below.
+   A clone also carries *that* repo's URL baked into `book.toml` (`site-url`, `edit-url-template`), `README.md`, `custom.js` (`MDB_REPO`) and `offline.py` (`HOME`). Point them at *your own* empty repo: delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set. It adds `origin` there, regenerates `book.toml`, `custom.js` and `offline.py`, and writes a new `README.md` because there is none. It does that in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match. Fonts, tagging, and Pages are then the same as the path below.
 
 2. **Run the script.** The rest of this guide, from "Run it" on. Edit the toggles, run it once with no arguments, and it installs mdBook, writes every file, and opens a preview. Re-running is the update path.
+3. **By hand.** mdBook's own docs, step by step, with nothing run for you: "By hand" has the steps, each with its page of mdBook's docs, its command and what it prints. The files' text is part 2 of the script, which you read and copy, or print one file at a time.
 
 ## Run it
 
@@ -34,39 +35,41 @@ There are two ways to build a site like this one. They differ only in how the fi
    bash bootstrap-mdbook.sh
    ```
 
-Before the preview opens, the script runs `./build`, which builds the book into `book/` and checks every link and anchor in it. If any is broken, the run stops there and lists them, with no preview (see "The link check"); fix them and run the script again. Otherwise the preview opens on a free local port the script picks and prints (`http://127.0.0.1:<port>`). It builds into `.preview/`, rebuilding as you edit, so `book/` keeps what `./build` made; it checks no links, and has no offline button, which needs what `./build` adds. With `OFFLINE` on, the run serves `book/` too, button and all, on the first free port from 8000, and prints its address: that page is the book as `./build` left it, and doesn't follow your edits (see "Read offline"). Ctrl-C stops both. Re-launch the preview alone later with:
+It prints a `WARN:` line if the Charter fonts aren't in `src/fonts/` yet (see "Charter fonts"; the book builds without them), then one `wrote …` line naming the files it wrote and the releases the workflow pins, then `./build`'s output: mdBook's three `INFO` lines, an `offline: …` line unless `OFFLINE` is `"none"`, and `links: every internal link and anchor resolves`. Then the preview starts: `preview: http://localhost:3000 (Ctrl-C to stop)`, mdBook's `INFO Serving on: http://localhost:3000`, and your browser opens on the book. It keeps running, and rebuilds the book as you edit, until Ctrl-C. `SERVE=false bash bootstrap-mdbook.sh` does the same without the preview, ending at `./build`'s last line and a `preview:` line with the command that starts it.
+
+After the first run the script works offline. It keeps each release's tarball in `bin/` and downloads a release only when it doesn't have it, and with `github.com` out of reach it says `WARN: can't reach github.com: keeping the releases the workflow pins, as KEEP_PINS=true does` and goes on with them. A first run, and a run that takes a newer release, need the network.
+
+If `./build` finds a broken link or anchor, the run stops there, with no preview, and lists them (see "The link check"); fix them and run the script again. To start the preview again later, in the book's folder:
 
 ```bash
-cd <project> && ./bin/mdbook serve --open -n 127.0.0.1 -p <port> -d .preview
+./bin/mdbook serve --open
 ```
 
-A second book alongside the first just needs a different `-p` port.
+It prints `INFO Serving on: http://localhost:3000` and opens the book. If it stops instead with `Address already in use`, another preview has port 3000: stop that one, or add `-p 3001` and open `http://localhost:3001`. The preview builds into `book/`, as `./build` does, but checks no links and leaves out what `./build` adds after mdBook (the offline button's files; see "Read offline"). Before each push, run `./build`: the deploy runs the same check and stops on the same breaks.
 
-Before each push, run `./build` in the book's folder: the deploy runs the same check and stops on the same breaks.
-
-Audit it first. Network-wise it asks `api.github.com` for the releases of mdBook, lychee and the workflow's three actions, asks `github.com` which commit each action's release names (`git ls-remote`), and downloads the mdBook and lychee release tarballs from `github.com`, which redirects the download to its file host, `release-assets.githubusercontent.com` (see "Releases and updates"). It installs nothing with `apt` or `sudo`: mdBook and lychee go into the book's `bin/`. It needs `curl`, `python3` and `git`; if one is missing it stops before it writes anything and prints the line that installs it (`sudo apt-get install …` on Debian or Ubuntu). `python3` reads GitHub's answers, runs `offline.py`, and, with `OFFLINE` on, serves `book/` on 127.0.0.1 while the preview runs. Only when `HEADING_NUMBERS=true` does it also ask `crates.io` for `mdbook-numbering`'s versions, need a C compiler (`build-essential` on Debian or Ubuntu; it stops the same way without one), and install the Rust toolchain into `~/.cargo` and `~/.rustup` (via `rustup`, from `sh.rustup.rs` and `static.rust-lang.org`) to compile that preprocessor, whose sources cargo fetches from crates.io (`index.crates.io`, `static.crates.io`); rustup also adds a line to your shell's startup files, such as `~/.profile`, that puts `~/.cargo/bin` on your PATH, where `./build` finds `mdbook-numbering`, in terminals opened after that: in the one the run was in, run `. "$HOME/.cargo/env"` first, or `./build` stops with ``The command `mdbook-numbering` wasn't found``. The run says so at its end, or under `./build`'s report when that stops it. A `cargo` already on your PATH is used instead of rustup's: one from your distribution is often older than `mdbook-numbering` needs, and the run then stops with cargo's reason and a pointer to rustup; one that does build it puts it in `~/.cargo/bin`, which a distribution's PATH often lacks, and the run says that the same way. That path adds a few minutes to the first run.
-
-The settings at the top must be this version's: a block pasted from an older version stops the run before it reads or writes anything, with each setting to add, its lines printed for you to paste, and each to delete (see "Upgrading from v55 or earlier", and for `THEME`, "Upgrading from v53 or earlier").
+Audit it first. Part 1 of the script is its steps, in order, each following mdBook's own docs; part 2 is every file they write. Network-wise it asks `github.com` for the tags of mdBook, lychee and the workflow's three actions (`git ls-remote`), asks `api.github.com` when each one's releases came out, and downloads the mdBook and lychee release tarballs from `github.com`, which redirects the download to its file host, `release-assets.githubusercontent.com` (see "Releases and updates"). It installs nothing with `apt` or `sudo`, and stops if run as root: mdBook and lychee go into the book's `bin/`. It needs `curl`, `python3` and `git`; if one is missing it stops and prints the line that installs it (`sudo apt-get install …` on Debian or Ubuntu). `python3` reads GitHub's answers and runs `offline.py`. With `HEADING_NUMBERS=true` it also needs Rust's `cargo`, installed first (<https://rustup.rs>): it asks `crates.io` for `mdbook-numbering`'s versions and builds it with `cargo install`, which fetches its sources from crates.io and adds a few minutes to the first run. `./build` finds `mdbook-numbering` in `~/.cargo/bin`, which rustup puts on your PATH in terminals opened after it ran: in the one it ran in, run `. "$HOME/.cargo/env"` first, which prints nothing, or `./build` stops with ``The command `mdbook-numbering` wasn't found``.
 
 ## What it writes
 
 Into the project folder (`PROJECT_DIR/BOOK_NAME`):
 
 - `book.toml` — mdBook config, seeded from the toggles. **Script-owned.**
-- `src/SUMMARY.md`, `src/about.md`, `src/chapter_1.md`, `src/demo.svg` — starter content (the SVG is the demo chapter's picture), written only if `src/SUMMARY.md` doesn't already exist. **Yours** thereafter.
+- `src/SUMMARY.md`, `src/about.md`, `src/chapter_1.md`, `src/demo.svg` — starter content (the SVG is the demo chapter's picture), written after `mdbook init` only if `src/SUMMARY.md` doesn't already exist. **Yours** thereafter.
 - `custom.css`, `custom.js` — the theme and behaviours. **Script-owned.**
 - `version.js` — the deploy stamp the sidebar footer and the `Last updated` lines read: four placeholders the deploy workflow fills in. **Script-owned.**
 - `theme/head.hbs` — clears a theme saved in the reader's browser, or with `THEME="picker"` one the button doesn't offer (see "Light and dark"), and keeps night modes built on Dark Reader off the book's palettes (see "Why the dark palette comes first"); with `OFFLINE="full"` it also links the web app manifest (see "Read offline"). **Script-owned.**
 - `theme/fonts/fonts.css` — keeps mdBook's own fonts out (see "The reading theme"). **Script-owned.**
 - `theme/favicon.svg` — written from `src/logo.svg` if that exists, otherwise drawn from `FAVICON_TEXT`. **Script-owned while either source is set**; it is never deleted, only overwritten. See "The favicon."
-- `README.md` — title, plus a live-site link if the book knows its repo (`GIT_REPO_URL`, or `origin`), written only if there's no `README.md` yet. **Yours** thereafter.
-- `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each by the file and line it's written on. The script runs it before the preview, and the deploy workflow runs the same file. **Script-owned.** If the book already has a `build` the script didn't write, the run stops before changing anything, so yours is never overwritten: move it aside (`mv build build.own`) and run again.
+- `README.md` — title, plus a live-site link if the book knows its repo (`GIT_REPO_URL`), written only if there's no `README.md` yet. **Yours** thereafter.
+- `build` — the build and link check: `./build` builds the book and stops on any broken link or anchor, listing each under the built page it's on, as lychee reports it. The script runs it before the preview, and the deploy workflow runs the same file. **Script-owned.** If the book already has a `build` the script didn't write, the run stops before changing anything, so yours is never overwritten: move it aside (`mv build build.own`) and run again.
 - `offline.py` — `OFFLINE`'s build step (see "Read offline"). `./build` runs it after mdBook, whatever the setting: it always writes the site's `sw.js`, and unless `OFFLINE` is `"none"` it makes the download. Python 3.7 or later, standard library only. **Script-owned.**
 - `.github/workflows/deploy.yml` — the Pages deploy workflow; it pins mdBook, lychee and its three actions, stamps the version, the commit's time and the per-page dates into `version.js`, and runs `./build` before deploying. **Script-owned.**
-- `bin/mdbook` + `bin/.mdbook.sha256` + `bin/.mdbook.version`, `bin/lychee` + `bin/.lychee.sha256` + `bin/.lychee.version` — the pinned binaries, each with its tarball's digest and the version it's for. `bin/` is gitignored.
-- `.gitignore` — ignores `bin/`, `book/` and `.preview/` (the preview's build).
+- `bin/mdbook`, `bin/lychee`, and the tarball each came from (`mdbook-VERSION.tar.gz`, `lychee-VERSION.tar.gz`) — the releases the workflow pins. A tarball is downloaded only when it isn't there, checked against the workflow's SHA-256 each run, and deleted when a run takes another release. `bin/` is gitignored.
+- `.gitignore` — ignores `bin/` and `book/`; added to a `.gitignore` that's there already when it lacks them.
 
 "Script-owned" means a re-run regenerates it and discards hand edits.
+
+Each is one of mdBook's own mechanisms, used as its docs describe: `book.toml` is its configuration; `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` are files mdBook takes from `theme/` in place of its built-in ones; `custom.css`, `custom.js` and `version.js` are what `additional-css` and `additional-js` in `book.toml` name. `build`, `offline.py` and the workflow run around `mdbook build`. "By hand" links each to its page of mdBook's docs.
 
 One path under `src/` is reserved rather than written: chapters you put in `src/unlisted/` **and list in `SUMMARY.md`** are published but kept off the sidebar, the arrow chain and the search index. See "Unlisted chapters."
 
@@ -80,49 +83,75 @@ Edit these at the top of the script.
 - `BOOK_AUTHOR` — author, written to `book.toml`. No page shows it (see "What a push publishes").
 - `BOOK_DESCRIPTION` — one line about the book; `""` (default) for none. Written to `book.toml` as mdBook's `description`, which every page carries in its `<meta name="description">` for search engines, and with `OFFLINE="full"` the web app's description (see "Read offline"). It must not contain a newline.
 - `DEPLOY_BRANCH` — git default branch, and the branch whose pushes trigger CI (default `main`).
-- `HEADING_NUMBERS` — `true` adds automatic in-page heading numbers (H2–H6) via the `mdbook-numbering` preprocessor (its newest version that has been out a week, pinned in the workflow; see "Releases and updates"). This path also installs Rust and compiles the preprocessor. Default `false`.
+- `HEADING_NUMBERS` — `true` adds automatic in-page heading numbers (H2–H6) via the `mdbook-numbering` preprocessor (its newest version that has been out a week, pinned in the workflow; see "Releases and updates"). Rust's `cargo` must be installed first (<https://rustup.rs>); the run compiles the preprocessor with it. Default `false`.
 - `SIDEBAR_NUMBERS` — `true` (default) shows mdBook's built-in sidebar chapter numbers (`1.`, `1.1.`); `false` hides them (`no-section-label`). Independent of `HEADING_NUMBERS`: that numbers headings *in the page*, this numbers chapters *in the sidebar*.
 - `THEME` — which of the theme's two palettes readers get. `"picker"` (default): a button in the menu bar with **Auto** (the reader's browser or OS setting), **Light** and **Dark**, starting on Auto, the choice kept in the reader's browser. `"auto"`: light or dark as the reader's browser or OS is set, with no control in the page. `"dark"`: the dark one, for every reader, whatever their browser or OS is set to. Charter and the rest of the theme in all three. See "Light and dark."
-- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only, and nothing after the repo; a trailing `/` or `.git`, as GitHub's Clone button gives, is dropped). Wires the edit (pencil) icon in the top bar, links the sidebar footer's commit hash, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link when the README is first written, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`: added or changed, and said, only when it isn't that address already. Left empty, the script reads it from the book's `origin` remote when that is on github.com, and says so (`GIT_REPO_URL is empty; using origin: …`), so a fresh copy of the script run on an existing book keeps those links; `origin` itself is then left as it is. With no such remote the pencil and `site-url` are omitted, the hash is plain text, and the README is just the title; set it later and the README stays as it is, so add the link yourself, or delete `README.md` and re-run. No repo icon is written — see "The top-bar icons."
+- `GIT_REPO_URL` — your repo URL, e.g. `https://github.com/user/repo` (https github.com only, and nothing after the repo; a trailing `/` or `.git`, as GitHub's Clone button gives, is dropped). Wires the edit (pencil) icon in the top bar, links the sidebar footer's commit hash, sets `site-url` (so the 404 page resolves its assets at any depth), fills the README's live-site link when the README is first written, and sets the git `origin` remote (converted to SSH) so your first push needs no manual `git remote add`. Left empty, the pencil and `site-url` are omitted, the hash is plain text, and the README is just the title; set it later and the README stays as it is, so add the link yourself, or delete `README.md` and re-run. No repo icon is written — see "The top-bar icons."
 - `CODE_LINE_NUMBERS` — `true` (default) numbers language-fenced code blocks of ten lines or more. See "Code line numbers."
 - `SIDEBAR_MASTHEAD` — `text` (default), `none`, or `image`. What fills the sidebar band opposite the menu bar. See "The sidebar masthead."
 - `FAVICON_TEXT` — what `theme/favicon.svg` draws when there is no `src/logo.svg` to copy. `"auto"` (default) takes the first alphanumeric character of `BOOK_TITLE`, a letter as a capital (`M` for `mybook`); any other string is drawn as typed, first three characters, case preserved; `""` draws nothing and leaves mdBook's own bundled icon alone. `src/logo.svg` always wins. See "The favicon."
-- `LAYOUT` — `"scroll"` (default) shows each chapter on one page. `"h2"` shows it one section at a time, each H2 starting one, its H3–H6 in it; `"nested"`, one section at a time, every H2–H6 starting one. `"picker"` adds a button with which each reader chooses **Scroll** or **Pages** (as `"nested"`), starting on Scroll. It's done in the reader's browser: the book is built the same in every layout. See "Layout: a section at a time."
 - `OFFLINE` — `"full"` (default) adds a button beside print offering both: saving the book in the reader's browser, updated when they ask, and a copy to download, to keep on any computer, online or air-gapped. `"download"` offers the download only; `"none"` adds nothing a reader sees. See "Read offline."
 
-**Upgrading from v62 or earlier:** re-run, then commit what it changed: `theme/head.hbs`. It now carries `<meta name="darkreader-lock">`, so night modes built on Dark Reader, Brave's and Firefox's on iPhone and iPad among them, leave the book's palettes alone: Light shows light and Dark the book's own dark, where before they repainted both, Light in dark olive (see "Why the dark palette comes first"). Readers who saved the book are offered the update.
+**Upgrading from v65:** re-run, then commit what it changed: `custom.js`, `custom.css`, `offline.py` and `.github/workflows/deploy.yml`. `git status --short` should list those four and nothing else. Nothing a reader sees changes, but the commit is a new version, so readers with a saved copy are offered one update. The workflow's downloads now refuse anything but HTTPS, as the script's own do. `version.json` no longer carries the version history. The saved copy no longer inlines `.woff`, `.ttf`, `.otf` or `.png` files (the script writes none) and no longer counts redirect pages (the script makes none). `split-headings.py`, which versions up to v55 wrote, no longer counts toward the version number: in a book that had it, the number can drop, and readers' saved copies aren't offered updates until it passes their number again. `git log --oneline -- split-headings.py` prints nothing if your book never had it. The script runs from stdin again (`bash < bootstrap-mdbook.sh`), which v65 broke.
 
-**Upgrading from v61 or earlier:** `THEME` now defaults to `"picker"`, which a new book gets; the settings block you carry over keeps its `THEME`. With `"auto"` or `"picker"`, re-run, then commit what it changed: `custom.css`. The light palette now declares `color-scheme: only light`, so a reader's Light stays light in a browser that darkens sites for a reader in dark mode, as Chrome's dark theme for sites does; before, that browser turned it dark grey (see "Why the dark palette comes first"). Readers who saved the book are offered the update. With `"dark"`, nothing the script writes has changed. If you pasted "A page for readers" into `src/` and your book has the button, take its Paintbrush row out of the comment at the end of the icon table, to sit second, and delete the comment.
+**Upgrading from v64:** follow the note for v65 too. Re-run; there's nothing to commit, since no file the script writes has changed. The run now keeps each release's tarball in `bin/` and downloads only a release it doesn't have yet, so the first run of v65 downloads mdBook and lychee once more, and later runs don't. With `github.com` out of reach, a run keeps what the workflow pins and goes on offline, where v64 stopped. `SERVE=false` ends a run before the preview. The script can be sourced to print one file at a time (see "By hand").
 
-**Upgrading from v60 or earlier:** re-run; there's nothing to commit, since no file the script writes has changed. With `OFFLINE` on, the run now serves `book/` beside the preview, on the first free port from 8000, and prints its address in place of a command to run in another terminal: the offline button can be checked there, and Ctrl-C stops both (see "Read offline"). The command for serving `book/` by hand gains `-I`.
-
-**Upgrading from v59 or earlier:** re-run, then commit what it changed: `custom.css` and `custom.js`. Charter's files give every system but Windows a descent with the wrong sign, which set each line of Charter 0.24em low in its box: a button's label below its middle, the book's title and the icons in the top bar low, and a line with inline code taller than the rest. Each `@font-face` now sets the files' Windows metrics, which Chromium-based browsers and Firefox take on every system (see "Charter fonts"); in those, off Windows, Charter text moves up in its line (a chapter's title sits further above its rule), and a page with inline code gets shorter. On the right of the top bar, the pencil now comes before print, and the offline button last, spaced as they are: print and the download sit together, and the panel opens under its button. Under **Download a copy**, the panel says again to unpack it and open `index.html` in the folder it makes, which v58 and v59 left out. If you pasted "A page for readers" into `src/`, move its Pencil row above the Printer row.
-
-**Upgrading from v58 or earlier:** re-run, then commit what it changed: `custom.css`, `custom.js`, `version.js`, `build`, `offline.py`, `theme/head.hbs`, `theme/fonts/fonts.css` and the workflow. Their comments, and the script's, are cut to a line where the code needs one, and the script's longer messages to what's wrong and what to do, with the rest in this guide. Nothing works differently, and the pages are the same; a copy a reader saved is offered an update all the same, since the scripts it holds changed.
-
-**Upgrading from v57 or earlier:** re-run, then commit what it changed: `custom.css` and `custom.js`. In the offline panel, **Save for offline**, **Update to v…** and **Download a copy** are big buttons, each with a line under it saying what it's for, and the section headings are gone; the progress bar takes the theme's accent. The download is offered as a copy to keep on any computer, online or air-gapped. On an iPhone or iPad, the panel tells readers to add the book to the Home Screen first. While a saved copy is behind the site, each page it serves says so above its text (see "Read offline"). The run's last lines say to start the local server in another terminal. If you pasted "A page for readers" into `src/`, take its Cloud row, and the Read offline row in its table for phones, from the page as printed now. This guide quotes two of mdBook's directives, which v33 left live: a book that publishes the guide stopped at `./build`, with `stopped: mdBook reported an error, above.`; v34 escapes them (see "The link check").
-
-**Upgrading from v56 or earlier:** re-run, then commit what it changed: `custom.js` and `build`. In WebKit, the engine of Safari and GNOME Web (tried in GNOME Web's), a link to a passage in a section (`#beta:~:text=…`) now opens at the passage; v56 put the section's top back once the page had loaded. A run now stops before it writes anything when there's a file or folder it would write and can't, and a run as root on a book that isn't root's stops (see "Re-running vs. hand edits"). A `.gitignore` whose last line had no newline got `bin/` on the end of that line, so a first commit took in `bin/`'s binaries and downloads; a run now puts `bin/` on a line of its own, and `git rm -r --cached bin` takes them out of the next commit, leaving the files where they are.
-
-**Upgrading from v55 or earlier:** the settings at the top changed: `LAYOUT` takes the place of `SPLIT_HEADINGS`, so put your values into this version's block. An old block stops the run before it reads or writes anything, with the `LAYOUT` lines to add, their value the one that gives what yours asked for (`"h2"` for `"h2"`, `"nested"` for `"nested"`, `"scroll"` for `"none"`), and `SPLIT_HEADINGS` to delete. Then re-run, and commit what it changed: `book.toml`, `build`, `custom.js`, `offline.py`, with `"h2"` or `"nested"` `custom.css` too, and the deletion of `split-headings.py`, which the run removes, and says so; `git add -A` takes the deletion in. A `split-headings.py` of your own, without the script's `Script-owned` line, is left alone. A split book now shows its sections one at a time on the chapter's own page, not on pages of their own (see "Layout: a section at a time"): the split-off pages' addresses (`guide/configure.html`) and the redirect pages `./build` wrote for them are gone, so a bookmark or a link from another site to one gets the 404 page, as the stop says; a link to a heading's anchor (`guide.html#configure`) works as before. A `"none"` book without `HEADING_NUMBERS=true` loses the redirect pages `./build` wrote at those addresses too (`guide/configure.html` to `guide.html#configure`): if it was ever split, they now get the 404 page; with it, v55 wrote none. A link in the book written straight to a split-off page (`guide/configure.md`), which v55 pointed at its heading in every mode but with `HEADING_NUMBERS=true`, now stops `./build` (`there's no src/guide/configure.md`): write it `guide.md#configure`. `HEADING_NUMBERS=true` now goes with any layout.
-
-**Upgrading from v54 or earlier:** re-run, then commit what it changed: `custom.css` and `build`, and `theme/favicon.svg` when `FAVICON_TEXT` is `"auto"` and the title's first letter or digit is a lower-case letter, now drawn as a capital. The light palette's accent, its strings and its diff additions are a shade darker (`#9d4909`, `#007f00`, `#207d36`), and the theme menu, the offline panel and the copy buttons take the palette's colours. Code prints in ink. On a page with an `.mdb-bleed` block, everything but that block now sits as it does on a page without one; before, that page's column was 1000px wide with each other block held to the measure in its middle, so a raw `<img>` or other inline HTML, or a float, sat at the wide column's edge, and a block with side margins of its own, such as a `<figure>`, lost them. A page carrying both markers now takes `mdb-wide`'s 1000px; before, `mdb-bleed` held its prose to the measure. A re-run with `GIT_REPO_URL` set leaves `origin` alone, and says nothing, when it is already that repo's SSH address (`git@github.com:user/repo.git`); another spelling of it is rewritten to that, and said.
-
-**Upgrading from v53 or earlier:** the settings at the top changed, so put your values into this version's block rather than your old block into this version: an old block stops the run before it reads or writes anything, and lists each setting to add, its lines printed for you to paste, and each to delete. `THEME` takes the place of `THEME_MODE`, `LIGHT_THEME`, `PREFERRED_LIGHT` and `PREFERRED_DARK`, and the line the stop prints has the value that gives what yours asked for: `"dark"` for `LIGHT_THEME=false`, `"auto"` for `"fixed"` with `LIGHT_THEME=true`, `"picker"` for `"default"` with `LIGHT_THEME=true`. mdBook's own themes are gone: a `"default"`-mode book now gets this theme, Charter included, and with `"picker"` its button offers Auto, Light and Dark, in this theme's palettes. A `PREFERRED_DARK` of `coal` or `navy` becomes `ayu`, whose code colours differ. A reader's saved Coal, Navy or Rust is cleared.
-
-The phone copy (`.zim`, read in Kiwix) is gone, and with it `zim-tools` and `librsvg2-bin`: the download is the laptop's alone, and on a phone readers save the book in the browser (see "Read offline"). The web app's icon is now the favicon itself. The script installs nothing with `apt` or `sudo`: if `curl`, `python3` or `git` is missing (or, with `HEADING_NUMBERS`, a C compiler), it stops and prints the line that installs it. `zim-tools` and `librsvg2-bin` can go if nothing else of yours uses them.
-
-The script no longer names a release of anything. Each run takes the newest that has been out a week, checked against GitHub's digest (see "Releases and updates"), so this re-run may move mdBook, lychee, the workflow's actions and, with `HEADING_NUMBERS`, `mdbook-numbering` to other releases: usually newer ones, but an older one where the release you have came out less than a week ago. Every book stays on mdBook's 0.5 series. The run needs `api.github.com` (with `HEADING_NUMBERS`, `crates.io` too) for what the workflow doesn't pin yet; after that, a run that can't ask keeps what the workflow pins and says so.
-
-Then `git add -A`, and commit what the run changed: the workflow (new pins, each action's release named after its commit, both jobs on `ubuntu-latest`, the two publishing permissions on the deploy job alone, checkout keeping no token, no `actions/configure-pages` or apt step, and the pages' dates in UTC), `.gitignore` (`.preview/`), `build` (it now stops when mdBook reports an error: see "The link check"), `book.toml`, `custom.css`, `custom.js`, `offline.py` and `theme/head.hbs`. A `"default"`-mode book also gains `theme/fonts/fonts.css` and, if it had `LIGHT_THEME=true` and `OFFLINE` wasn't `"full"`, `theme/head.hbs`: new files, which `git commit -a` would leave out. Deployed without `head.hbs`, a `"picker"` book keeps a reader's saved Coal, Navy or Rust, and shows mdBook's own theme. The first commit, in a new book, is now made only with a git identity you've set, and in UTC (see "What a push publishes"). A ```` ```rust ```` block is no longer one of mdBook's playgrounds (see "Code line numbers"): it loses its Run button, its page stops asking `play.rust-lang.org` for anything, and one of ten lines or more gets line numbers unless it hides lines (`# `); ```` ```rust,mdbook-runnable ```` keeps a block runnable. If you pasted "A page for readers" into `src/`, take its Cloud row, and with the theme button its Paintbrush row, from the page as printed now.
-
-Upgrading from v52 or earlier: mdb-guide v31, under "The toggles", has the note for v52 and, after it, where the older ones are. Follow those that apply, oldest first, up to v52's, then the eight above.
+**Upgrading from v63:** follow the note for v64 too. Delete the `LAYOUT` lines from the settings block you carry over; with them, a run stops: `ERROR: LAYOUT is gone: delete its lines from the settings`. A book that used `"h2"`, `"nested"` or `"picker"` gets it back by hand: see "A section at a time, by hand". `GIT_REPO_URL` is no longer read from `origin`: if yours was empty and the book's `origin` is on github.com, set it to that repo (`https://github.com/USER/REPO`), or the pencil, `site-url`, the footer's commit link and the download's address for newer versions drop out. With `HEADING_NUMBERS=true`, install Rust first (<https://rustup.rs>): the script no longer does. Then re-run, and commit what it changed: `build`. `./build` now shows a break as lychee reports it, under the built page, not by the Markdown file and line (see "The link check"). The preview now runs on mdBook's own address, `http://localhost:3000`, building into `book/`, with no second server for `book/` (see "Read offline"): the `.preview/` folder, its line in `.gitignore`, and `bin/`'s `.mdbook.sha256`, `.mdbook.version`, `.lychee.sha256` and `.lychee.version` are no longer used, and can go. The pages are the same to the byte, so a copy a reader saved stays up to date.
 
 ## Re-running vs. hand edits
 
-A re-run looks the releases up again and takes a newer one once it has been out a week (see "Releases and updates"), refreshes `bin/mdbook` and `bin/lychee` when their release changed, re-pins the workflow, and regenerates every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent), and so is `README.md` (written only when there's none). A re-run also clears `theme/head.hbs` and `theme/fonts/fonts.css` and writes back what the current settings call for, so a change of `THEME` or `OFFLINE` never leaves a stale one behind: a `head.hbs` clearing every saved theme in a `"picker"` book would stop the button remembering any choice. A `.git` git won't work in stops a run before it writes anything: another user's repository (git calls it dubious ownership; a run with `sudo` leaves the book root's), for which the message gives the `chown` that makes it yours again, naming a worktree's or a submodule's repository too when that's outside the book; a `.git` with something in it you can't read (a `git` command run with `sudo` can leave files of root's there), for which it gives the `chown` and `chmod` that make it yours and readable; or a `.git` that isn't a repository (one emptied by hand), which the message says to move aside. A file or folder the run writes that it can't (a run with `sudo` leaves them root's, and a copy can arrive read-only) stops it the same way, before it writes anything, listing each (`ERROR: this run writes these in …, and can't; nothing has been changed:`) with the `chown` and `chmod` that make them yours, or, for one on a filesystem mounted read-only, or marked immutable or append-only, saying so (and for the mark, the `chattr` that takes it off); so does a first run whose book folder can't be made where `PROJECT_DIR` says. `bin/` is checked only when the run installs a release there or `HEADING_NUMBERS` is on (rustup and cargo build there), so a `bin/` that has this run's releases already (a symlink to a shared folder of them, say) can be one you can't write; and a `.git` you can't write stops a run only when it would set `origin` there, which it doesn't when `origin` is that address already, or make the first commit. A run as root (with `sudo`, `su`, `doas` or `pkexec`, a root login, or a container's root) on a book that isn't root's stops before any of that, since nothing here needs root: run it as the book's owner (in a container, `docker run --user` with the owner's uid and gid does that). With `HEADING_NUMBERS`, a run as root stops too when `HOME`, or the folder cargo or rustup uses (`CARGO_HOME` and `RUSTUP_HOME`, or `~/.cargo` and `~/.rustup`), isn't root's, as rustup and cargo can write there.
+A re-run looks the releases up again and takes a newer one once it has been out a week (see "Releases and updates"), downloads a release into `bin/` only when its tarball isn't there yet, checks each tarball against the SHA-256 the workflow pins, re-pins the workflow, and rewrites every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent), and so is `README.md` (written only when there's none). `theme/head.hbs` and `theme/fonts/fonts.css` are written from the current settings each run, so a change of `THEME` or `OFFLINE` never leaves a stale one behind: a `head.hbs` clearing every saved theme in a `"picker"` book would stop the button remembering any choice. A run as root, with `sudo` or otherwise, stops before it does anything, since nothing here needs root: run it as the book's owner.
 
-So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `version.js`, `build`, `offline.py` or the workflow do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run. To take a newer release while keeping such hand edits, see "Releases and updates" (the manual path).
+So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `version.js`, `build`, `offline.py` or the workflow do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run.
+
+## By hand
+
+The script's twelve steps are the ones mdBook's docs give, in order; it only types them for you. Without it, take them one at a time. Each says which page of mdBook's docs it follows, the command, and what the command prints. Commands use `~/Desktop/mybook`; use your own folder, and `USER/REPO` for your GitHub repo.
+
+1. **Tools.** `sudo apt-get install curl git python3` (on Debian or Ubuntu) installs what the steps use; apt lists what it installs, or says each is `already the newest version`.
+2. **The folder and its repository.**
+
+   ```bash
+   mkdir -p ~/Desktop/mybook/bin && cd ~/Desktop/mybook
+   git init -b main
+   printf 'bin/\nbook/\n' > .gitignore
+   git remote add origin git@github.com:USER/REPO.git
+   ```
+
+   `git init` prints `Initialized empty Git repository in /home/you/Desktop/mybook/.git/`; the rest print nothing.
+3. **Choose the releases** ([Installation](https://rust-lang.github.io/mdBook/guide/installation.html), "Pre-compiled binaries"). On each project's releases page on GitHub, take the highest-numbered release that isn't marked **Pre-release** and came out at least a week ago: mdBook's (<https://github.com/rust-lang/mdBook/releases>) in its 0.5 series, which this theme is written for; lychee's (<https://github.com/lycheeverse/lychee/releases>), tagged `lychee-v`, not `lychee-lib-v`; and those of `actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`. For each action, the commit its tag names:
+
+   ```bash
+   git ls-remote https://github.com/actions/checkout refs/tags/TAG 'refs/tags/TAG^{}'
+   ```
+
+   It prints one or two lines, each a 40-character commit and the tag: take the commit on the `^{}` line, or on the only line when there's no `^{}` one.
+4. **Download mdBook and lychee into `bin/`** ([Continuous integration](https://rust-lang.github.io/mdBook/continuous-integration.html), "Pre-compiled binaries"). From each release's page, under **Assets**, download the file whose name ends `x86_64-unknown-linux-gnu.tar.gz` into `bin/`. Then:
+
+   ```bash
+   sha256sum bin/*.tar.gz
+   tar -xzf bin/mdbook-*.tar.gz -C bin mdbook
+   tar -xzf bin/lychee-*.tar.gz -C bin --strip-components=1 lychee-x86_64-unknown-linux-gnu/lychee
+   ./bin/mdbook --version && ./bin/lychee --version
+   ```
+
+   `sha256sum` prints each tarball's SHA-256 and name: compare each with the `sha256:` GitHub shows beside the file, and keep both for step 10. `tar` prints nothing. The last line prints `mdbook v0.5.…` and `lychee 0.…`.
+5. **Start the book** ([Creating a book](https://rust-lang.github.io/mdBook/guide/creating.html), [init](https://rust-lang.github.io/mdBook/cli/init.html)). `./bin/mdbook init --ignore none --title "My book"` prints `INFO Creating a new book with stub content` and `All done, no errors...`, and writes `book.toml`, `src/SUMMARY.md` and `src/chapter_1.md`. Write your own pages in `src/` (see "Writing content"), or take the script's starter pages from its `render_summary`, `render_about`, `render_chapter` and `render_demo_svg`.
+6. **`book.toml`** ([Configuration](https://rust-lang.github.io/mdBook/format/configuration/renderers.html), "HTML renderer options").
+7. **`theme/head.hbs`, `theme/fonts/fonts.css`, `theme/favicon.svg`** ([Theme](https://rust-lang.github.io/mdBook/format/theme/index.html)): mdBook takes each in place of its own.
+8. **`custom.css`, `custom.js`, `version.js`** (the `additional-css` and `additional-js` options, on the same Configuration page).
+9. **`build`, `offline.py`** ([build](https://rust-lang.github.io/mdBook/cli/build.html)): `./build` runs `mdbook build`, then `offline.py`, then lychee. Make it executable: `chmod +x build`, which prints nothing.
+10. **`.github/workflows/deploy.yml`** ([Continuous integration](https://rust-lang.github.io/mdBook/continuous-integration.html), "Deploying"): it pins the releases from steps 3 and 4.
+11. **The first commit:** `git add -A && TZ=UTC git commit -m 'initial mdBook scaffold'` prints `[main (root-commit) …] initial mdBook scaffold` and how many files it took (see "What a push publishes" first).
+12. **Check, then preview** ([serve](https://rust-lang.github.io/mdBook/cli/serve.html)): `./build`, which prints what "The link check" shows, then `./bin/mdbook serve --open`, which prints `INFO Serving on: http://localhost:3000` and opens the book.
+
+**The files of steps 6 to 10.** Each is one function in part 2 of the script, named for it: `render_book_toml`, `render_head`, `render_fonts_css`, `render_favicon_svg`, `render_custom_css`, `render_custom_js`, `render_version_js`, `render_build`, `render_offline`, `render_workflow`, and `render_readme` for `README.md`. A function is the file's text, with an `if` around each block that a setting adds and `${…}` where a setting goes: read it with your settings and copy what they select. Or print it. Set the toggles at the top of a copy of the script, then, in the book's folder:
+
+```bash
+bash -c 'source ~/bootstrap-mdbook.sh && check_settings && site_urls && render_custom_css' > custom.css
+```
+
+It prints nothing, and writes the file; an `ERROR:` line instead means a setting the script wouldn't take. Sourced, the script runs none of its steps: it only defines the settings and the functions, and `check_settings` and `site_urls` read the settings as a run does. Swap `render_custom_css` and the file for each of the others. For `theme/favicon.svg`, copy `src/logo.svg` if you have one, or print `render_favicon_svg "$(favicon_mark)"`. For the workflow, put the releases from steps 3 and 4 first, after `site_urls &&`: `MDBOOK_VERSION=vX.Y.Z MDBOOK_SHA256=… LYCHEE_VERSION=X.Y.Z LYCHEE_SHA256=… CHECKOUT_USES="actions/checkout@COMMIT # TAG" UPLOAD_USES="actions/upload-pages-artifact@COMMIT # TAG" DEPLOY_USES="actions/deploy-pages@COMMIT # TAG" NUMBERING_VERSION=""`, then `render_workflow`, with the output going to `.github/workflows/deploy.yml` (after `mkdir -p .github/workflows`, which prints nothing).
 
 ## The reading theme
 
@@ -160,7 +189,7 @@ Testing it: use your browser's DevTools colour-scheme emulation rather than the 
 
 ### The top-bar icons
 
-On the left the top bar carries the sidebar's and search's buttons, and with `THEME="picker"` the theme button between them. With a repo known to the book (`GIT_REPO_URL`, or an `origin` on github.com), it carries a print icon and a pencil on the right that opens the current page in GitHub's web editor (it auto-forks for readers without write access). The pencil exists only when `book.toml` carries `edit-url-template`, which the script writes from that URL, so a book built without one has no pencil, on any page; `print.html` and the 404 page never have one, since neither comes from a single source file. On the right, `custom.js` puts the pencil in front of print (mdBook puts it after), and with `OFFLINE` on, as it is by default, the offline button comes last: print and the download sit together, and the panel opens under its button (see "Read offline"). It does **not** carry a repository icon, though mdBook offers one: the icon would sit beside the pencil and lead to the same repository the sidebar footer's commit link already reaches, and two icons to one destination is one too many.
+On the left the top bar carries the sidebar's and search's buttons, and with `THEME="picker"` the theme button between them. With a repo known to the book (`GIT_REPO_URL`), it carries a print icon and a pencil on the right that opens the current page in GitHub's web editor (it auto-forks for readers without write access). The pencil exists only when `book.toml` carries `edit-url-template`, which the script writes from that URL, so a book built without one has no pencil, on any page; `print.html` and the 404 page never have one, since neither comes from a single source file. On the right, `custom.js` puts the pencil in front of print (mdBook puts it after), and with `OFFLINE` on, as it is by default, the offline button comes last: print and the download sit together, and the panel opens under its button (see "Read offline"). It does **not** carry a repository icon, though mdBook offers one: the icon would sit beside the pencil and lead to the same repository the sidebar footer's commit link already reaches, and two icons to one destination is one too many.
 
 The script leaves `git-repository-url` out of `book.toml` to drop it. mdBook gates the repo icon and the pencil on independent conditions in its template, so omitting that one key removes the repo icon and leaves the pencil untouched — no CSS hiding, nothing overridden. Add the key back by hand if you want the icon, but remember `book.toml` is script-owned: the next re-run regenerates it without.
 
@@ -237,7 +266,7 @@ In `text` and `image` mode the masthead is **sticky** at the top of the sidebar 
 
 ## The favicon
 
-`theme/favicon.svg` has two sources, and it is written whatever `THEME` and `SIDEBAR_MASTHEAD` are — a `text` masthead and a favicon are different jobs, and they coexist. `src/logo.svg`, whenever it exists, is copied to it verbatim and always wins. Only when there is no `src/logo.svg` does `FAVICON_TEXT` come into it, and then the value is **drawn** as letters: ink on a transparent ground, no plate, `#191713` swapping to `#e8e6da` under `prefers-color-scheme: dark` — the two `--fg` values from the light and dark palettes. `"auto"`, the shipped default, takes the first alphanumeric character of `BOOK_TITLE`, a letter as a capital, so the stock `mybook` draws an `M` and renaming the book renames the mark. Any other string is drawn as typed, case preserved, cut to the first three characters with a warning if you gave it more. `""` draws nothing at all, and mdBook's own bundled favicon stays.
+`theme/favicon.svg` has two sources, and it is written whatever `THEME` and `SIDEBAR_MASTHEAD` are — a `text` masthead and a favicon are different jobs, and they coexist. `src/logo.svg`, whenever it exists, is copied to it verbatim and always wins. Only when there is no `src/logo.svg` does `FAVICON_TEXT` come into it, and then the value is **drawn** as letters: ink on a transparent ground, no plate, `#191713` swapping to `#e8e6da` under `prefers-color-scheme: dark` — the two `--fg` values from the light and dark palettes. `"auto"`, the shipped default, takes the first alphanumeric character of `BOOK_TITLE`, a letter as a capital, so the stock `mybook` draws an `M` and renaming the book renames the mark. Any other string is drawn as typed, case preserved, cut to the first three characters. `""` draws nothing at all, and mdBook's own bundled favicon stays.
 
 Both inks are written whatever `THEME` is, a dark-only book included. The mark is drawn in the browser's tab bar, not on the page, and the tab bar follows the reader's browser or OS rather than the book, so a dark-only book still sits in a light tab bar for a reader whose system is light. Before v41 a dark-only book drew the pale ink alone, and in a light tab bar it all but vanished.
 
@@ -408,16 +437,15 @@ An HTML comment hides part of a page: `<!-- … -->` goes into the page as writt
 
 To keep a whole page off the site, leave it out of `SUMMARY.md` (see "Unlisted chapters").
 
-## Layout: a section at a time
+## A section at a time, by hand
 
-`LAYOUT` decides how a chapter is shown: on one page, or one section at a time.
+The script shows each chapter on one page. Two blocks of code, one for `custom.css` and one for `custom.js`, show it one section at a time instead. Up to v63 the script wrote them, with its `LAYOUT` setting; they're here now, to add by hand. They run in the reader's browser: the book is built the same either way, one page per chapter, so its addresses, search, the link check and `print.html` don't change, and printing a page prints the whole chapter whatever the screen shows.
 
-- `"scroll"` (default): the chapter on one page.
-- `"h2"`: one section at a time, each H2 starting one; its H3 to H6 stay in it.
-- `"nested"`: one section at a time, every H2 to H6 starting one.
-- `"picker"`: a button beside search, an open book, with which each reader chooses **Scroll**, the chapter on one page, or **Pages**, as `"nested"`. Every reader starts on Scroll. The choice is kept in the reader's browser, for this book only: books on one `USER.github.io` don't share it. A choice made in one tab reaches the reader's other open tabs at their next page.
+The JavaScript's first line, `var MDB_LAYOUT = "picker";`, decides how:
 
-It's done in the reader's browser. The book is built the same in every layout, one page per chapter, so its addresses, search, the link check and `print.html` are the same in all four, a switch of `LAYOUT` breaks no link or bookmark, and printing a page prints the whole chapter whatever the screen shows.
+- `"picker"`: a button beside search, an open book, with which each reader chooses **Scroll**, the chapter on one page, or **Pages**, one section at a time, every H2 to H6 starting one. Every reader starts on Scroll. The choice is kept in the reader's browser, for this book only: books on one `USER.github.io` don't share it. A choice made in one tab reaches the reader's other open tabs at their next page.
+- `"h2"`: one section at a time for every reader, each H2 starting one; its H3 to H6 stay in it.
+- `"nested"`: one section at a time for every reader, every H2 to H6 starting one.
 
 A section starts at a heading straight in the chapter. One inside a list, a quote or an HTML element such as `<details>` stays in the section around it, and so does one written in HTML without an `id` (`<h2>…</h2>`), which mdBook gives no anchor; written with one (`<h2 id="setup">…</h2>`), it starts a section, but the sidebar doesn't list it. An H1 after the chapter's first starts no section. What comes before the first heading is the first section; when that's only the title (the H1, a subtitle, the `Last updated` line), with nothing else but rules, empty anchors, an `mdb-wide` marker, or a `<style>`, `<script>` or `<link>`, it joins the section after it. An empty anchor kept just above a heading (`<a id="old-name"></a>`, or the older `<a name="old-name"></a>`) goes with the heading.
 
@@ -431,7 +459,505 @@ One section at a time, with `"h2"`, `"nested"`, or Pages:
 - The browser's own find (<kbd>Ctrl</kbd>+<kbd>F</kbd>) searches only the section shown, and a link to a passage of text (`#:~:text=` and the passage, as search engines make) opens the chapter's first section; one that also names the section the passage is in (`#beta:~:text=…`, as a browser's "Copy link to highlight" makes in Pages) opens that section at the passage.
 - With `HEADING_NUMBERS=true`, each section's heading shows its number.
 
-On a phone, `"picker"`'s button takes room from the book's title in the menu bar, which mdBook cuts short when it doesn't fit: with `THEME="picker"`, a repo and `OFFLINE` on, a phone 390px wide leaves the title about 110px with the button and 146px without.
+On a phone, the `"picker"` button takes room from the book's title in the menu bar, which mdBook cuts short when it doesn't fit: with `THEME="picker"`, a repo and `OFFLINE` on, a phone 390px wide leaves the title about 110px with the button and 146px without.
+
+
+**Adding it.** `custom.css` and `custom.js` are script-owned: each run of the script writes them without these blocks, so add them again after each run.
+
+1. In `custom.css`, find the line that starts `/* OFFLINE: the last button on the right`. Paste the CSS block on the lines just above it. With `OFFLINE="none"` there's no such line: paste the block at the end of the file.
+2. In `custom.js`, find the line that starts `// OFFLINE: the last button on the right`. A blank line sits above it. Paste the JavaScript block between that blank line and the `// OFFLINE` line, with one more blank line after the block, so a blank line comes before the block and one after it. With `OFFLINE="none"`, paste it at the end of the file, after a blank line. For `"h2"` or `"nested"`, change `"picker"` in its first line.
+3. Run `./build`. It prints what it always does, ending `links: every internal link and anchor resolves`. Start the preview with `./bin/mdbook serve --open` and open a chapter with H2s: with `"picker"`, the open book is beside the magnifying glass; with `"h2"` or `"nested"`, the chapter shows its first section, with `Section 1 of N` under it.
+4. Commit both files. After a later run of the script, `git diff custom.css custom.js` shows the blocks as removed lines: when it shows nothing else, `git checkout -- custom.css custom.js` puts them back and prints nothing; otherwise paste them again.
+
+The CSS block:
+
+```css
+/* LAYOUT: the sections not shown are hidden on screen only; the sidebar's mark is ours. */
+@media screen{html.mdb-pages #mdbook-content main .mdb-off{display:none !important;}}
+html.mdb-pages:not(.mdb-whole) .chapter a.current-header:not(.mdb-here):not(:hover){color:var(--sidebar-fg);}
+html.mdb-pages .chapter a.mdb-here{color:var(--sidebar-active);}
+.mdb-pageno{display:none;}
+html.mdb-pages .mdb-pageno{display:block;margin:2.5rem 0 0;text-align:center;font-size:.85em;color:var(--muted);}
+@media print{.mdb-pageno,#mdb-layout-toggle,.mdb-layout-menu{display:none !important;}}
+.mdb-layout-menu{position:absolute;top:var(--menu-bar-height);z-index:1000;box-sizing:border-box;width:28rem;max-width:calc(100vw - 16px);margin:0;padding:.4rem 0;border-radius:4px;background:var(--theme-popup-bg);border:1px solid var(--theme-popup-border);}
+.mdb-layout-menu[hidden]{display:none;}
+.mdb-layout-item{position:relative;display:block;width:100%;margin:0;padding:.8rem 1.4rem .9rem;padding-inline-start:3.6rem;border:0;background:none;color:var(--fg);font:inherit;line-height:1.4;text-align:start;cursor:pointer;}
+.mdb-layout-item:hover,.mdb-layout-item:focus-visible{background:var(--theme-hover);}
+/* The tick in the text's colour, as mdBook's own theme menu draws it. */
+.mdb-layout-item[aria-pressed="true"]::before{content:"\2713";content:"\2713" / "";position:absolute;inset-inline-start:1.3rem;top:.8rem;color:var(--fg);}
+.mdb-layout-name{display:block;font-size:1.5rem;font-weight:bold;}
+.mdb-layout-note{display:block;margin-top:.2rem;font-size:1.3rem;color:var(--muted);}
+/* mdBook's » marks the heading an address leads to: in Pages, every section's own. */
+html.mdb-pages #mdbook-content main > :is(h1,h2,h3,h4,h5,h6):target::before{content:none;}
+```
+
+The JavaScript block:
+
+```js
+var MDB_LAYOUT = "picker";
+// LAYOUT (MDB_LAYOUT, above): a chapter one heading's section at a time; print has them all.
+// Icons: from Font Awesome Free, the set mdBook draws its own from, with its
+// notice: Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com
+// License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL
+// OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc.
+(function () {
+  "use strict";
+  // Not mdBook's print.html, at the book's root.
+  if (/(^|\/)print\.html$/.test(location.pathname) && (typeof path_to_root !== "string" || path_to_root === "")) return;
+  var main = document.querySelector("#mdbook-content main");
+  var bar = document.getElementById("mdbook-menu-bar");
+  if (!main || !bar) return;
+  var content = document.getElementById("mdbook-content");
+  // The book's own folder (on the 404 page, its <base>): books on one github.io share an origin.
+  var root = new URL((typeof path_to_root === "string" ? path_to_root : "") + "./", document.baseURI).pathname;
+  var KEY = "mdb-layout " + root;
+  var PICK = MDB_LAYOUT === "picker";
+  // The headings a section starts at.
+  var STARTS = MDB_LAYOUT === "h2" ? /^H2$/ : /^H[2-6]$/;
+  // An address on this page: a bare "#x" resolves against the 404 page's <base>.
+  var addr = function (id) { return location.pathname + location.search + (id ? "#" + id : ""); };
+  // Read once; without the picker, always Pages.
+  var now = null;
+  if (PICK) try { now = localStorage.getItem(KEY); } catch (e) {}
+  now = !PICK || now === "pages" ? "pages" : "scroll";
+  var mode = function () { return now; };
+  // What needs no section of its own: the title block, and what applies to the whole chapter.
+  var TITLE = "h1, .mdb-subtitle, .mdb-updated, .mdb-wide, hr, style, script, link";
+  // An empty anchor (<a id="old-name"></a>, or a <span> or <div>), alone or in a paragraph.
+  var EMPTY = "a[id]:empty, a[name]:empty, span[id]:empty, div[id]:empty";
+  var anchor = function (n) {
+    if (n.matches(EMPTY)) return true;
+    return n.tagName === "P" && n.children.length > 0 && !n.textContent.trim() &&
+      Array.prototype.every.call(n.children, function (c) { return c.matches(EMPTY); });
+  };
+  // The sections, worked out afresh each time, so lines other code adds land in the right one.
+  var split = function () {
+    // Text straight in <main>, or a search <mark> in it, into a <span>: it goes with its section.
+    Array.prototype.slice.call(main.childNodes).forEach(function (n) {
+      if (n.nodeType === 3 ? /[^ \t\n\r\f]/.test(n.nodeValue) : n.nodeName === "MARK") { var w = document.createElement("span"); main.insertBefore(w, n); w.appendChild(n); }
+    });
+    var pages = [[]], foot = null, rule = null;
+    Array.prototype.forEach.call(main.children, function (n) {
+      if (n.matches("ol.footnote-definition")) { foot = n; return; }
+      if (n.matches("hr") && n.nextElementSibling && n.nextElementSibling.matches("ol.footnote-definition")) { rule = n; return; }
+      if (n.matches(".mdb-pageno")) return;
+      if (STARTS.test(n.tagName) && n.id) {
+        var prev = pages[pages.length - 1], lead = [];
+        while (prev.length && anchor(prev[prev.length - 1])) lead.unshift(prev.pop());
+        pages.push(lead);
+      }
+      pages[pages.length - 1].push(n);
+    });
+    if (pages.length > 1 && !pages[0].some(function (n) { return !n.matches(TITLE) && !anchor(n); }))
+      pages.splice(0, 2, pages[0].concat(pages[1]));
+    return { pages: pages, foot: foot, rule: rule };
+  };
+  var cur = 0, here = null;
+  var base = document.title;
+  // A section's address: its heading's (the H1 for the first).
+  var idOf = function (s, k) {
+    for (var i = 0; i < s.pages[k].length; i++) {
+      var n = s.pages[k][i];
+      if (/^H[1-6]$/.test(n.tagName) && n.id) return n.id;
+    }
+    return "";
+  };
+  var counter = document.createElement("p");
+  counter.className = "mdb-pageno";
+  counter.setAttribute("aria-live", "polite");
+
+  // The arrows turn sections, then chapters; ours stand in where mdBook drew none, removed when unneeded.
+  var arrowSel = function (dir) { return ".nav-chapters." + dir + ", .mobile-nav-chapters." + dir; };
+  var ns = "http://www.w3.org/2000/svg";
+  var svgIcon = function (box, d) {
+    var span = document.createElement("span"), svg = document.createElementNS(ns, "svg"), path = document.createElementNS(ns, "path");
+    span.className = "fa-svg";
+    svg.setAttribute("viewBox", box);
+    svg.setAttribute("aria-hidden", "true");
+    path.setAttribute("d", d);
+    svg.appendChild(path);
+    span.appendChild(svg);
+    return span;
+  };
+  var ANGLE = {
+    left: "M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z",
+    right: "M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"
+  };
+  // Pointing out, as mdBook's own: in a right-to-left book the previous arrow is on the right.
+  var rtl = document.documentElement.dir === "rtl";
+  var made = [];
+  var ensureArrows = function () {
+    [[".nav-wide-wrapper", "nav-chapters"], [".nav-wrapper", "mobile-nav-chapters"]].forEach(function (w) {
+      var box = document.querySelector(w[0]);
+      if (!box) return;
+      ["previous", "next"].forEach(function (dir) {
+        if (box.querySelector("." + w[1] + "." + dir)) return;
+        var a = document.createElement("a");
+        a.className = w[1] + " " + dir + " mdb-made";
+        a.setAttribute("rel", dir === "next" ? "next" : "prev");
+        a.setAttribute("aria-keyshortcuts", (dir === "next") !== rtl ? "Right" : "Left");
+        a.setAttribute("data-mdb-href", "");
+        a.appendChild(svgIcon("0 0 320 512", ANGLE[(dir === "next") !== rtl ? "right" : "left"]));
+        made.push({ a: a, box: box, dir: dir });
+      });
+    });
+  };
+  var arrows = function (s) {
+    var n = s.pages.length, paged = mode() === "pages";
+    made.forEach(function (m) {
+      var want = paged && (m.dir === "next" ? cur < n - 1 : cur > 0);
+      if (want && !m.a.parentNode)
+        // previous before anything, next before the clearing <div> (or last)
+        m.box.insertBefore(m.a, m.dir === "previous" ? m.box.querySelector(":scope > a, :scope > div") : m.box.querySelector(":scope > div"));
+      else if (!want && m.a.parentNode) m.a.parentNode.removeChild(m.a);
+    });
+    ["next", "previous"].forEach(function (dir) {
+      document.querySelectorAll(arrowSel(dir)).forEach(function (a) {
+        if (!a.hasAttribute("data-mdb-href")) a.setAttribute("data-mdb-href", a.getAttribute("href") || "");
+        var orig = a.getAttribute("data-mdb-href");
+        var within = dir === "next" ? cur < n - 1 : cur > 0;
+        // A first section without a heading: #mdb-first, an address go() drops.
+        if (paged && within) a.setAttribute("href", "#" + (idOf(s, dir === "next" ? cur + 1 : cur - 1) || "mdb-first"));
+        else if (paged && orig && dir === "previous") a.setAttribute("href", orig + "#mdb-last");
+        else if (orig) a.setAttribute("href", orig);
+        else a.removeAttribute("href");
+        a.hidden = !a.getAttribute("href");
+        a.title = paged && within ? (dir === "next" ? "Next section" : "Previous section") : (dir === "next" ? "Next chapter" : "Previous chapter");
+        a.setAttribute("aria-label", a.title);
+      });
+    });
+  };
+
+  // The sidebar's mark: in Pages, the section's, put back after each scroll.
+  var mark = function () {
+    var ours = null;
+    document.querySelectorAll("#mdbook-sidebar a.header-in-summary").forEach(function (a) {
+      var on = !!here && a.getAttribute("href") === "#" + here;
+      a.classList.toggle("mdb-here", on);
+      if (on) ours = a;
+    });
+    // mdBook opens the folds above the heading it marks: in Pages, those above ours.
+    if (mode() === "pages" && !document.documentElement.classList.contains("mdb-whole")) document.querySelectorAll("#mdbook-sidebar li.header-item").forEach(function (li) {
+      if (li.querySelector(":scope > span > .header-toggle")) li.classList.toggle("expanded", !!ours && li.contains(ours));
+    });
+  };
+  // mdBook marks its own two frames after a click on its heading links: ours goes back after.
+  document.addEventListener("click", function (e) {
+    if (mode() === "pages" && e.target.closest && e.target.closest("#mdbook-sidebar a.header-in-summary"))
+      requestAnimationFrame(function () { requestAnimationFrame(function () { requestAnimationFrame(mark); }); });
+  });
+
+  // The notes section k cites, and those the notes cite in turn.
+  var notesOf = function (s, k) {
+    var cited = {}, grew = true;
+    var add = function (n) {
+      n.querySelectorAll("sup.footnote-reference a[href^='#']").forEach(function (a) {
+        var id = a.getAttribute("href").slice(1);
+        if (!cited[id]) cited[id] = grew = true;
+      });
+    };
+    s.pages[k].forEach(add);
+    while (grew) {
+      grew = false;
+      Array.prototype.forEach.call(s.foot.children, function (li) { if (cited[li.id] === true) { cited[li.id] = 1; add(li); } });
+    }
+    return cited;
+  };
+
+  var show = function (k) {
+    var s = split();
+    var was = cur;
+    cur = Math.max(0, Math.min(k, s.pages.length - 1));
+    var paged = mode() === "pages";
+    // A zoomed image goes with its section, as Escape would.
+    if (paged && cur !== was)
+      document.querySelectorAll("input.checkbox-img:checked").forEach(function (c) { c.checked = false; });
+    // A section opens at its start, not scrolled sideways: go() scrolls to a place a link names.
+    if (paged && cur !== was) content.scrollLeft = 0;
+    s.pages.forEach(function (p, i) {
+      p.forEach(function (n, j) {
+        // A --- that ended a section went with the boundary.
+        n.classList.toggle("mdb-off", paged && (i !== cur || (n.tagName === "HR" && j === p.length - 1)));
+      });
+    });
+    if (s.foot) {
+      // Only the notes this section cites.
+      var cited = notesOf(s, cur), any = false;
+      Array.prototype.forEach.call(s.foot.children, function (li) {
+        var on = !paged || !!cited[li.id];
+        li.classList.toggle("mdb-off", !on);
+        any = any || on;
+      });
+      s.foot.classList.toggle("mdb-off", !any);
+      if (s.rule) s.rule.classList.toggle("mdb-off", !any);
+    }
+    if (paged && s.pages.length > 1) {
+      // Changed only when it differs, or a screen reader reads the counter twice.
+      var text = "Section " + (cur + 1) + " of " + s.pages.length;
+      if (counter.textContent !== text) counter.textContent = text;
+      if (main.lastElementChild !== counter) main.appendChild(counter);
+      var h = document.getElementById(idOf(s, cur));
+      var t = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
+      document.title = t && cur > 0 ? t + " - " + base : base;
+    } else {
+      if (counter.parentNode) counter.parentNode.removeChild(counter);
+      document.title = base;
+    }
+    arrows(s);
+    // The section's mark: the heading it starts at; a chapter of one section keeps mdBook's.
+    here = null;
+    if (paged && s.pages.length > 1) s.pages[cur].some(function (n) { if (STARTS.test(n.tagName) && n.id) here = n.id; return !!here; });
+    document.documentElement.classList.toggle("mdb-whole", s.pages.length < 2);
+    mark();
+  };
+
+  // The element #x names: its id, else the first <a name="x">.
+  var byId = function (id) {
+    if (!id) return null;
+    var el = document.getElementById(id), named = el ? [] : document.getElementsByName(id);
+    for (var i = 0; !el && i < named.length; i++) if (named[i].tagName === "A") el = named[i];
+    return el;
+  };
+  // The section an address leads to; for a note, the first section citing it.
+  var pageOf = function (id) {
+    var s = split();
+    if (id === "mdb-last") return s.pages.length - 1;
+    if (id === "mdb-first") return 0;
+    var el = byId(id);
+    if (!el || !main.contains(el)) return null;
+    if (s.foot && s.foot.contains(el)) {
+      var note = el.closest("ol.footnote-definition > li") || el;
+      var cites = function (i) { return !!notesOf(s, i)[note.id]; };
+      if (cites(cur)) return cur;
+      for (var i = 0; i < s.pages.length; i++) if (cites(i)) return i;
+      return null;
+    }
+    for (var j = 0; j < s.pages.length; j++)
+      if (s.pages[j].some(function (n) { return n === el || n.contains(el); })) return j;
+    return null;
+  };
+  var go = function (scroll, load) {
+    // As the browser finds it: the #address as written, else decoded.
+    var id = location.hash.slice(1);
+    if (!byId(id)) try { id = decodeURIComponent(id); } catch (e) {}
+    var k = pageOf(id), el = byId(id);
+    // A search result's address is the H1-H3 above the match: on to the section with the mark.
+    if (load && k !== null && mode() === "pages" && /[?&]highlight=/.test(location.search)) {
+      // A match is mark.js's <mark data-markjs>, not one the author wrote.
+      var s = split(), to = null, mk = null, last = true, HIT = "mark[data-markjs]";
+      for (var i = k; to === null && i < s.pages.length; i++) {
+        var hd = i > k ? document.getElementById(idOf(s, i)) : null;
+        if (hd && +hd.tagName.charAt(1) <= 3) { last = false; break; }
+        s.pages[i].some(function (n) { mk = n.matches(HIT) ? n : n.querySelector(HIT); return !!mk; });
+        if (mk) to = i;
+      }
+      // A match only in the notes: the first section citing a marked note.
+      var hits = to === null && last && s.foot ? Array.prototype.filter.call(s.foot.children, function (li) { return li.querySelector(HIT); }) : [];
+      if (hits.length && !hits.some(function (li) { return notesOf(s, k)[li.id]; })) { mk = hits[0].querySelector(HIT); to = pageOf(hits[0].id); }
+      // The address follows, for the arrows and Back.
+      if (to !== null && to !== k) { k = to; el = mk; history.replaceState(history.state, "", addr(idOf(s, to))); }
+    }
+    show(k === null ? (id ? cur : 0) : k);
+    if (id === "mdb-last" || id === "mdb-first") {
+      // The section's own address; none for one without a heading.
+      history.replaceState(history.state, "", addr(idOf(split(), cur)));
+    } else if (!scroll || mode() !== "pages") return;
+    // A search match to the middle of the window (no scroll-margin keeps it clear of the bar).
+    var at = el && el.offsetParent !== null && el !== document.getElementById(idOf(split(), cur)) ? el : null;
+    var place = function () {
+      if (!at) window.scrollTo(0, 0);
+      else if (at.matches("mark[data-markjs]")) at.scrollIntoView({ block: "center" });
+      else at.scrollIntoView();
+    };
+    place();
+    // Loaded with an address, place() again once the page has loaded, unless the reader moved.
+    var shown = cur, nav = window.performance && performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
+    if (load && (!nav || nav.type === "navigate")) {
+      var moved = false, stir = function () { moved = true; }, ON = ["wheel", "touchstart", "mousedown", "keydown", "hashchange"];
+      ON.forEach(function (t) { window.addEventListener(t, stir, true); });
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          ON.forEach(function (t) { window.removeEventListener(t, stir, true); });
+          var r = (at || document.getElementById(idOf(split(), cur)) || main).getBoundingClientRect(), b = bar.getBoundingClientRect().bottom;
+          if (!moved && cur === shown && mode() === "pages" && (at ? r.bottom <= b || r.top >= innerHeight : r.top > -2 && scrollY > 0)) place();
+        }, 0);
+      });
+    }
+  };
+  window.addEventListener("hashchange", function (e) {
+    // mdBook's search takes the #address off a ?search= page: put it back.
+    var h = e.newURL ? new URL(e.newURL).hash : "";
+    if (mode() === "pages" && h && !location.hash && /[?&]search=/.test(location.search)) history.replaceState(history.state, "", addr(h.slice(1)));
+    go(true, false);
+  });
+  // Back and Forward between entries that differ in more than the #address fire popstate alone.
+  window.addEventListener("popstate", function () {
+    if (mode() === "pages" && !/[?&]search=/.test(location.search)) go(true, false);
+  });
+
+  // mdBook's search icon leaves ?search=, which reopens the bar at the next turn: drop it.
+  var swrap = document.getElementById("mdbook-search-wrapper"), sbtn = document.getElementById("mdbook-search-toggle");
+  var unsearch = function () {
+    if (mode() !== "pages" || !swrap || !swrap.classList.contains("hidden") || !/[?&]search=/.test(location.search)) return;
+    var to = idOf(split(), cur);
+    history.replaceState(history.state, "", location.pathname + (to ? "#" + to : ""));
+  };
+  if (sbtn) sbtn.addEventListener("click", unsearch);
+  // Escape: mdBook's handler drops ?search= and the #address with it; put the address back.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || mode() !== "pages" || location.hash) return;
+    var to = idOf(split(), cur);
+    if (to) history.replaceState(history.state, "", addr(to));
+  });
+
+  // The picker: a button beside search, opening two choices below it.
+  var setMode = function (v) {
+    // The choice already in use: nothing to do.
+    if (v === now) return;
+    var keep = null;
+    if (v === "pages") {
+      // Into Pages at the section at the top of the window.
+      var s = split(), at = 0;
+      if (window.scrollY > 10) s.pages.forEach(function (p, i) {
+        if (p[0] && p[0].getBoundingClientRect().top <= 120) at = i;
+      });
+      cur = at;
+    } else {
+      keep = document.getElementById(idOf(split(), cur));
+    }
+    now = v;
+    try { localStorage.setItem(KEY, v); } catch (e) {}
+    document.documentElement.classList.toggle("mdb-pages", v === "pages");
+    show(cur);
+    if (v === "pages") {
+      // A chapter of one section is shown whole, as in Scroll: left as it is.
+      var whole = split().pages.length < 2, to = idOf(split(), cur);
+      if (to && !whole) history.replaceState(history.state, "", addr(to));
+      unsearch();
+      if (!whole) window.scrollTo(0, 0);
+    } else if (keep && cur > 0) {
+      keep.scrollIntoView();
+    }
+    // mdBook marks the heading in view at a scroll: give it one.
+    if (v === "scroll") document.dispatchEvent(new Event("scroll"));
+    fill();
+  };
+  var left = bar.querySelector(".left-buttons");
+  var btn = document.createElement("button"), menu = document.createElement("div");
+  var CHOICES = [["scroll", "Scroll", "The whole chapter on one page."],
+                 ["pages", "Pages", "One section at a time: the arrows turn them."]];
+  var fill = function () {
+    var m = mode();
+    menu.textContent = "";
+    CHOICES.forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mdb-layout-item";
+      b.setAttribute("aria-pressed", m === o[0] ? "true" : "false");
+      var t = document.createElement("span");
+      t.className = "mdb-layout-name";
+      t.textContent = o[1];
+      var d = document.createElement("span");
+      d.className = "mdb-layout-note";
+      d.textContent = o[2];
+      b.appendChild(t);
+      b.appendChild(d);
+      b.addEventListener("click", function (e) { e.stopPropagation(); setMode(o[0]); open(false); btn.focus(); });
+      menu.appendChild(b);
+    });
+  };
+  var open = function (on) {
+    menu.hidden = !on;
+    btn.setAttribute("aria-expanded", on ? "true" : "false");
+    if (on) {
+      var r = btn.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      menu.style.left = Math.max(8, Math.min(r.left - br.left, br.width - menu.offsetWidth - 8)) + "px";
+    }
+  };
+  if (PICK && left) {
+    btn.type = "button";
+    btn.id = "mdb-layout-toggle";
+    btn.className = "icon-button";
+    btn.title = "Layout: scroll or pages";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-controls", "mdb-layout-menu");
+    // Font Awesome's book-open, as mdBook draws <i class="fas fa-book-open">.
+    var ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"), path = document.createElementNS(ns, "path");
+    svg.setAttribute("viewBox", "0 0 576 512");
+    svg.setAttribute("aria-hidden", "true");
+    path.setAttribute("d", "M249.6 471.5c10.8 3.8 22.4-4.1 22.4-15.5V78.6c0-4.2-1.6-8.4-5-11C247.4 52 202.4 32 144 32C87.5 32 35.1 48.6 9 59.9c-5.6 2.4-9 8-9 14V454.1c0 11.9 12.8 20.2 24.1 16.5C55.6 460.1 105.5 448 144 448c33.9 0 79 14 105.6 23.5zm76.8 0C353 462 398.1 448 432 448c38.5 0 88.4 12.1 119.9 22.6c11.3 3.8 24.1-4.6 24.1-16.5V73.9c0-6.1-3.4-11.6-9-14C540.9 48.6 488.5 32 432 32c-58.4 0-103.4 20-123 35.6c-3.3 2.6-5 6.8-5 11V456c0 11.4 11.7 19.3 22.4 15.5z");
+    svg.appendChild(path);
+    var icon = document.createElement("span");
+    icon.className = "fa-svg";
+    icon.appendChild(svg);
+    btn.appendChild(icon);
+    menu.id = "mdb-layout-menu";
+    // mdb-menu: the sidebar's swipes leave it alone.
+    menu.className = "mdb-layout-menu mdb-menu";
+    menu.setAttribute("role", "group");
+    menu.setAttribute("aria-label", "Layout");
+    menu.hidden = true;
+    var search = left.querySelector("#mdbook-search-toggle");
+    left.insertBefore(btn, search ? search.nextSibling : null);
+    // Next to its button, so Tab goes from one to the other.
+    left.insertBefore(menu, btn.nextSibling);
+    fill();
+    // The click goes on to the document, where the other menus close.
+    btn.addEventListener("click", function (e) {
+      open(menu.hidden);
+      // Opened from the keyboard: into the choices, on the one in use.
+      if (e.detail === 0 && !menu.hidden) (menu.querySelector('[aria-pressed="true"]') || menu.firstChild).focus();
+    });
+    // Left and right stay in the choices: mdBook turns the page on them.
+    menu.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        var items = Array.prototype.slice.call(menu.children), i = items.indexOf(document.activeElement);
+        items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+      }
+    });
+    menu.addEventListener("focusout", function (e) {
+      var to = e.relatedTarget;
+      if (to && !menu.contains(to) && to !== btn) open(false);
+    });
+    document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target) && !btn.contains(e.target)) open(false); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { open(false); btn.focus(); } });
+    // Placed again when the window changes width (a phone turned) while open.
+    window.addEventListener("resize", function () { if (!menu.hidden) open(true); });
+  }
+
+  // Back from the browser's cache: the reader may have switched layout on a later page.
+  if (PICK) window.addEventListener("pageshow", function (e) {
+    if (!e.persisted) return;
+    // After WebKit puts the scroll position back, at the first frame after this event.
+    requestAnimationFrame(function () { setTimeout(function () {
+      var v = null;
+      try { v = localStorage.getItem(KEY); } catch (err) {}
+      setMode(v === "pages" ? "pages" : "scroll");
+    }, 0); });
+  });
+
+  window.addEventListener("scroll", mark, { passive: true });
+  document.documentElement.classList.toggle("mdb-pages", mode() === "pages");
+  var ready = function (fn) { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn); else fn(); };
+  ready(function () {
+    ensureArrows();
+    // mdBook's '?' popup: what the arrow keys do in Pages.
+    var help = document.querySelector("#mdbook-help-popup > div");
+    if (help) {
+      var p = document.createElement("p"), l = document.createElement("kbd"), r = document.createElement("kbd");
+      l.textContent = "←"; r.textContent = "→";
+      p.appendChild(document.createTextNode(PICK ? "In Pages, " : ""));
+      p.appendChild(l); p.appendChild(document.createTextNode(" and ")); p.appendChild(r);
+      p.appendChild(document.createTextNode(" turn the section first"));
+      help.appendChild(p);
+    }
+    go(!!location.hash, true);
+  });
+})();
+```
 
 ## Read offline
 
@@ -441,20 +967,18 @@ On a phone, `"picker"`'s button takes room from the book's title in the menu bar
 - `"download"`: **Download a copy** alone.
 - `"none"`: no button.
 
-`./build` makes what the button offers, here and in the deploy. So the button shows on the published site, and on a local server after `./build`, where it offers only the download: saving needs the published site, over HTTPS. The preview doesn't have the button: it builds into `.preview/`, without what `./build` adds.
+`./build` makes what the button offers, here and in the deploy, after mdBook has built the book. So the button shows on the published site, and on a local server for `book/` after `./build`, where it offers only the download: saving needs the published site, over HTTPS. The preview doesn't have it: `mdbook serve` builds `book/` again without what `./build` adds.
 
-So the script's run serves `book/` beside the preview, on 127.0.0.1 at the first free port from 8000, and its last lines give the address: `book/ has it, as ./build left it, at http://127.0.0.1:8000`. Open it, and the cloud beside print opens the panel, with **Download a copy** alone. The page is the book as the run's `./build` made it, not as you edit it: `./build` refreshes it, then reload the page. Ctrl-C stops it with the preview. With `OFFLINE="none"` the run serves the preview alone.
+To check the button on your machine:
 
-To check the button without a run of the script (with the preview re-launched, say), serve `book/` yourself:
-
-1. Open a second terminal if the preview holds the one you're in. (Or stop the preview there with Ctrl-C, and use that one.)
+1. Stop the preview with Ctrl-C if it's running: it would build `book/` again, without the button, at your next saved edit.
 2. In the book's folder, run `./build`, then:
 
    ```bash
    python3 -I -m http.server -b 127.0.0.1 -d book 8000
    ```
 
-   It prints `Serving HTTP on 127.0.0.1 port 8000 (http://127.0.0.1:8000/) ...` and keeps running, with a line for each file a browser asks for. `-I` makes Python use its own server even when the folder you're in has one named `http`. If it ends instead with `OSError: [Errno 98] Address already in use`, something else has port 8000, such as a run's own server for `book/`: put `8001` in its place, here and in the address below.
+   It prints `Serving HTTP on 127.0.0.1 port 8000 (http://127.0.0.1:8000/) ...` and keeps running, with a line for each file a browser asks for. `-I` makes Python use its own server even when the folder you're in has one named `http`. If it ends instead with `OSError: [Errno 98] Address already in use`, something else has port 8000: put `8001` in its place, here and in the address below.
 3. Open `http://127.0.0.1:8000`. The cloud beside print opens the panel, with **Download a copy** alone. Ctrl-C in that terminal stops the server, with `Keyboard interrupt received, exiting.`
 
 **Saving.** Before a save, the panel shows **Save for offline**, and under it the version on the site, its build date and its size. Once the book is saved, its pages come from the saved copy, online or offline, with everything they load from the book's own site, so a reader never gets parts of two versions. Pictures, videos or scripts a page loads from another site aren't saved, here or in the download. When the site has a newer version, a dot appears on the button, and the panel shows the saved version and the latest, how many versions behind the saved one is, how many pages changed, were added and were removed, and how much there is to download, with **Update to v13** and **Remove saved copy**, and each page the saved copy serves says so above its text: `You're reading your saved copy, v12. v13 is out: update it from the ✓ above.` Remove is offered only while the site answers: a reader who is offline, or on a network that can't reach the site, keeps the copy they're reading. A site that no longer has the book still answers, so its copy can be removed too. An update fetches only the files that changed, checks every file against the site's checksums, and only then switches to the new copy, in one step; an update that fails or is interrupted leaves the saved copy as it was. Nothing downloads or changes until the reader presses a button: each page only reads the site's version file, to see whether a newer version is out. The icon shows where things stand: a cloud before a save, a tick once saved, a plane while offline.
@@ -469,7 +993,7 @@ Apart from the file names, which `README.txt`'s checksum commands use too, what 
 
 **Turning it off.** In every mode the site carries `sw.js`. Outside `"full"` it's a worker that deletes a saved copy and then itself, so a reader who saved the book gets the site's pages again on their next visit online, with nothing left behind.
 
-**What it adds.** To the project: `offline.py`, run by `./build` in every mode, and in `"full"` a manifest line in `theme/head.hbs`. To the site, besides `sw.js`: `version.json` (the version, its date, the version history and the download's checksum, and in `"full"` every file's size and SHA-256), and `offline/` (the download and its `.sha256` file). A file of yours in `src/` by any of these names is written over, as is a `README.txt` at the top of `src/` in the laptop copy. In `"full"`, also `manifest.webmanifest`, so a book added to a home screen opens as an app of its own (on an iPhone or iPad, with its own storage: see "Browsers"). The app's icon is the favicon, `favicon.svg`, which a browser draws at any size; a book whose favicon is a PNG alone has none in the manifest, and Chromium-based browsers then don't offer to install it: they want an icon of 144 pixels or more. With `favicon.svg`, they take the book as an installable app from the first visit, before anything is saved, and offer to install it (on a computer, an install button in the address bar). And `book.toml` gets `hash-files = false`: mdBook's fingerprinted file names (`version-1a2b3c4d.js`) put the deploy stamp and a hash of the search index into every page, so a download would change with every commit, and an update would fetch every page. Without them, a browser that cached a script or stylesheet just before a deploy can use it with the new pages until it next checks.
+**What it adds.** To the project: `offline.py`, run by `./build` in every mode, and in `"full"` a manifest line in `theme/head.hbs`. To the site, besides `sw.js`: `version.json` (the version, its date and the download's checksum, and in `"full"` every file's size and SHA-256), and `offline/` (the download and its `.sha256` file). A file of yours in `src/` by any of these names is written over, as is a `README.txt` at the top of `src/` in the laptop copy. In `"full"`, also `manifest.webmanifest`, so a book added to a home screen opens as an app of its own (on an iPhone or iPad, with its own storage: see "Browsers"). The app's icon is the favicon, `favicon.svg`, which a browser draws at any size; a book whose favicon is a PNG alone has none in the manifest, and Chromium-based browsers then don't offer to install it: they want an icon of 144 pixels or more. With `favicon.svg`, they take the book as an installable app from the first visit, before anything is saved, and offer to install it (on a computer, an install button in the address bar). And `book.toml` gets `hash-files = false`: mdBook's fingerprinted file names (`version-1a2b3c4d.js`) put the deploy stamp and a hash of the search index into every page, so a download would change with every commit, and an update would fetch every page. Without them, a browser that cached a script or stylesheet just before a deploy can use it with the new pages until it next checks.
 
 **Size.** GitHub Pages caps a published site at 1 GB, and the download adds the book once more, compressed where it compresses. Measured here, a 100-chapter text book grew from 12.1 MB to 15.0 MB, and a book of 100 photos from 32.9 MB to 63.6 MB: about twice, for pictures, which don't compress. GitHub also sets a soft limit of 100 GB a month on what a Pages site serves, and each download serves the book again, as does each save in a browser (an update fetches only what changed): at about 30 MB a copy, as for that photo book, 1,000 downloads or saves come to about 30 GB.
 
@@ -480,11 +1004,11 @@ Apart from the file names, which `README.txt`'s checksum commands use too, what 
 `custom.js` adds:
 
 - **`b`** toggles the sidebar (mdBook ships no key for it); the shortcut is listed in mdBook's own `?` help popup.
-- **Swipes open and close the sidebar** on a touch screen: a quick swipe right that starts in the left quarter of the screen (300px at most) opens it, and a quick swipe left over the left 300px, where the sidebar is, closes it. Each has to go more across than up or down, so a flick to scroll that drifts sideways does neither. Not with two fingers, not from a code block, a table or a form field such as the search box, whether or not it's wide enough to scroll sideways, and not from anything open over the page: the offline panel, the theme menu (`THEME="picker"`), the layout menu (`LAYOUT="picker"`), a picture mdBook has zoomed (or the dimmed screen around it), or mdBook's `?` help popup. mdBook 0.5.4 has these swipes, but its code sets the `sidebar-visible` class and not the checkbox the sidebar's CSS reads, so the sidebar doesn't move; `custom.js` does the same through that checkbox. On a device with a touch screen `custom.css` also turns off Chromium's swipes back and forward through history on the book's pages (`overscroll-behavior-x`). Chromium takes a long sideways swipe, quick or slow, as one of those, a sidebar swipe included: without the rule, a long swipe right would go back, and a long swipe left would go forward when there's a page to go forward to. On a laptop with a touch screen that may stop its touchpad's swipes back and forward there as well. The Back and Forward buttons, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>Alt</kbd>+<kbd>→</kbd>, and the phone's own edge gesture still work. See "On a phone."
+- **Swipes open and close the sidebar** on a touch screen: a quick swipe right that starts in the left quarter of the screen (300px at most) opens it, and a quick swipe left over the left 300px, where the sidebar is, closes it. Each has to go more across than up or down, so a flick to scroll that drifts sideways does neither. Not with two fingers, not from a code block, a table or a form field such as the search box, whether or not it's wide enough to scroll sideways, and not from anything open over the page: the offline panel, the theme menu (`THEME="picker"`), the layout menu (see "A section at a time, by hand"), a picture mdBook has zoomed (or the dimmed screen around it), or mdBook's `?` help popup. mdBook 0.5.4 has these swipes, but its code sets the `sidebar-visible` class and not the checkbox the sidebar's CSS reads, so the sidebar doesn't move; `custom.js` does the same through that checkbox. On a device with a touch screen `custom.css` also turns off Chromium's swipes back and forward through history on the book's pages (`overscroll-behavior-x`). Chromium takes a long sideways swipe, quick or slow, as one of those, a sidebar swipe included: without the rule, a long swipe right would go back, and a long swipe left would go forward when there's a page to go forward to. On a laptop with a touch screen that may stop its touchpad's swipes back and forward there as well. The Back and Forward buttons, <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>Alt</kbd>+<kbd>→</kbd>, and the phone's own edge gesture still work. See "On a phone."
 - **Off-site links open in a new tab** (`target="_blank"` with `rel="noopener noreferrer"`); same-origin links are untouched.
 - **A "back to the book" link on `print.html`**, and closing the print dialog returns you to the page you came from — mdBook auto-opens that dialog on the print page and cancelling otherwise strands you on the concatenated whole-book page.
 - **Code blocks that overflow sideways become keyboard-scrollable** (`tabindex="0"`, so Tab reaches them; while one has focus, ← and → scroll it instead of turning the page, as they otherwise do in mdBook), and only those — a block that fits takes no tab stop. Re-checked whenever a block changes size, a window resize or a sidebar toggle, once the layout has settled.
-- **One section at a time**, with `LAYOUT` at `"h2"`, `"nested"` or `"picker"` (in Pages): <kbd>←</kbd> and <kbd>→</kbd> turn the section first, and with `"picker"` a layout button sits beside search. See "Layout: a section at a time."
+- **One section at a time**, if you add it: see "A section at a time, by hand."
 - **The offline button** beside print, and its panel, unless `OFFLINE` is `"none"`. See "Read offline."
 - **With `THEME="picker"`, the theme menu holds Auto, Light and Dark**: the Rust, Coal and Navy rows are removed rather than hidden, so the arrow keys reach every row that remains. See "Light and dark."
 
@@ -493,7 +1017,7 @@ Apart from the file names, which `README.txt`'s checksum commands use too, what 
 How the book behaves on a phone, from mdBook 0.5.4's `book.js` and CSS, with the swipes `custom.js` adds:
 
 - **Sidebar.** It starts closed on a window narrower than 1080px. The three bars open and close it, and so do swipes: a quick swipe right that starts in the left quarter of the screen opens it, and a quick swipe left across the sidebar closes it. A slow drag does neither, and neither does a flick that's more up or down than across, a swipe with two fingers, or one that starts on a code block, a table, the search box, an open menu or a zoomed picture. (mdBook 0.5.4's own swipes don't move the sidebar; `custom.js` makes them work. See "Keyboard and links.")
-- **Chapter arrows.** On a window 1080px wide or less, they sit at the bottom of the page instead of at its sides; with the sidebar open, up to 1380px. One section at a time (`LAYOUT`), they turn the sections first; a swipe doesn't.
+- **Chapter arrows.** On a window 1080px wide or less, they sit at the bottom of the page instead of at its sides; with the sidebar open, up to 1380px.
 - **Back to the top.** Tapping the middle of the menu bar, where the book's name is, scrolls to the top; the icons on either side don't.
 - **Menu bar.** It slides away as you scroll down and comes back when you scroll up. With the sidebar open, it stays.
 - **Search.** Opening search the first time downloads the book's whole search index, which grows with the book (mdBook warns once it passes 10 MB). On a phone, over a slow connection, that's a wait before the first results.
@@ -508,8 +1032,8 @@ A chapter you can paste in to tell readers how to get around: save it as, say, `
 - With `OFFLINE="none"`, drop the Cloud row and the "Read offline" row.
 - With `OFFLINE="download"`, make the Cloud row `**Download a copy** gives you a copy of the book to keep on any computer, online or air-gapped. In a downloaded copy, it shows which version you have and the address to get a newer one.` and drop the "Read offline" row: that table is about phones and tablets, and the download is for a computer.
 - With `THEME` at `"auto"` or `"dark"`, drop the Paintbrush row: there's no theme button.
-- With `LAYOUT` at `"h2"` or `"nested"`, in the Navigation section make "move you to the previous and next chapter" read "move you to the previous and next section, and past a chapter's last section to the next chapter", and in the table under "On a phone or tablet" make "Previous or next chapter" read "Previous or next section".
-- With `LAYOUT="picker"`, add this row to the icon table after the Magnifying glass: `| <i class="fas fa-book-open"></i> Open book | Switches the layout: **Scroll** shows the whole chapter on one page, **Pages** one section at a time, turned by the arrow buttons and the <kbd>←</kbd> <kbd>→</kbd> keys. Your choice is remembered in this browser. |`; and in the Navigation section, after "move you to the previous and next chapter", add " (in Pages, the previous and next section first)".
+- If you added a section at a time with `"h2"` or `"nested"` (see "A section at a time, by hand"), in the Navigation section make "move you to the previous and next chapter" read "move you to the previous and next section, and past a chapter's last section to the next chapter", and in the table under "On a phone or tablet" make "Previous or next chapter" read "Previous or next section".
+- If you added it with `"picker"`, add this row to the icon table after the Magnifying glass: `| <i class="fas fa-book-open"></i> Open book | Switches the layout: **Scroll** shows the whole chapter on one page, **Pages** one section at a time, turned by the arrow buttons and the <kbd>←</kbd> <kbd>→</kbd> keys. Your choice is remembered in this browser. |`; and in the Navigation section, after "move you to the previous and next chapter", add " (in Pages, the previous and next section first)".
 
 ```markdown
 # Using the site
@@ -554,7 +1078,7 @@ One icon lives outside the menu bar: hover over any code block and a <i class="f
 
 ## The version line
 
-The foot of the sidebar can show a build stamp reading `<version> · updated <when> · <sha>`, with the SHA linking to the commit on GitHub when the book knows its repo (`GIT_REPO_URL`, or an `origin` on github.com), and plain text otherwise. The `<when>` is relative — "3 hours ago", "yesterday", then the plain date once it is older than three days — with the exact time shown on hover; see "The last-updated line" for the formatter it shares with the per-page line. The time is the built commit's, not the build's, so rebuilding a commit stamps the same time and SHA; only the version can differ, when a tag has been added since. **This is stamped by the deploy workflow, into `version.js`, not by the script** — so:
+The foot of the sidebar can show a build stamp reading `<version> · updated <when> · <sha>`, with the SHA linking to the commit on GitHub when the book knows its repo (`GIT_REPO_URL`), and plain text otherwise. The `<when>` is relative — "3 hours ago", "yesterday", then the plain date once it is older than three days — with the exact time shown on hover; see "The last-updated line" for the formatter it shares with the per-page line. The time is the built commit's, not the build's, so rebuilding a commit stamps the same time and SHA; only the version can differ, when a tag has been added since. **This is stamped by the deploy workflow, into `version.js`, not by the script** — so:
 
 - On a **local** `mdbook serve` / `build`, nothing stamps it and the line does not appear at all. That's expected; it's not a bug. (The fields are literal `__MDB_BUILD_*__` placeholders in `version.js` locally, and the JS shows a field only once it's been substituted.)
 - On the **deployed** site, the updated time and short SHA always appear. The **version** is the git tag: `git describe --tags` names the tag on the built commit, or the nearest reachable tag plus a commit count — `v1.2` on the tagged commit, `v1.2+5` five commits later. So tagging once per release (not once per commit) still stamps a version on every build, and no build claims a tag it isn't.
@@ -569,7 +1093,7 @@ The workflow fires on tag pushes as well as branch pushes (`tags: ['v*']`), so t
 
 ## The last-updated line
 
-Each chapter carries a **`Last updated <when>`** line under its title, set like a date line: italic, a little smaller than the text, and muted. It hangs under the title block's rule, before the text. The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1` over every file in `src/`, in UTC (`TZ=UTC … --date=format-local:%Y-%m-%dT%H:%M:%SZ`), so the pages don't carry your time zone's offset, and stamps the result into `version.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it. The home page is a copy of the first chapter and finds its source only through the edit link, so it carries the line only when the book knows its repo. One section at a time (`LAYOUT`), it shows with the chapter's first section.
+Each chapter carries a **`Last updated <when>`** line under its title, set like a date line: italic, a little smaller than the text, and muted. It hangs under the title block's rule, before the text. The time is the chapter *source's* last commit, not the build's: the workflow runs `git log -1` over every file in `src/`, in UTC (`TZ=UTC … --date=format-local:%Y-%m-%dT%H:%M:%SZ`), so the pages don't carry your time zone's offset, and stamps the result into `version.js` as a `{"src/chapter.md":"<time>"}` object, and the page matches its own source against that object (via the edit link, falling back to the URL) and formats it. The home page is a copy of the first chapter and finds its source only through the edit link, so it carries the line only when the book knows its repo.
 
 Like the footer, it is **relative** — rendered by one shared formatter: under an hour reads "just now", then "N hours ago" for the rest of the same calendar day, then "yesterday", "two days ago", "three days ago", and from four days out the plain local date (`YYYY-MM-DD`). It is computed once at load — no ticking clock — and the element's `title` carries the exact ISO timestamp, so hovering shows the precision the words drop. A time in the future (clock skew) clamps to "just now".
 
@@ -577,34 +1101,37 @@ It is a **deployed-site** feature, for the same reason the footer is: the dates 
 
 ## The link check
 
-`./build`, in the book's folder, builds the book and then runs [lychee](https://github.com/lycheeverse/lychee) over it, and **stops on any broken internal link or `#anchor`**, listing each by the Markdown file and line it's written on. The script runs it before it opens the preview and stops there on a break; run it yourself before each push. The deploy workflow runs the same `./build`, so a break that slips through still stops the deploy rather than shipping, and the live site keeps its last good build.
+`./build`, in the book's folder, builds the book and then runs [lychee](https://github.com/lycheeverse/lychee) over it, and **stops on any broken internal link or `#anchor`**. The script runs it before it opens the preview and stops there on a break; run it yourself before each push. The deploy workflow runs the same `./build`, so a break that slips through still stops the deploy rather than shipping, and the live site keeps its last good build.
 
 ```bash
 ./build
 ```
 
-On a clean book it prints mdBook's three `INFO` lines, then `links: every internal link and anchor resolves`, and exits 0; unless `OFFLINE` is `"none"`, an `offline: …` line comes before it (see "Read offline"). When mdBook reports an error it stops after mdBook, with `stopped: mdBook reported an error, above.`: mdBook goes on past some errors and exits as if it hadn't, so an `{{#include}}` whose file isn't there (`ERROR Error updating "\{{#include missing.md}}"`) would otherwise go out as the directive's own text. mdBook reads such a directive anywhere in a chapter, in a code span or a code block too: to quote one, put a backslash before its opening braces, and mdBook drops the backslash and leaves the rest as written. On a broken one it prints the same `INFO` lines, then the breaks, and exits 1:
+On a clean book it prints mdBook's three `INFO` lines, then `links: every internal link and anchor resolves`, and exits 0; unless `OFFLINE` is `"none"`, an `offline: …` line comes before it (see "Read offline"). When mdBook reports an error it stops after mdBook, with `stopped: mdBook reported an error, above.`: mdBook goes on past some errors and exits as if it hadn't, so an `{{#include}}` whose file isn't there (`ERROR Error updating "\{{#include missing.md}}"`) would otherwise go out as the directive's own text. mdBook reads such a directive anywhere in a chapter, in a code span or a code block too: to quote one, put a backslash before its opening braces, and mdBook drops the backslash and leaves the rest as written. On a broken one it prints lychee's own report, then a line of its own, and exits 1:
 
 ```text
-src/chapter_1.md:165: #paragraph
-    no such anchor on this page; did you mean #paragraphs?
-src/chapter_1.md:165: ./gone.md
-    there's no src/gone.md
+Issues found in 1 input. Find details below.
 
-stopped: 2 broken links or anchors, listed above. fix them, then run ./build again.
+[book/chapter_1.html]:
+[ERROR] file:///home/you/Desktop/mybook/book/chapter_1.html#nope (at 313:41) | Cannot find fragment
+[ERROR] file:///home/you/Desktop/mybook/book/gone.html (at 313:10) | File not found. Check if file exists and path is correct
+
+🔍 77 Total (in 3ms) 🔗 42 Unique ✅ 74 OK 🚫 2 Errors 👻 1 Excluded
+
+stopped: lychee found broken links or anchors, listed above under the built page each is on. fix them, then run ./build again.
 ```
 
-Each break takes two lines. The first says where the link is written: the file under `src/`, the line, and the link as you wrote it, so `src/chapter_1.md:165: ./gone.md` is line 165 of `chapter_1.md`. The second says what's wrong: no such page (or a chapter that isn't in `SUMMARY.md`), no such anchor on the page it points to, a link that climbs out of the book, or a chapter's `.md` named in a `src` written in HTML (mdBook writes `.html` for `.md` in a Markdown link or picture and in an `<a href>`, but not in the `src` of an `<img>` or an `<iframe>` written in HTML). For an anchor, `did you mean` names a heading on that page whose anchor shares most of its words, when one does. A link that comes from another file through mdBook's include directive is listed under the chapter that includes it, with no line number. A link is found on its line however it writes its address, each character other than a letter or a digit as itself or percent-encoded (`my notes.md` or `my%20notes.md`, `café.md` or `caf%C3%A9.md`), in a folder's name or an anchor as in a page's, and only where it leads to the page or anchor that's missing, not to another page of that name in another folder. One written with a backslash escape or an HTML entity (`notes\(old\).md`, `AT&amp;T.html`), or with a bracket or a parenthesis in a folder's name in a Markdown link not written `<…>`, is listed under its file with no line number. If lychee itself fails, `./build` shows lychee's own output instead. If `./build` says `bin/mdbook is missing` or `bin/lychee is missing`, run the script: it installs both. If it says `offline.py is missing`, run the script and commit the file it writes.
+Each break is listed under the built page it's on (`book/chapter_1.html` is built from `src/chapter_1.md`), with the address it leads to and why: `File not found` for a page that isn't there (a renamed or deleted chapter, or one not listed in `SUMMARY.md`), `Cannot find fragment` for an `#anchor` no heading on that page has. `(at 313:41)` is the line and column in the built page, not in your Markdown: search the chapter for the address (`gone.md` for `gone.html`, since mdBook writes `.html` for `.md`) or the anchor (`#nope`). If `./build` says `bin/mdbook is missing` or `bin/lychee is missing`, run the script: it installs both. If it says `offline.py is missing`, run the script and commit the file it writes.
 
 The check is offline: it tests the book's own pages and anchors and does **not** fetch outside addresses, so a dead link to another site doesn't stop it. `print.html` (every chapter again) and `404.html` (its `<base href>` points at the live site) are skipped as inputs; links *to* them are still checked. The usual causes of a break are a renamed or deleted chapter still linked from another, a `#anchor` whose heading text changed (mdBook makes the id from the heading's words), or a relative path that works on disk but not once mdBook has laid out the site.
 
-lychee is looked up and pinned like mdBook (see "Releases and updates"): the script installs its newest release that has been out a week into `bin/`, and the workflow installs the same bytes, each checked against the pinned digest first. `./build` reads lychee's report, so after a run that moves lychee to a newer release (the run's `releases:` line names it), break a link on purpose and check that `./build` still lists it by file and line. If `./build` shows lychee's own output instead, that release changed how lychee works. To go back to the one you had, put back the workflow from your last good commit and run with `KEEP_PINS=true` (see "Releases and updates"): the run that moved lychee has already rewritten the workflow, so `KEEP_PINS` alone would keep the new one.
+lychee is looked up and pinned like mdBook (see "Releases and updates"); the report is lychee's, so a newer lychee can word it differently.
 
 ## What a push publishes
 
 The repo is public (Pages needs it to be, on a free plan), and so is everything in it: every file, and every commit with its details. Four things there can say who you are:
 
-- **Commits and tags.** Each carries a name and an email, git's `user.name` and `user.email`, and its time with your time zone's offset (`+0530`); a commit's `.patch` page on GitHub shows all three. Set both before the first run (`git config --global user.name …`, `git config --global user.email …`): the script makes the first commit only with an identity you've set, so git can't fill in one it made up from your account's full name and your machine's name, and makes it in UTC (`+0000`), unless `GIT_AUTHOR_DATE` or `GIT_COMMITTER_DATE` gives its time with another offset, which the run then names (`with the offsets +0530 (author) and +0000 (committer)`). It prints the name and address it used, and the committer's too when that's someone else, as git's `author.*` and `committer.*` settings or its `GIT_AUTHOR_*` and `GIT_COMMITTER_*` variables can make it; without both set, it makes none, and says how to make it once they are. GitHub gives you a private address for this, `ID+USERNAME@users.noreply.github.com`: Settings → Emails → **Keep my email addresses private** shows it. To make your own commits and tags in UTC too, add `alias git='TZ=UTC git'` to `~/.bashrc`. UTC hides the offset, not the hours: commit times across weeks still show when you work. Before the first push, `git log --format='%an <%ae> %ad, committed by %cn <%ce> %cd'` lists what each commit says; to redo the first commit under another name, set `user.name` and `user.email`, and unset any `author.name`, `author.email`, `committer.name` or `committer.email` setting and any `GIT_AUTHOR_*` or `GIT_COMMITTER_*` variable, which git takes before them, and for the `_DATE` ones before the clock (`git config --show-origin --get-regexp '^(author|committer)\.'` lists those settings and the file each is in, and prints nothing when there are none); then run `TZ=UTC git commit --amend --reset-author --no-edit`, which changes its author and its committer both.
+- **Commits and tags.** Each carries a name and an email, git's `user.name` and `user.email`, and its time with your time zone's offset (`+0530`); a commit's `.patch` page on GitHub shows all three. Set both before the first run (`git config --global user.name …`, `git config --global user.email …`): the script makes the first commit only when both are set, so git can't fill in one it made up from your account's full name and your machine's name, and makes it in UTC (`+0000`); without both, it makes none, and says how to make it once they are. GitHub gives you a private address for this, `ID+USERNAME@users.noreply.github.com`: Settings → Emails → **Keep my email addresses private** shows it. To make your own commits and tags in UTC too, add `alias git='TZ=UTC git'` to `~/.bashrc`. UTC hides the offset, not the hours: commit times across weeks still show when you work. Before the first push, `git log --format='%an <%ae> %ad, committed by %cn <%ce> %cd'` lists what each commit says; to redo the first commit under another name, set `user.name` and `user.email`, and unset any `author.name`, `author.email`, `committer.name` or `committer.email` setting and any `GIT_AUTHOR_*` or `GIT_COMMITTER_*` variable, which git takes before them, and for the `_DATE` ones before the clock (`git config --show-origin --get-regexp '^(author|committer)\.'` lists those settings and the file each is in, and prints nothing when there are none); then run `TZ=UTC git commit --amend --reset-author --no-edit`, which changes its author and its committer both.
 - **Your GitHub account.** Its name is in the site's address (`USER.github.io`) and in every link to the repo: the pencil, the footer's commit link, `README.md`, the laptop copy's `README.txt`. A custom domain doesn't hide it while those links point at the repo. Only a separate account, with its own email and SSH key, keeps a book apart from your own.
 - **`BOOK_AUTHOR`.** It goes into `book.toml`, in the repo. No page shows it: mdBook 0.5.4's pages don't use it.
 - **Files you add to `src/`.** They're published byte for byte, on the site and in the download. A photo can carry where it was taken, the camera's serial number, and its time with your offset: `exiftool -all= -overwrite_original FILE` (package `libimage-exiftool-perl`) takes all of that out. An SVG from a drawing program can carry your name and paths from your machine: `scour --remove-metadata --enable-comment-stripping -i in.svg -o out.svg` (package `scour`) takes those out and keeps the `prefers-color-scheme` style "The favicon" asks for.
@@ -622,7 +1149,7 @@ One time:
    git push -u origin main
    ```
 
-   (use your `DEPLOY_BRANCH` if you changed it). If you left `GIT_REPO_URL` empty, add the remote first — `git remote add origin git@github.com:user/repo.git` — then re-run the script and commit, so the book picks the repo up from `origin` (the pencil, `site-url` and the footer's commit link; see `GIT_REPO_URL` under "The toggles").
+   (use your `DEPLOY_BRANCH` if you changed it). If you left `GIT_REPO_URL` empty, set it, re-run the script and commit: that adds `origin`, and the pencil, `site-url` and the footer's commit link (see `GIT_REPO_URL` under "The toggles").
 3. **Enable Pages once, by hand:** Settings → Pages → Source → **GitHub Actions**. The workflow does *not* enable Pages for you (it can't: enabling Pages takes a token with more access than a workflow's own, which this script won't ask you to store).
 4. **Let release tags deploy, once:** Settings → Environments → **github-pages**. GitHub limits that environment to your default branch, so it lists one rule, `main` (or your `DEPLOY_BRANCH`). Click **Add deployment branch or tag rule**, set Ref type to **Tag**, enter `v*`, and click **Add rule**. If it says **No restriction** instead, there's nothing to add. The workflow can't do this for you either: changing an environment's rules takes administration access to the repo, which a workflow's token can't be given.
 
@@ -636,41 +1163,25 @@ After setup, every change: edit → `./build` → `git add -A` → `git commit` 
 
 ## Releases and updates
 
-The script names no release. Each run asks GitHub for the newest stable release of mdBook, of lychee (the link checker `./build` runs) and of the workflow's three actions (`actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`), and with `HEADING_NUMBERS=true` asks crates.io for `mdbook-numbering`'s newest version. It takes a release only once it has been out a week (`RELEASE_WAIT_DAYS`, near the top of the script), and for mdBook and lychee only once the file it downloads has been up that long: most hijacked releases are found and pulled within a week, so the wait keeps one off your machine and out of your deploys, with one gap: what an action runs is the commit its tag names on the day of the run, and a tag can be moved to another commit long after its release came out, with no new release. A run refuses a moved tag only where the workflow already pins it (below); a tag it doesn't pin yet, as on a first run, is taken as the run finds it. Stable means a plain version number that GitHub doesn't mark as a pre-release or a draft; newest means the highest number, not the latest date, so a fix to an older series doesn't win over a newer series.
+The script names no release. Each run asks `github.com` for the tags of mdBook, lychee and the workflow's three actions (`actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`), asks `api.github.com` once for each when its releases came out, and takes the highest-numbered stable release (not a draft or a pre-release) that has been out a week (`RELEASE_WAIT_DAYS`, under the settings): most hijacked releases are found and pulled within a week. mdBook stays on its 0.5 series, which the theme and `custom.js` are written for. With `HEADING_NUMBERS=true`, `mdbook-numbering` comes from crates.io the same way: its newest version out a week and not yanked.
 
-mdBook is held to its 0.5 series: the theme and `custom.js` are written for 0.5's pages. Once a newer series is out, the run says so and goes on with the newest 0.5 (`mdBook v0.6.0 is out, but this script's theme and scripts are written for mdBook 0.5: using v0.5.4`); a later version of the script moves to the new series.
+The workflow pins what the run took: mdBook and lychee by version and the SHA-256 of the file the run downloaded, which CI checks its own download against; each action by the commit its tag names, with the tag after it (`uses: actions/checkout@<commit> # v7.0.1`); `mdbook-numbering` by version. No newer release reaches your published book until you re-run the script and push.
 
-Then it pins what it took. mdBook's and lychee's downloads are checked against the SHA-256 digest GitHub computed when each file was uploaded, and that digest goes into the workflow with the version, where CI checks its own download against it, and into `bin/` beside the binary. A file uploaded before GitHub began computing digests, in June 2025, has none (mdBook v0.4.40's, for one): the run then checks the download against the workflow's digest when the workflow already pins that release, and otherwise pins the download's own and says so (`WARN: GitHub has no digest for …`). A digest in a form the script doesn't know (GitHub's are `sha256:` and 64 hexadecimal digits) stops the run before anything is downloaded, unless it's for the release the workflow pins, whose download is checked against the pin: `GitHub gives the digest of … in a form this script doesn't know, so the download can't be checked`; on a re-run, the message adds that `KEEP_PINS=true` keeps what the workflow pins till then. Each binary is run before it goes into `bin/`: they're the `gnu` Linux builds, which need a glibc with every symbol version they link (mdBook 0.5.4's needs 2.34, lychee 0.24.2's 2.39), and on an older system the run stops there, naming the glibc it needs, with that tool's binary in `bin/` as it was (see "Other platforms"). An action is pinned by the commit its release's tag names, with the release after it as a comment (`uses: actions/checkout@<commit> # v7.0.1`): a tag can be moved to another commit, and a commit can't change. `mdbook-numbering` is pinned by version: crates.io never changes a published version's files, and cargo checks them. Before it asks, the run says `looking up the newest releases on GitHub` (`on GitHub and crates.io` with `HEADING_NUMBERS=true`), so a slow network doesn't look like a hang; after, it prints what it took:
+A re-run stops before it rewrites any file when something pinned has changed under the same version:
 
-```text
-releases: mdBook v0.5.4, lychee 0.24.2; v7.0.1, v5.0.0, v5.0.1 of the actions
-```
+- **A downloaded release file isn't the pinned one:** `… has sha256 …, but the workflow pins … for it: the file has changed since it was pinned`. The download isn't kept. Check the release on GitHub; to go on, delete the line with the pinned SHA-256 from `.github/workflows/deploy.yml` and run the script again.
+- **A tarball in `bin/` isn't the pinned one:** `bin/mdbook-….tar.gz has sha256 …: it has changed since it was downloaded`. Delete it and run the script again, online: it downloads the release again and checks it.
+- **An action's tag names another commit now:** `actions/checkout's tag … now names commit …: the tag has moved`. Check the release on GitHub; to go on, delete that action's `uses:` line from the workflow and run again.
 
-No newer mdBook, lychee, `mdbook-numbering` or action reaches your published book until you re-run the script and push. The runner still moves with GitHub (`ubuntu-latest`). A re-run stops before it downloads or writes anything when something it pinned has changed since:
+With `github.com` out of reach, a run takes what the workflow pins, as `KEEP_PINS=true` does, and uses the tarballs in `bin/`; one it doesn't have stops it (`could not download …: each release needs github.com once`), as does a workflow that pins nothing yet (`the workflow pins no mdbook: run this online, without KEEP_PINS`).
 
-- **A release's file has changed.** GitHub's digest for the mdBook or lychee release the workflow pins isn't the pinned one, so the file was replaced after it was pinned: `GitHub's digest for mdBook v0.5.4 is …, but the workflow pins … for it`. Check the release's page on GitHub before trusting it. To go on, delete the line with the pinned digest, which the message names (`echo "…  mdbook.tar.gz"`, or `lychee.tar.gz`), from `.github/workflows/deploy.yml` and run the script again: the tool is then looked up as on a first run, and like any file the new one is taken once it has been up a week. Until the workflow that run writes is pushed, each deploy stops at the workflow's checksum check.
-- **An action's tag has moved.** The tag the workflow pins for an action names another commit now: `actions/checkout's tag v7.0.1 now names commit …, but the workflow pins … for it`. Check the release's page; to go on, delete that action's `uses:` line from the workflow and run again: the action is then looked up as on a first run.
+- **Update:** `bash bootstrap-mdbook.sh`.
+- **Change a toggle without updating:** `KEEP_PINS=true bash bootstrap-mdbook.sh` takes exactly what the workflow pins, each download checked against its pinned SHA-256; a release the workflow doesn't pin stops it (`KEEP_PINS: the workflow pins no …`). It's also the way back from a release that breaks something: `git log --oneline -- .github/workflows/deploy.yml` lists the commits that changed the workflow, newest first; `git checkout HASH -- .github/workflows/deploy.yml`, with the last good one's hash, puts that workflow back and prints nothing; then run with `KEEP_PINS=true`.
 
-A release the workflow pins that GitHub no longer offers as a stable release out a week (pulled, marked a pre-release, its file removed, or its file uploaded again with the same bytes) isn't refused: the run takes the newest one that is. When that's older than the pinned one, the run says so (`WARN: the workflow pins mdBook v0.5.4, which GitHub doesn't offer now as a stable release out 7 days …`): if the pinned release was pulled or its file removed, the project's releases page or its security advisories on GitHub may say why. When a newer release has been out a week, the run moves to it without a WARN, as any re-run would. The same goes for an `mdbook-numbering` version yanked from crates.io. Until you re-run the script and push, each deploy fails if the mdBook or lychee release the workflow pins was pulled or its file removed, since CI can't download it, or if its `mdbook-numbering` version was yanked, since cargo won't install a yanked one. A run with `KEEP_PINS`, or with GitHub out of reach, doesn't ask about the pinned release, so one that has to download it (a fresh clone, or a workflow put back from an older commit) stops there if the release was pulled or its file removed (curl says `The requested URL returned error: 404`); a run that can ask GitHub, without `KEEP_PINS`, takes the newest that qualifies.
-
-A newer release whose file isn't there, or was uploaded again less than a week ago, is passed over too, and the run says so (`WARN: mdBook vX.Y.Z is out, but has no mdbook-vX.Y.Z-x86_64-unknown-linux-gnu.tar.gz uploaded 7 days ago or more: using …`). A file uploaded again is taken once it has been up a week; for a release that names its files differently, the script needs the new name. A release whose archive is laid out differently stops the run after its download, before the workflow is rewritten (`no mdbook at the top of …`, `could not take lychee out of …`): when the book's own workflow pins another release of that tool, the message adds that `KEEP_PINS=true` keeps that one till a newer script knows the layout; on a first run, a clone's included, there's no way past it till then.
-
-A download that doesn't match GitHub's digest stops the run too, before that tool is installed. The run installs mdBook, then lychee, then builds `mdbook-numbering`, and writes the workflow last, so when a later step fails, `bin/` can already hold a new mdBook (and lychee) while the workflow still pins the old ones, until a run gets through.
-
-None of the script's own requests reads a config file, and none waits for ever: curl gives up after its time limits, `git ls-remote` when a transfer stalls for a minute, or within five minutes when a connection can't be set up. curl runs with `-q`, so `~/.curlrc` doesn't apply, and `git ls-remote` runs without git's system, global and repository config, so no setting there can turn its TLS checks off, send it to another address (`url.<base>.insteadOf`) or make it trust another certificate. Both still take the environment's proxy and certificate settings (not `GIT_SSL_NO_VERIFY`, which the script clears): behind a proxy, set `https_proxy`; behind one that inspects TLS, add its certificate to the system's certificate store, or name it in `CURL_CA_BUNDLE` for curl and `GIT_SSL_CAINFO` for git. A proxy or certificate named only in `~/.curlrc` or git's config doesn't reach them. A proxy that lets only listed hosts through needs `api.github.com`, `github.com` and `release-assets.githubusercontent.com` (with `HEADING_NUMBERS`, also the crates.io and Rust hosts "Run it" lists); curl reports a refusal there as `The requested URL returned error: 403`, the line GitHub's limit gives too.
-
-GitHub answers 60 requests an hour from one address, and a run makes five, so behind an address many people share (an office, a VPN) the limit can run out: try again within the hour. No token is sent or needed, since everything the script asks is public. A re-run that can't ask GitHub keeps what the workflow pins and says so (`WARN: could not look up rust-lang/mdBook's releases (…): keeping mdBook v0.5.4, which the workflow pins`); a release the workflow doesn't pin, or pins without its digest (the line deleted after a refusal), stops the run, as on a first run, with nothing changed. Until the book has a commit, a run counts as a first run whatever the workflow pins: a clone's first run, whose workflow is the reference repo's, and a re-run after a first run that made no commit (no identity set). Without `KEEP_PINS` it keeps nothing the workflow pins, refuses nothing against it, and offers no `KEEP_PINS` way on. With `HEADING_NUMBERS`, crates.io out of reach works the same way for `mdbook-numbering`, so the first run with it on stops too.
-
-- **Update:** re-run `bash bootstrap-mdbook.sh`. It looks the releases up again and re-pins the workflow, so a new release reaches your book once it has been out a week, at your next re-run and push. A re-run regenerates all script-owned files from the toggles, so use this only if you haven't hand-edited them.
-- **Change a toggle without updating:** `KEEP_PINS=true bash bootstrap-mdbook.sh` installs and pins exactly what the workflow already pins, each download checked against the pinned digest, without asking GitHub about any of it; an action pinned by its commit alone, as v53 pinned them, is kept as it is, and one with a comment that isn't its release's tag (`# v7`) keeps its commit, written back without the comment (the `releases:` line names it `commit 3d3c42e5aac5`). It trusts the workflow as it is, checking no action's commit: use it on a workflow from your own commits, since a commit pinned there, even one from a fork, runs as the action. What the workflow doesn't pin yet is looked up as usual, and the run says so: `mdbook-numbering` when you turn `HEADING_NUMBERS` on (`KEEP_PINS: nothing to keep for mdbook-numbering in the workflow; looking it up`). A workflow pinning an mdBook outside the 0.5 series stops the run with nothing changed: run without `KEEP_PINS`. It's also the way back from a new release that breaks something, such as a lychee that `./build` can't run or actions that fail the deploy: put back the workflow from your last good commit, then run with `KEEP_PINS=true`. `git log --oneline -- .github/workflows/deploy.yml` lists the commits that changed the workflow, newest first, each as a short hash and its message; `git checkout HASH -- .github/workflows/deploy.yml`, with the hash of the last good one, puts that version back and prints nothing. The run's `releases:` line then ends `(KEEP_PINS: those the workflow pins, kept)`. A run without it takes the newest releases again, so keep adding it until a newer release, or this script's next version, fixes the break.
-- **Keeping hand edits:** take a release by hand. From the release's page on GitHub (for lychee, a release tagged `lychee-v`, not `lychee-lib-v`), download the file ending `x86_64-unknown-linux-gnu.tar.gz`, check that its `sha256sum` is the digest GitHub shows beside it, take the binary out into `bin/` (`tar -xzf mdbook-*.tar.gz -C bin mdbook`; for lychee, `tar -xzf lychee-*.tar.gz -C bin --strip-components=1 lychee-x86_64-unknown-linux-gnu/lychee`), and set the version and the digest in the workflow's install step to match. An action's commit is the hash `git ls-remote https://github.com/actions/REPO refs/tags/TAG 'refs/tags/TAG^{}'` prints on its `^{}` line, or on its only line when there's no `^{}` one. Write the release's tag after the commit (`uses: actions/REPO@COMMIT # TAG`): a later run checks that the tag still names that commit.
+`api.github.com` answers 60 requests an hour from one address, and a run makes five: behind an address many people share, try again within the hour.
 
 ## Other platforms
 
-Linux x86_64 only, as shipped. Three places name the platform, and the digest check couples them: `install_mdbook`'s `triple="x86_64-unknown-linux-gnu"`, which names the file it downloads and installs as `bin/mdbook`; the file name `lookup_releases` asks GitHub about, whose digest the download is checked against and the workflow pins; and the workflow's install step, which downloads the Linux tarball (the runner, `ubuntu-latest`, is x86_64 Linux) and checks it against that digest with `sha256sum -c`. lychee is the same, in `install_lychee`, `lookup_releases` and the workflow.
-
-They're the `gnu` builds, which use the system's glibc and need one with every symbol version they link: mdBook 0.5.4's needs 2.34, and lychee 0.24.2's 2.39, so Debian 12, with 2.36, can't run that lychee, and Ubuntu 24.04, with 2.39, can. Later releases can need newer. The run checks that each one runs before it goes into `bin/`, and on an older system it stops there (on a first run, before the book's git repository is made), naming the glibc it needs, with `bin/` keeping the binary it had: `lychee 0.24.2's Linux build needs glibc 2.39 or later, and this system has 2.36: it wasn't installed, and bin/ keeps the lychee it had, if any. Run this on a system with glibc 2.39 or later.` The way on is a newer system; the runner moves with GitHub. On a re-run where `bin/` still has the release the workflow pins, as the binary itself says, the message adds the other, if `KEEP_PINS` would keep that release (its digest pinned too, and for mdBook a 0.5 release): `KEEP_PINS=true keeps lychee …, which the workflow pins and bin/ has.` The downloads are unpacked and run in `bin/`, not in `/tmp`, and so are rustup's installer and, with `HEADING_NUMBERS`, cargo's build of `mdbook-numbering`, so a system that mounts `/tmp` without the right to run programs (`noexec`) installs them too. A book on a filesystem mounted that way stops the run at the first download, which says so: `mdBook v0.5.4 can't run from the book's bin/: the filesystem … is on doesn't allow running programs (it's mounted noexec)`. Put the book elsewhere, such as in your home folder.
-
-So a triple can't be swapped on its own. Change `triple=` alone and the download fails its check (`… isn't the file it should be`), since it isn't the file whose digest the run looked up; change the file name in `lookup_releases` too and the run goes through, but pins the other platform's digest, which CI's check of the Linux tarball then fails. On another platform, install `bin/mdbook` and `bin/lychee` for the preview from that platform's tarballs by hand (see "Keeping hand edits" under "Releases and updates"), and keep the workflow's install steps at the Linux tarballs and their digests.
+Linux x86_64 only, as shipped. Step 4 of the script downloads the `x86_64-unknown-linux-gnu` tarballs and pins their SHA-256 in the workflow, whose install steps download the same tarballs on GitHub's x86_64 Linux runner (`ubuntu-latest`) and check them against it. So both stay the Linux tarballs. On another platform, put `bin/mdbook` and `bin/lychee` in place for the preview by hand, and leave the workflow as the script writes it: from each project's releases page on GitHub (for lychee, a release tagged `lychee-v`), download the file whose name ends with your platform's triple and `.tar.gz`, then `tar -xzf mdbook-*.tar.gz -C bin mdbook`, or for lychee `tar -xzf lychee-*.tar.gz -C bin --strip-components=1 lychee-TRIPLE/lychee` with the triple in the folder's name; each prints nothing. A run of the script puts the Linux binaries back.
 
 The real 0.5.4 asset triples, for a `bin/mdbook` installed by hand: Intel macOS `x86_64-apple-darwin`, Apple Silicon `aarch64-apple-darwin`, ARM Linux `aarch64-unknown-linux-musl` (musl, not gnu); Windows ships a `.zip` (`x86_64-pc-windows-msvc`). Always confirm the current spelling on the mdBook releases page.

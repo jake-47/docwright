@@ -1,12 +1,12 @@
 // Script-owned. MDB_REPO comes from GIT_REPO_URL; the deploy stamp is in version.js.
 var MDB_REPO = "https://github.com/jake-47/docwright";
 var MDB_OFFLINE = "full";
+// fn now, or once the page is parsed; every block below uses it.
+var mdbReady = function (fn) {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn);
+  else fn();
+};
 (function () {
-  var ready = function (fn) {
-    if (document.readyState === "loading")
-      document.addEventListener("DOMContentLoaded", fn);
-    else fn();
-  };
 
   // mdBook's print.html, at the book's root (a print.md in a folder is a page like any other).
   var isPrint = function () {
@@ -94,7 +94,7 @@ var MDB_OFFLINE = "full";
   })();
 
   // Keep mdBook's '?' shortcut popup honest about the key we just added.
-  ready(function () {
+  mdbReady(function () {
     var help = document.querySelector("#mdbook-help-popup > div");
     if (!help) return;
     var p = document.createElement("p");
@@ -106,8 +106,7 @@ var MDB_OFFLINE = "full";
     help.appendChild(p);
   });
 
-  // Off-site links open in a new tab.
-  ready(function () {
+  mdbReady(function () {
     var here = location.origin;
     var links = document.querySelectorAll(".content a[href]");
     for (var i = 0; i < links.length; i++) {
@@ -118,7 +117,7 @@ var MDB_OFFLINE = "full";
   });
 
   // The pencil in front of print, so print and the offline button, last, go together; a space apart, as mdBook's.
-  ready(function () {
+  mdbReady(function () {
     var right = document.querySelector("#mdbook-menu-bar .right-buttons");
     var print = right && right.querySelector('a[href$="print.html"]'), edit = right && right.querySelector('a[rel="edit"]');
     if (!print || !edit) return;
@@ -127,7 +126,7 @@ var MDB_OFFLINE = "full";
   });
 
   // Remove (not hide) prev/next links into src/unlisted/: book.js follows a hidden one too.
-  ready(function () {
+  mdbReady(function () {
     var sel = 'a[class*="nav-chapters"][href^="unlisted/"],' +
               'a[class*="nav-chapters"][href*="/unlisted/"]';
     var links = document.querySelectorAll(sel);
@@ -135,7 +134,7 @@ var MDB_OFFLINE = "full";
   });
 
   // The masthead's hairline once the list scrolls under it.
-  ready(function () {
+  mdbReady(function () {
     var box = document.querySelector(".sidebar .sidebar-scrollbox");
     if (!box) return;
     var border = function () { box.classList.toggle("mdb-scrolled", box.scrollTop > 0); };
@@ -144,7 +143,7 @@ var MDB_OFFLINE = "full";
   });
 
   // The sidebar footer; each part only if stamped (version.js).
-  ready(function () {
+  mdbReady(function () {
     var box = document.querySelector(".sidebar .sidebar-scrollbox");
     if (!box) return;
     var version = window.MDB_VERSION, updated = window.MDB_UPDATED, sha = window.MDB_SHA;
@@ -180,7 +179,7 @@ var MDB_OFFLINE = "full";
   });
 
   // "Last updated <when>" under the H1: the source from the edit link, else from the URL.
-  ready(function () {
+  mdbReady(function () {
     var MDB_PAGE_DATES = window.MDB_PAGE_DATES;
     if (typeof MDB_PAGE_DATES !== "object" || !MDB_PAGE_DATES) return;
     if (isPrint()) return;
@@ -228,7 +227,7 @@ var MDB_OFFLINE = "full";
   (function () {
     if (!isPrint()) return;
 
-    ready(function () {
+    mdbReady(function () {
       var main = document.querySelector("#mdbook-content main");
       if (!main) return;
       var p = document.createElement("p");
@@ -271,8 +270,7 @@ var MDB_OFFLINE = "full";
     var dark = document.getElementById("mdbook-theme-ayu");
     if (dark) dark.textContent = "Dark";
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", trim);
-  else trim();
+  mdbReady(trim);
 })();
 
 // Line numbers in a gutter beside <code>: language-fenced blocks of MIN_LINES or more.
@@ -297,8 +295,7 @@ var MDB_OFFLINE = "full";
       pre.insertBefore(g, b);
     }
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", gutters);
-  else gutters();
+  mdbReady(gutters);
 })();
 
 // Code that overflows sideways takes tabindex="0", so the keyboard reaches it.
@@ -328,8 +325,7 @@ var MDB_OFFLINE = "full";
       window.addEventListener("resize", later);
     }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
-  else run();
+  mdbReady(run);
   // While a code block has focus, Left and Right scroll it instead of turning the page.
   document.addEventListener("keydown", function (e) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -454,7 +450,7 @@ var MDB_OFFLINE = "full";
     render();
   };
 
-  // What saving or updating fetches and keeps; pages counted once (no print, 404, toc, redirects, copies).
+  // What saving or updating fetches and keeps; pages counted once (no print, 404, toc, copies).
   var plan = function (L) {
     var files = L.files, old = (st.saved && st.files) || {};
     var p = { get: [], keep: [], bytes: 0, changed: 0, added: 0, removed: 0 };
@@ -469,16 +465,15 @@ var MDB_OFFLINE = "full";
       if (o && o[1] === files[path][1]) return p.keep.push(path);
       p.get.push(path);
       p.bytes += files[path][0];
-      // A page where a redirect was (output.html.redirect, since changed) is new.
       if (page(path, files[path], seen)) {
         if (o && !o[2]) p.changed++;
         else p.added++;
       }
     });
-    // Gone, a redirect now, or now the first chapter's copy: removed.
+    // Gone, or now the first chapter's copy: removed.
     Object.keys(old).forEach(function (path) {
       var f = files[path];
-      if ((!f || f[2] === 1 || (f[2] === 2 && !old[path][2])) && page(path, old[path], gone)) p.removed++;
+      if ((!f || (f[2] === 2 && !old[path][2])) && page(path, old[path], gone)) p.removed++;
     });
     return p;
   };
@@ -629,6 +624,14 @@ var MDB_OFFLINE = "full";
     if (switched && had && !st.error) location.reload();
   };
 
+  var wipe = async function () {
+    var names = await caches.keys();
+    for (var i = 0; i < names.length; i++)
+      if (names[i].indexOf(PREFIX) === 0) await caches.delete(names[i]);
+    var reg = await navigator.serviceWorker.getRegistration(ROOT);
+    if (reg && reg.scope === ROOT) await reg.unregister();
+  };
+
   var remove = async function () {
     if (st.busy) return;
     st.busy = { what: "Removing the saved copy…", done: 0, total: 0 };
@@ -643,13 +646,7 @@ var MDB_OFFLINE = "full";
       return;
     }
     try {
-      await lock(async function () {
-        var names = await caches.keys();
-        for (var i = 0; i < names.length; i++)
-          if (names[i].indexOf(PREFIX) === 0) await caches.delete(names[i]);
-        var reg = await navigator.serviceWorker.getRegistration(ROOT);
-        if (reg && reg.scope === ROOT) await reg.unregister();
-      });
+      await lock(wipe);
       st.saved = null;
       st.files = null;
       st.error = "";
@@ -671,20 +668,6 @@ var MDB_OFFLINE = "full";
     b.disabled = !!off;
     b.addEventListener("click", function (e) { e.stopPropagation(); fn(); });
     return b;
-  };
-  // A paragraph of text and links: parts are strings or [text, address].
-  var para = function (cls, parts) {
-    var p = el("p", cls);
-    parts.forEach(function (part) {
-      if (typeof part === "string") return p.appendChild(document.createTextNode(part));
-      var a = el("a", null, part[0]);
-      a.href = part[1];
-      a.setAttribute("data-k", part[0]);
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      p.appendChild(a);
-    });
-    return p;
   };
 
   // The download: a big button, what it's for, its version, size and checksum.
@@ -732,8 +715,15 @@ var MDB_OFFLINE = "full";
     panel.appendChild(el("p", "mdb-offline-title", "Read offline"));
     if (COPY) {
       panel.appendChild(el("p", null, "Downloaded copy " + ver(COPY.version, COPY.built)));
-      if (typeof COPY.home === "string" && /^https?:\/\//.test(COPY.home))
-        panel.appendChild(para("mdb-offline-note", ["Newer versions: ", [COPY.home, COPY.home]]));
+      if (typeof COPY.home === "string" && /^https?:\/\//.test(COPY.home)) {
+        var note = el("p", "mdb-offline-note", "Newer versions: "), home = el("a", null, COPY.home);
+        home.href = COPY.home;
+        home.setAttribute("data-k", COPY.home);
+        home.target = "_blank";
+        home.rel = "noopener noreferrer";
+        note.appendChild(home);
+        panel.appendChild(note);
+      }
       return;
     }
     var saving = canSave() && !!(S || (L && L.files));
@@ -903,15 +893,9 @@ var MDB_OFFLINE = "full";
         if (!held) return;
         var cur = await readSaved(true);
         if (cur) return sweep(await caches.open(META), cur);
-        var names = await caches.keys();
-        for (var i = 0; i < names.length; i++)
-          if (names[i].indexOf(PREFIX) === 0) await caches.delete(names[i]);
-        // And the worker a first save cut short registered.
-        var reg = await navigator.serviceWorker.getRegistration(ROOT);
-        if (reg && reg.scope === ROOT) await reg.unregister();
+        await wipe();
       }).catch(function () {});
     }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
-  else start();
+  mdbReady(start);
 })();

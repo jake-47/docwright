@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           base="https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz"
-          curl --fail -sSL "$base" -o mdbook.tar.gz
+          curl -q --fail -sSL --proto =https --proto-redir =https --tlsv1.2 "$base" -o mdbook.tar.gz
           # The digest the bootstrap checked: a tag names a file, not its bytes.
           echo "3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7  mdbook.tar.gz" | sha256sum -c -
           mkdir -p bin
@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           base="https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz"
-          curl --fail -sSL "$base" -o lychee.tar.gz
+          curl -q --fail -sSL --proto =https --proto-redir =https --tlsv1.2 "$base" -o lychee.tar.gz
           # Pinned by version and sha256, as mdBook is.
           echo "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  lychee.tar.gz" | sha256sum -c -
           tar -xz -f lychee.tar.gz --strip-components=1 \

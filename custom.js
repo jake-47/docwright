@@ -106,14 +106,15 @@ var mdbReady = function (fn) {
     help.appendChild(p);
   });
 
+  // Every link to another site, the pencil included, in a new tab; an email link opens the mail program.
+  var away = function (a) {
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    if (/^https?:$/.test(u.protocol) && u.origin !== location.origin) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+  };
   mdbReady(function () {
-    var here = location.origin;
-    var links = document.querySelectorAll(".content a[href]");
-    for (var i = 0; i < links.length; i++) {
-      var a = links[i], u;
-      try { u = new URL(a.href, location.href); } catch (err) { continue; }
-      if (u.origin !== here) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
-    }
+    var links = document.querySelectorAll("a[href]");
+    for (var i = 0; i < links.length; i++) away(links[i]);
   });
 
   // The pencil in front of print, so print and the offline button, last, go together; a space apart, as mdBook's.
@@ -163,6 +164,7 @@ var mdbReady = function (fn) {
         var s = document.createElement("a");
         s.href = MDB_REPO + "/commit/" + encodeURIComponent(sha);
         s.textContent = sha;
+        away(s);
         parts.push(s);
       } else {
         parts.push(document.createTextNode(sha));

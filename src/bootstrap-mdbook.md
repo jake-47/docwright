@@ -8,7 +8,7 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v66
+# bootstrap-mdbook.sh, v69
 #
 # Makes an mdBook book at PROJECT_DIR/BOOK_NAME, or updates one, the way mdBook's
 # own docs say to by hand, then opens a preview: part 1 is the steps, in order;
@@ -16,8 +16,9 @@ For more details, see [Publish a book or a knowledge base](./publish-book.md).
 # src/ and README.md alone. Linux x86_64. How to use it: mdb-guide.md.
 #
 #   bash bootstrap-mdbook.sh                 make or update the book, check it, preview it
-#   KEEP_PINS=true bash bootstrap-mdbook.sh  the same, with the releases the workflow pins
-#   SERVE=false bash bootstrap-mdbook.sh     the same, without the preview at the end
+#   bash bootstrap-mdbook.sh update          the same, taking the newest releases first
+#   bash bootstrap-mdbook.sh remove          delete what the script downloaded for this book
+#   SERVE=false bash bootstrap-mdbook.sh     make or update it without the preview at the end
 #   ./build                                  in the book: build it; stop on a broken link
 
 set -euo pipefail
@@ -54,7 +55,6 @@ OFFLINE="full"                            # "full" (default): saving the book in
 
 RELEASE_WAIT_DAYS=7                       # a release is taken once out this long: most
                                           # hijacked ones are pulled within a week
-KEEP_PINS=${KEEP_PINS:-false}             # from the environment: see the usage above
 SERVE=${SERVE:-true}
 
 ## ─── part 1: the steps ───────────────────────────────────────────────────
@@ -62,20 +62,31 @@ SERVE=${SERVE:-true}
 # the same steps without the script. Sourced, the script runs nothing.
 
 main() {
+    UPDATE=false
+    case ${1:-} in
+        "") ;;
+        update) UPDATE=true ;;
+        remove) check_needs; remove_tools; return 0 ;;
+        *) die "unknown command: $1. The script takes update, remove, or nothing (the usage is at its top)" ;;
+    esac
+    [ $# -le 1 ] || die "one command at a time: update, remove, or nothing"
     check_needs        # 1
     make_repo          # 2
     choose_releases    # 3
     install_tools      # 4
     start_book         # 5
     write_files        # 6 to 10
-    first_commit       # 11
+    first_commit       # 11, said: yours to make
     check_and_preview  # 12
 }
 
-# 1. curl, git and python3 are there; this isn't root; the settings make sense.
+# 1. curl, git and python3 run; this isn't root; the settings make sense. Each tool
+#    is run, not only found: on Whonix /usr/bin/git is a Tor wrapper, there whether
+#    git is installed or not. All that's missing is named at once.
 check_needs() {
-    local t
-    for t in curl git python3; do command -v "$t" >/dev/null || die "this needs $t: install it (on Debian or Ubuntu: sudo apt-get install $t), then run this again"; done
+    local t miss=""
+    for t in curl git python3; do "$t" --version >/dev/null 2>&1 || miss+=" $t"; done
+    [ -z "$miss" ] || die "missing:$miss. On Debian or Ubuntu: sudo apt-get install$miss, then run this again"
     [ "$EUID" -ne 0 ] || die "run this as yourself, not with sudo or as root: nothing here needs root, and the book would be left root's"
     check_settings
     site_urls
@@ -86,74 +97,67 @@ check_needs() {
         || die "$BOOK_DIR/build isn't this script's: move it aside (mv build build.own), then run this again"
 }
 
-# 2. The book's folder, a git repository on DEPLOY_BRANCH, origin from GIT_REPO_URL, .gitignore.
+# 2. The book's folder, a git repository on DEPLOY_BRANCH, origin from GIT_REPO_URL, .gitignore:
+#    bin/ and book/, and editors' swap, lock and backup files, which carry your login,
+#    this computer's name and the folder's path.
 make_repo() {
     local ssh l
+    NEW_REPO=false
     mkdir -p "$BOOK_DIR/bin"
     cd "$BOOK_DIR"
-    [ -e .git ] || git init -q -b "$DEPLOY_BRANCH"
+    [ -e .git ] || { git init -q -b "$DEPLOY_BRANCH"; NEW_REPO=true; }
     if [ -n "$GIT_REPO_URL" ]; then
         ssh=git@github.com:${GIT_REPO_URL#https://github.com/}.git
-        if ! git remote get-url origin >/dev/null 2>&1; then git remote add origin "$ssh"
-        elif [ "$(git config --get remote.origin.url)" != "$ssh" ]; then git remote set-url origin "$ssh"; fi
+        if ! git remote get-url origin >/dev/null 2>&1; then git remote add origin "$ssh"; say "added remote origin: $ssh"
+        elif [ "$(git config --get remote.origin.url)" != "$ssh" ]; then git remote set-url origin "$ssh"; say "changed remote origin to $ssh"; fi
     fi
     touch .gitignore
-    for l in bin/ book/; do
+    for l in bin/ book/ '*~' '.*.sw[a-p]' '.#*' '\#*#'; do
         grep -qxF "$l" .gitignore && continue
         [ -z "$(tail -c 1 .gitignore)" ] || echo >> .gitignore
         echo "$l" >> .gitignore
     done
 }
 
-# 3. The newest mdBook 0.5.x, lychee and actions out RELEASE_WAIT_DAYS; with KEEP_PINS, or
-#    with github.com out of reach, the ones the workflow pins.
+# 3. The releases the workflow pins. What it doesn't pin yet (a new book), and with update
+#    everything, is looked up: the newest mdBook 0.5.x, lychee and actions out RELEASE_WAIT_DAYS,
+#    mdBook's and lychee's with the sha256 GitHub recorded for the file step 4 downloads.
 choose_releases() {
-    NUMBERING_VERSION=""
-    if [ "$KEEP_PINS" = true ]; then
-        use_pins
-    elif ! git ls-remote https://github.com/rust-lang/mdBook HEAD >/dev/null 2>&1; then
-        warn "can't reach github.com: keeping the releases the workflow pins, as KEEP_PINS=true does"
-        use_pins
-    else
-        say "looking up the newest releases on github.com..."
-        newest_releases
-    fi
-}
-
-use_pins() {
-    local t
-    for t in mdbook lychee actions/checkout actions/upload-pages-artifact actions/deploy-pages; do
-        [ -n "$(pin "$t")" ] || die "the workflow pins no $t: run this online, without KEEP_PINS"
-    done
-    MDBOOK_VERSION=$(pin mdbook) LYCHEE_VERSION=$(pin lychee) CHECKOUT_USES=actions/checkout@$(pin actions/checkout)
-    UPLOAD_USES=actions/upload-pages-artifact@$(pin actions/upload-pages-artifact) DEPLOY_USES=actions/deploy-pages@$(pin actions/deploy-pages)
-    [ "$HEADING_NUMBERS" = false ] || NUMBERING_VERSION=$(pin numbering)
-    [ "$HEADING_NUMBERS" = false ] || [ -n "$NUMBERING_VERSION" ] || die "the workflow pins no mdbook-numbering: run this online, without KEEP_PINS"
-}
-
-newest_releases() {
-    local a t tag commit old
-    t=$(newest rust-lang/mdBook 'v0\.5\.[0-9]+') MDBOOK_VERSION=${t%% *}
-    t=$(newest lycheeverse/lychee 'lychee-v[0-9]+\.[0-9]+\.[0-9]+') LYCHEE_VERSION=${t%% *} LYCHEE_VERSION=${LYCHEE_VERSION#lychee-v}
+    local a t u tag commit old
+    NUMBERING_VERSION="" MDBOOK_DIGEST="" LYCHEE_DIGEST=""
+    MDBOOK_VERSION=$(kept mdbook) || { t=$(newest rust-lang/mdBook 'v0\.5\.[0-9]+' 'mdbook-{tag}-x86_64-unknown-linux-gnu.tar.gz'); read -r MDBOOK_VERSION _ MDBOOK_DIGEST <<< "$t"; }
+    LYCHEE_VERSION=$(kept lychee) || { t=$(newest lycheeverse/lychee 'lychee-v[0-9]+\.[0-9]+\.[0-9]+' 'lychee-x86_64-unknown-linux-gnu.tar.gz'); read -r LYCHEE_VERSION _ LYCHEE_DIGEST <<< "$t"; LYCHEE_VERSION=${LYCHEE_VERSION#lychee-v}; }
     for a in checkout upload-pages-artifact deploy-pages; do
-        t=$(newest "actions/$a" 'v[0-9]+\.[0-9]+\.[0-9]+') tag=${t%% *} commit=${t#* }
-        old=$(pin "actions/$a")
-        [ "${old#* # }" != "$tag" ] || [ "${old%% *}" = "$commit" ] \
-            || die "actions/$a's tag $tag now names commit $commit, but the workflow pins ${old%% *} for it: the tag has moved. Check the release on GitHub; to go on, delete its uses: line from .github/workflows/deploy.yml"
+        if old=$(kept "actions/$a"); then
+            u="actions/$a@$old"
+        else
+            t=$(newest "actions/$a" 'v[0-9]+\.[0-9]+\.[0-9]+') tag=${t%% *} commit=${t#* }
+            old=$(pin "actions/$a")
+            [ "${old#* # }" != "$tag" ] || [ "${old%% *}" = "$commit" ] \
+                || die "actions/$a's tag $tag now names commit $commit, but the workflow pins ${old%% *} for it: the tag has moved. Check the release on GitHub; to go on, delete its uses: line from .github/workflows/deploy.yml"
+            u="actions/$a@$commit # $tag"
+        fi
         case $a in
-            checkout) CHECKOUT_USES="actions/$a@$commit # $tag" ;;
-            upload-pages-artifact) UPLOAD_USES="actions/$a@$commit # $tag" ;;
-            *) DEPLOY_USES="actions/$a@$commit # $tag" ;;
+            checkout) CHECKOUT_USES=$u ;;
+            upload-pages-artifact) UPLOAD_USES=$u ;;
+            *) DEPLOY_USES=$u ;;
         esac
     done
-    [ "$HEADING_NUMBERS" = false ] || NUMBERING_VERSION=$(newest_crate mdbook-numbering)
+    [ "$HEADING_NUMBERS" = false ] || NUMBERING_VERSION=$(kept numbering) || NUMBERING_VERSION=$(newest_crate mdbook-numbering)
+}
+
+# What the workflow pins for $1, kept; with update, or with nothing pinned, nothing, and 1.
+kept() {
+    local p=""
+    [ "$UPDATE" = true ] || p=$(pin "$1")
+    [ -n "$p" ] && printf '%s' "$p"
 }
 
 # 4. mdBook and lychee into bin/, each tarball kept there and hashed for the workflow;
 #    mdbook-numbering by cargo, unless it has that version.
 install_tools() {
-    MDBOOK_SHA256=$(install_tool mdbook "$MDBOOK_VERSION" "https://github.com/rust-lang/mdBook/releases/download/$MDBOOK_VERSION/mdbook-$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz" mdbook)
-    LYCHEE_SHA256=$(install_tool lychee "$LYCHEE_VERSION" "https://github.com/lycheeverse/lychee/releases/download/lychee-v$LYCHEE_VERSION/lychee-x86_64-unknown-linux-gnu.tar.gz" lychee-x86_64-unknown-linux-gnu/lychee)
+    MDBOOK_SHA256=$(install_tool mdbook "$MDBOOK_VERSION" "https://github.com/rust-lang/mdBook/releases/download/$MDBOOK_VERSION/mdbook-$MDBOOK_VERSION-x86_64-unknown-linux-gnu.tar.gz" mdbook "$MDBOOK_DIGEST")
+    LYCHEE_SHA256=$(install_tool lychee "$LYCHEE_VERSION" "https://github.com/lycheeverse/lychee/releases/download/lychee-v$LYCHEE_VERSION/lychee-x86_64-unknown-linux-gnu.tar.gz" lychee-x86_64-unknown-linux-gnu/lychee "$LYCHEE_DIGEST")
     [ "$HEADING_NUMBERS" = true ] || return 0
     cargo install --list | grep "^mdbook-numbering v$NUMBERING_VERSION:" >/dev/null \
         || cargo install --locked --version "$NUMBERING_VERSION" mdbook-numbering
@@ -198,14 +202,11 @@ write_files() {
     say "wrote book.toml, theme/, custom.css, custom.js, version.js, build, offline.py and .github/workflows/deploy.yml, which pins mdBook $MDBOOK_VERSION, lychee $LYCHEE_VERSION, checkout ${CHECKOUT_USES##* }, upload-pages-artifact ${UPLOAD_USES##* } and deploy-pages ${DEPLOY_USES##* }${NUMBERING_VERSION:+, and mdbook-numbering $NUMBERING_VERSION}"
 }
 
-# 11. The first commit, in UTC, only with a git name and email you set.
+# 11. The first commit is yours, by hand: what it holds, and whose name and time it
+#     carries, is yours to check. A new repository gets the command, said once.
 first_commit() {
-    git rev-parse -q --verify HEAD >/dev/null && return 0
-    if git config user.name >/dev/null && git config user.email >/dev/null; then
-        git add -A && TZ=UTC git commit -q -m "initial mdBook scaffold"
-    else
-        warn "no first commit: set git's user.name and user.email (mdb-guide.md, \"What a push publishes\"), then: git add -A && TZ=UTC git commit -m 'initial mdBook scaffold'"
-    fi
+    [ "$NEW_REPO" = true ] || return 0
+    say "nothing is committed: check what's in the folder (git status), then commit it yourself (mdb-guide.md, \"The first commit\")"
 }
 
 # 12. The check CI runs, then the preview (SERVE=false: not the preview).
@@ -218,6 +219,22 @@ check_and_preview() {
     fi
     say "preview: http://localhost:3000 (Ctrl-C to stop); later: cd \"$BOOK_DIR\" && ./bin/mdbook serve --open"
     exec ./bin/mdbook serve --open
+}
+
+# remove: what the script downloaded: this book's bin/, and mdbook-numbering, which cargo built.
+remove_tools() {
+    [ -d "$BOOK_DIR" ] || die "there's no book at $BOOK_DIR: set PROJECT_DIR and BOOK_NAME to the book's"
+    if [ -d "$BOOK_DIR/bin" ]; then
+        rm -rf "${BOOK_DIR:?}/bin"
+        say "removed $BOOK_DIR/bin: mdbook, lychee and the files they came from"
+    else
+        say "$BOOK_DIR has no bin/ to remove"
+    fi
+    if command -v cargo >/dev/null && cargo install --list | grep -q '^mdbook-numbering v'; then
+        cargo uninstall mdbook-numbering
+        say "removed mdbook-numbering: a book with HEADING_NUMBERS=true builds it again at its next run"
+    fi
+    say "the book and its workflow are as they were: the next run downloads the releases the workflow pins"
 }
 
 ## ─── helpers ─────────────────────────────────────────────────────────────
@@ -237,8 +254,9 @@ site_urls() {
 }
 
 # Release file $3 (tool $1, version $2), kept in bin/ as $1-$2.tar.gz and downloaded only when
-# it isn't there; unpacks $4 from it to bin/$1 and prints the tarball's sha256. A version the
-# workflow pins must be the file it pins: another stops the run, and isn't kept.
+# it isn't there; unpacks $4 from it to bin/$1 and prints the tarball's sha256. Looked up, it
+# must be the file GitHub recorded, sha256 $5; a version the workflow pins must be the file it
+# pins. Another stops the run, and isn't kept.
 install_tool() {
     local keep=bin/$1-$2.tar.gz file=bin/$1-$2.tar.gz tmp sha
     if [ ! -f "$keep" ]; then
@@ -246,6 +264,11 @@ install_tool() {
         fetch "$3" -o "$file" || { rm -f "$file"; die "could not download $3: each release needs github.com once"; }
     fi
     sha=$(sha256sum "$file") sha=${sha%% *}
+    if [ -n "${5:-}" ] && [ "$sha" != "$5" ]; then
+        [ "$file" != "$keep" ] || die "$keep has sha256 $sha, but GitHub recorded $5 for $1 $2: it has changed since it was downloaded. Delete it and run this again, online"
+        rm -f "$file"
+        die "$3 has sha256 $sha, not $5, the one GitHub recorded for it: it wasn't kept. Run this again; if it says the same, something between you and GitHub is changing the file"
+    fi
     if [ "$(pin "$1")" = "$2" ] && [ -n "$(pin "$1-sha")" ] && [ "$(pin "$1-sha")" != "$sha" ]; then
         [ "$file" != "$keep" ] || die "$keep has sha256 $sha, but the workflow pins $(pin "$1-sha") for $1 $2: it has changed since it was downloaded. Delete it and run this again, online"
         rm -f "$file"
@@ -278,29 +301,35 @@ check_settings() {
     for v in BOOK_TITLE BOOK_AUTHOR BOOK_DESCRIPTION DEPLOY_BRANCH FAVICON_TEXT GIT_REPO_URL; do
         [[ ${!v} != *[$'\n\r']* ]] || die "$v must be one line"
     done
-    for v in HEADING_NUMBERS SIDEBAR_NUMBERS CODE_LINE_NUMBERS KEEP_PINS SERVE; do one_of "$v" true false; done
+    for v in HEADING_NUMBERS SIDEBAR_NUMBERS CODE_LINE_NUMBERS SERVE; do one_of "$v" true false; done
     one_of THEME picker auto dark; one_of SIDEBAR_MASTHEAD text none image; one_of OFFLINE full download none
     GIT_REPO_URL=${GIT_REPO_URL%/} GIT_REPO_URL=${GIT_REPO_URL%.git}
     [[ -z $GIT_REPO_URL || $GIT_REPO_URL =~ ^https://github\.com/[^/[:space:]]+/[^/[:space:]]+$ ]] \
         || die "GIT_REPO_URL must be https://github.com/user/repo, or \"\"; got: $GIT_REPO_URL"
     [ "$HEADING_NUMBERS" = false ] || command -v cargo >/dev/null \
         || die "HEADING_NUMBERS=true needs Rust's cargo: install Rust (https://rustup.rs), open a new terminal, then run this again"
+    [ -z "${KEEP_PINS+x}" ] || die "KEEP_PINS is gone: every run keeps the releases the workflow pins, and bash bootstrap-mdbook.sh update takes newer ones (mdb-guide.md, \"Releases and updates\")"
     [ -z "${LAYOUT+x}" ] || die "LAYOUT is gone: delete its lines from the settings (mdb-guide.md, \"A section at a time, by hand\")"
 }
 
 # An https download: no ~/.curlrc, no redirect off https. The rest of curl's arguments follow.
 fetch() { curl -q -fsSL --proto =https --proto-redir =https --connect-timeout 30 "$@"; }
 
-# Release REPO's highest tag matching PATTERN, out RELEASE_WAIT_DAYS and not a pre-release: "tag commit".
+# Release REPO's highest tag matching PATTERN, out RELEASE_WAIT_DAYS and not a pre-release:
+# "tag commit". With FILE ({tag} for the tag), only a release whose file of that name has been
+# up that long too: "tag commit sha256", the sha256 GitHub recorded for the file.
 newest() {
     local refs json got
+    echo "looking up $1's newest release on github.com..." >&2
     refs=$(git ls-remote --tags "https://github.com/$1") || die "could not ask github.com for $1's tags"
     json=$(fetch "https://api.github.com/repos/$1/releases?per_page=100") \
         || die "could not ask api.github.com for $1's releases (it answers 60 requests an hour from one address: try again later)"
     got=$(python3 -I -c '
 import datetime as dt, json, re, sys
-pattern, days, refs = re.compile(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
+pattern, days, refs, name = re.compile(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4]
 cut = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+def old(s):
+    return isinstance(s, str) and dt.datetime.fromisoformat(s.replace("Z", "+00:00")) <= cut
 commit = {}
 for line in refs.splitlines():
     sha, _, ref = line.partition("\t")
@@ -311,20 +340,31 @@ for line in refs.splitlines():
         commit.setdefault(tag, sha)
 out = []
 for r in json.load(sys.stdin):
-    tag, when = r.get("tag_name") or "", r.get("published_at")
-    if pattern.fullmatch(tag) and tag in commit and when and not r.get("draft") and not r.get("prerelease") \
-            and dt.datetime.fromisoformat(when.replace("Z", "+00:00")) <= cut:
-        out.append((tuple(int(n) for n in re.findall(r"[0-9]+", tag)), tag))
+    tag = r.get("tag_name") or ""
+    if not (pattern.fullmatch(tag) and tag in commit and old(r.get("published_at"))
+            and not r.get("draft") and not r.get("prerelease")):
+        continue
+    sha = ""
+    if name:
+        f = [a for a in r.get("assets") or [] if a.get("name") == name.replace("{tag}", tag) and a.get("state") == "uploaded"]
+        if not f or not old(f[0].get("updated_at")):
+            continue
+        d = f[0].get("digest") or ""
+        sha = " " + (d[7:] if re.fullmatch(r"sha256:[0-9a-f]{64}", d) else "?")
+    out.append((tuple(int(n) for n in re.findall(r"[0-9]+", tag)), tag, sha))
 if out:
-    print(max(out)[1], commit[max(out)[1]])
-' "$2" "$RELEASE_WAIT_DAYS" "$refs" <<< "$json")
-    [ -n "$got" ] || die "no release of $1 has been out $RELEASE_WAIT_DAYS days yet"
+    best = max(out)
+    print(best[1] + " " + commit[best[1]] + best[2])
+' "$2" "$RELEASE_WAIT_DAYS" "$refs" "${3:-}" <<< "$json")
+    [ -n "$got" ] || die "no release of $1 has been out $RELEASE_WAIT_DAYS days yet${3:+, with its Linux file}"
+    [ "${got##* }" != "?" ] || die "GitHub gives the sha256 of $1's Linux file in a form this script doesn't know, or none, so the download can't be checked"
     printf '%s' "$got"
 }
 
 # Crate $1's highest version out RELEASE_WAIT_DAYS and not yanked, from crates.io.
 newest_crate() {
     local got
+    echo "looking up $1's newest version on crates.io..." >&2
     got=$(fetch -A bootstrap-mdbook.sh "https://crates.io/api/v1/crates/$1/versions" | python3 -I -c '
 import datetime as dt, json, re, sys
 cut = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=int(sys.argv[1]))
@@ -1102,14 +1142,15 @@ var mdbReady = function (fn) {
     help.appendChild(p);
   });
 
+  // Every link to another site, the pencil included, in a new tab; an email link opens the mail program.
+  var away = function (a) {
+    var u;
+    try { u = new URL(a.href, location.href); } catch (err) { return; }
+    if (/^https?:$/.test(u.protocol) && u.origin !== location.origin) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+  };
   mdbReady(function () {
-    var here = location.origin;
-    var links = document.querySelectorAll(".content a[href]");
-    for (var i = 0; i < links.length; i++) {
-      var a = links[i], u;
-      try { u = new URL(a.href, location.href); } catch (err) { continue; }
-      if (u.origin !== here) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
-    }
+    var links = document.querySelectorAll("a[href]");
+    for (var i = 0; i < links.length; i++) away(links[i]);
   });
 
   // The pencil in front of print, so print and the offline button, last, go together; a space apart, as mdBook's.
@@ -1159,6 +1200,7 @@ var mdbReady = function (fn) {
         var s = document.createElement("a");
         s.href = MDB_REPO + "/commit/" + encodeURIComponent(sha);
         s.textContent = sha;
+        away(s);
         parts.push(s);
       } else {
         parts.push(document.createTextNode(sha));

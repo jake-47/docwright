@@ -2,7 +2,7 @@
 
 > - **For:** knowledge workers who want to understand Git rather than memorise it.
 > - **Before you start:** [Getting started with Git](./git-getting-started.md).
-> - **Reading time:** about 73 minutes end to end. The sections stand alone; read the ones you need.
+> - **Reading time:** about 76 minutes end to end. The sections stand alone; read the ones you need.
 > - **You end with:** the mental model behind commits, branches, staging, history rewriting and identity, and the habits that keep a history useful.
 
 This page explains important concepts of Git that every knowledge worker must know. The four core ones (repository, commit, staging, diff) are in [Whys of version control](./vcs-whys.md#four-core-concepts); this page goes underneath them.
@@ -94,7 +94,7 @@ If a visual diff is easier for you to read than terminal output, VSCodium gives 
 
 ### Built into VSCodium
 
-Open the folder that contains your repo. VSCodium auto-detects the `.git` folder inside and enables the Source Control panel without any extension installed.
+Open the folder that contains your repo. VSCodium auto-detects the `.git` folder inside and enables the Source Control panel without any extension installed. A repo nested inside that folder gets its own entry in the panel; [A repo inside a repo](#a-repo-inside-a-repo) covers what that means.
 
 The Source Control icon sits in the left sidebar: a branching-line icon. Click it. The panel has two main sections: "Changes" (files you've modified but haven't staged) and "Staged Changes" (files you've added with `git add`). Above them, a text box for the commit message, and a checkmark button to commit.
 
@@ -625,6 +625,18 @@ This removes it from Git's tracking without deleting it from disk. Commit the re
 
 Committing things that don't belong in version control (compiled binaries, `node_modules`, API keys) is one of those mistakes that's annoying at best and catastrophic at worst. The `.gitignore` habit protects you from the whole class of problems.
 
+## A repo inside a repo
+
+A folder with its own `.git` is a separate repository, even when it sits inside another one. Git finds the repository a path belongs to by walking up from it to the nearest `.git`, so commands run inside the folder use the folder's repo, and commands run outside it use the outer one. The outer repo doesn't look into the inner one's files: `git status` there shows the whole folder as one untracked line, `?? blog/`, and `git add` either refuses it or records it as an embedded repository, never as files.
+
+The trouble starts when the outer repo already tracks files in that folder. Tracking is a record in the outer repo's index, and the inner `.git` doesn't remove it, so both repos now claim the same files. The outer repo keeps reporting every change the inner one makes, as `M` or `MM`, and committing in the inner repo can't clear it, because the outer repo compares against its own last commit. The outer repo can also act on those files: a discard or restore run from it writes its older copy over the inner repo's work. A `.gitignore` line doesn't end the claim either, for the reason in [Other things in the same category](#other-things-in-the-same-category): ignore patterns apply only to untracked files.
+
+So handing files from one repo to another is a question of order. The outer repo records the move while it can still see the files, as a rename in a commit of its own, so the history reads through it. Then it lets go of the folder with `git rm --cached` and ignores it. Only then does the folder get its own `.git`. The files' history up to the handoff stays in the outer repo. The inner repo starts fresh, unless you build it from a filtered copy of the outer repo's history, which carries the earlier commits across, with their messages as they were.
+
+There are three arrangements, from simplest. A sibling folder beside the repo, not inside it, avoids the double claim entirely. A nested repo the outer one ignores keeps the folder where it is. A submodule has the outer repo record which commit of the inner one it expects; it's worth its friction only when the outer project must pin and clone the inner one (see [Submodules and LFS](./gitreference.md#submodules-and-lfs)).
+
+Editors see the arrangement too. VSCodium lists a nested repo as its own entry in Source Control, and its search skips whatever `.gitignore` lists, so an ignored nested folder drops out of search unless it's added to the workspace as a folder of its own. The commands are in [Moving tracked files into their own repo](./gitreference.md#moving-tracked-files-into-their-own-repo) in the reference.
+
 ## Line endings
 
 Line endings are an invisible footgun that fires the moment a repo crosses operating systems. Windows uses CRLF (`\r\n`) to terminate lines; Linux and macOS use LF (`\n`). Git stores whatever's in the file. If one collaborator edits on Windows and another on Linux, every line of every text file will show as changed on the next diff, because the invisible `\r` characters appear and disappear with each save. The diff becomes useless: the actual change you made is buried under thousands of phantom line modifications.
@@ -803,7 +815,7 @@ Several other footguns are variants of the same pattern: Git's model is lower-le
 
 3. Merge vs rebase is a permanent, often-invisible choice about what history looks like. A merge commit preserves topology: you can see that work happened in parallel. A rebase rewrites commits as if they were always linear, discarding that topology. Most users pick one out of habit without realising the choice is irreversible once pushed.
 
-4. `.gitignore` doesn't untrack files already tracked. The ignore patterns only filter the untracked set. If you committed a file and then added it to `.gitignore`, Git keeps tracking it. You have to `git rm --cached <file>` to stop tracking; and if the file contained credentials, the secret is still in history unless you also rewrite history (see [Purging files from history](./gitreference.md#purging-files-from-history) in the reference).
+4. `.gitignore` doesn't untrack files already tracked. The ignore patterns only filter the untracked set. If you committed a file and then added it to `.gitignore`, Git keeps tracking it. You have to `git rm --cached <file>` to stop tracking; and if the file contained credentials, the secret is still in history unless you also rewrite history (see [Purging files from history](./gitreference.md#purging-files-from-history) in the reference). The same rule is why a folder handed to a repo of its own keeps showing up in the old one; see [A repo inside a repo](#a-repo-inside-a-repo).
 
 5. `git reset --hard` and `git clean -fd` are not symmetric with `git stash`. Reset hard and clean destroy uncommitted working-tree changes permanently. The reflog saves committed history but cannot recover what was never committed. The default assumption that "Git always has a recovery path" only holds for committed work.
 

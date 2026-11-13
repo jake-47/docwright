@@ -6,9 +6,11 @@ The [zola-blog-setup.sh](./bootstrap-zola.md) script makes a small, fast blog on
 
 - A home page that lists your posts, numbered, in the order you choose, or newest first (see "Ordering posts"). Also an About page, tags, an RSS feed, and search.
 - A plain, readable design. It is dark by default, and you can add a light version for readers whose computer is set to light mode.
+- Keyboard shortcuts: `/` opens search, ← and → go to the previous and next post, and `h` goes home (see "Keyboard shortcuts").
 - Nothing loaded from other websites: no tracking, no adverts, and no fonts or scripts from other companies. Every page carries a security policy that makes the reader's browser enforce this.
-- One small script, for the search box. Search is on by default, so by default the site does run JavaScript: this one file, loaded from your own site and nowhere else. Turn search off (`ENABLE_SEARCH=false`) and the blog's pages run no JavaScript at all. The one exception is the address `/attachments/`, which Zola publishes as a redirect to the home page: one line of Zola's own script, on a page without the security policy.
+- One small script, for search and the shortcuts. Search is on by default, so by default the site does run JavaScript: this one file, loaded from your own site and nowhere else. Turn search off (`ENABLE_SEARCH=false`) and the blog's pages run no JavaScript at all, and the shortcuts go with it. The one exception is the address `/attachments/`, which Zola publishes as a redirect to the home page: one line of Zola's own script, on a page without the security policy.
 - Automatic publishing. Each time you push your changes to GitHub, it rebuilds the site and puts it online, usually within a couple of minutes.
+- Photos cleaned before they're published: when you commit a picture or video, its location and camera data are removed (see "Pictures, GIFs and video").
 - Optional email updates for readers, through a newsletter service that sends them each new post from your feed (see "Email subscription").
 - Or, with one setting, a site built from an outline instead of a list of posts, the way mdBook builds a book: a home page that shows the outline, pages in its order with Previous and Next, and search; see "Book mode".
 
@@ -16,7 +18,7 @@ The preview on your own computer adds a script of its own, which reloads the pag
 
 It costs nothing, unless you want your own domain name (roughly 10 to 20 US dollars a year; see "Custom domain"). GitHub's address, hosting and HTTPS are free at the size a personal blog runs at.
 
-The script runs on Linux, macOS, and Windows (in Git Bash). It uses Zola 0.23: each run installs the newest 0.23 release that has been out a week into `~/.local/bin` (in Git Bash, `~/bin`), checked first against the fingerprint GitHub recorded for the file, and pins the same release in the blog's workflow, so GitHub builds the site with the Zola your computer previews it with. Every blog on your computer runs that one Zola. Releases before 0.23.3 leave your pictures out of the site, so none of those is taken. When a newer series of Zola comes out, the script keeps to 0.23 and says so, because the blog's templates are written for 0.23, and a later series may not build them, or may build them differently.
+The script runs on Linux, on an x86_64 computer (on Windows, in WSL). It uses Zola 0.23. The first run puts the newest 0.23 release that has been out a week into `~/.local/bin`, checked first against the fingerprint GitHub recorded for the file, and pins the same release in the blog's workflow, so GitHub builds the site with the Zola your computer previews it with. After that, runs use that Zola and ask GitHub for nothing, until you run the script with `update` (see "Updating and removing Zola"). Every blog on your computer runs that one Zola. Releases before 0.23.3 leave your pictures out of the site, so none of those is taken. When a newer series of Zola comes out, `update` keeps to 0.23 and says so, because the blog's templates are written for 0.23, and a later series may not build them, or may build them differently.
 
 ## Words used in this guide
 
@@ -24,14 +26,14 @@ The script runs on Linux, macOS, and Windows (in Git Bash). It uses Zola 0.23: e
 - **Static site**: a website made of finished files. No program runs on the server, so there's little that can go wrong or be attacked, and it's cheap to host.
 - **GitHub**: the website that stores your blog's files. A **repository** (repo) is one project's folder there.
 - **GitHub Pages**: GitHub's free web hosting. **GitHub Actions** is GitHub's build service, and a **workflow** is the file that tells it what to do. Yours is `.github/workflows/deploy.yml`.
-- **git**: the program on your computer that keeps track of changes and sends them to GitHub. A **commit** is a saved snapshot of your changes. To **push** is to send your commits to GitHub.
+- **git**: the program on your computer that keeps track of changes and sends them to GitHub. A **commit** is a saved snapshot of your changes. To **push** is to send your commits to GitHub. A **commit hook** is a small program git runs on each commit; the script installs one that cleans pictures.
 - **Terminal**: the window where you type commands.
 - **Markdown**: the simple text format you write posts in. `**bold**` becomes **bold**, and a line starting `## ` becomes a heading.
 - **Front matter**: the block of settings at the top of each post, between two lines of `+++`.
-- **Attachments**: the folder `content/attachments/`, where pictures, GIFs and videos go, for any post or page.
+- **Attachments**: the folder `content/attachments/`, where pictures, GIFs and videos go, for any post or page (in book mode, `book/attachments/`).
 - **Draft**: a post with `draft = true` in its front matter. The preview shows it; the published site doesn't.
 - **Post**: a page in the list on the home page. A **hidden page**, such as the About page, is published but kept out of every list; see "Pages that aren't posts". A **section** is a folder with an `_index.md` file in it. It's listed like a post, and its page lists the pages inside it, its **child pages**; see "Child pages".
-- **Book mode**: the `BOOK_MODE` setting. Instead of posts, the site is built from an **outline**, `book/SUMMARY.md`, and the plain Markdown files it names, in `book/`; a helper, `./genbook`, makes `content/` from them. See "Book mode".
+- **Book mode**: the `BOOK_MODE` setting. Instead of posts, the site is built from an **outline**, `book/SUMMARY.md`, and the plain Markdown files in `book/`; a helper, `./genbook`, makes `content/` from them. See "Book mode".
 - **Preview**: a private copy of the site on your computer, at `http://127.0.0.1:1111`, that updates each time you save a file. Only you can see it.
 - **Build**: making the finished site files, which go into a folder called `public/`.
 - **The configuration block**: the list of settings at the top of the script.
@@ -52,17 +54,20 @@ The script runs on Linux, macOS, and Windows (in Git Bash). It uses Zola 0.23: e
 
 You need:
 
-- A computer running Linux, macOS, or Windows with Git Bash (it comes with Git for Windows).
-- A terminal. On Linux it's usually called Terminal (in XFCE, Terminal Emulator). On a Mac, it's Terminal, in Applications, then Utilities. On Windows, use Git Bash.
-- git and curl. To check for git, run `git --version`. It should print something like `git version 2.47.2`. If it prints `command not found`, install it; on Debian, Devuan or Ubuntu, `sudo apt install git curl` installs both.
-- A plain-text editor, for changing the script's settings: Mousepad, gedit, Kate, nano, VS Code, or similar. Don't use a word processor. It may change straight quotes into curly ones, which breaks the script.
+- A computer running Linux on an x86_64 processor, as most laptops and desktops have. On Windows, use WSL (Windows Subsystem for Linux), which is Linux. A Mac, or an ARM computer such as a Raspberry Pi, can't run the script.
+- A terminal, usually called Terminal (in XFCE, Terminal Emulator).
+- git, curl and python3. To check, run `git --version`, `curl --version` and `python3 --version`: each prints its version, such as `git version 2.47.2`. If one prints `command not found`, install it; on Debian, Devuan or Ubuntu, `sudo apt install git curl python3` installs all three. The script uses python3 to read GitHub's list of releases.
+- exiftool, once you add pictures: it removes their hidden location data as you commit them (see "Pictures, GIFs and video"). On Debian, Devuan or Ubuntu, `sudo apt install libimage-exiftool-perl`.
+- A plain-text editor, for changing the script's settings: Mousepad, gedit, Kate, nano, VSCodium, or similar. Don't use a word processor. It may change straight quotes into curly ones, which breaks the script.
 - A GitHub account, if you want the blog online. It's free; sign up at github.com.
 
-You don't need to install Zola first, and the script never needs administrator rights. It checks for the other small tools it uses and tells you by name if any are missing.
+You don't need to install Zola first, and the script never needs administrator rights: it refuses to run with `sudo`. If git, curl or python3 is missing, it says which.
+
+On Whonix, read "Whonix", under "Other computers and hosts", first: it says which session installs these, and how step 1 goes there.
 
 ### Step 1: tell git who you are
 
-git stamps every commit with a name, an email address and the time, with your time zone's offset, and on a public blog anyone can read all three in the history, permanently. So pick the name and email before your first run. The first run saves your first commit for you, but only if git already knows your name and email: it doesn't let git make them up from your computer's account. It makes that commit in UTC, so it doesn't show your time zone, and prints the name and address it used. See "What a push publishes".
+git stamps every commit with a name, an email address and the time, with your time zone's offset, and on a public blog anyone can read all three in the history, permanently. So pick the name and email before your first commit. The script makes no commits: you make each one yourself, the first included (step 6), so nothing goes into the history that you haven't looked at. See "What a push publishes".
 
 You don't have to publish your real email address. GitHub gives you a private one: on github.com, click your profile picture (top right), then Settings, then Emails. Tick "Keep my email addresses private", and copy the address shown there, which ends in `@users.noreply.github.com`.
 
@@ -71,17 +76,18 @@ Then, in a terminal:
 ```bash
 git config --global user.name "Your Name"
 git config --global user.email "Your Email"
+git config --global user.useConfigOnly true
 ```
 
-Put your own name and the address you copied in place of `Your Name` and `Your Email`, and keep the quotes. Neither command prints anything. To check, run `git config --global user.email`; it prints the address back.
+Put your own name and the address you copied in place of `Your Name` and `Your Email`, and keep the quotes. None of the three commands prints anything. To check, run `git config --global user.email`; it prints the address back. The third stops git making up a name and address from your computer's account and its name when none is set: a commit without them then stops with `Author identity unknown` instead.
 
-`--global` sets this for every git project on your computer, and the first run's commit takes it. For a name or address for the blog alone, run the same two commands without `--global` from inside the blog folder once the first run has made it, then make that first commit with them, or redo it if the run made one, before you push (see "What a push publishes").
+`--global` sets this for every git project on your computer. For a name or address for the blog alone, run the same three commands without `--global` from inside the blog folder once the first run has made it, before step 6 (on Whonix, do it that way; see "Whonix").
 
 ### Step 2: save the script and read it
 
 Open the page for [zola-blog-setup.sh](bootstrap-zola.md) and copy the whole script (on a code block, the copy button at its top right copies all of it). Paste it into a new file in your text editor, and save that file as `zola-blog-setup.sh` in your Downloads folder. Any other folder works too, but this guide assumes Downloads.
 
-Read the script before you run it, or have someone you trust read it: it downloads a program and connects your blog to GitHub. If you don't read shell scripts, paste it into an AI model you trust and ask what it does. About half of the script is the text of the files it writes. It connects only to GitHub: it asks GitHub which releases are out, and the only program it downloads is Zola, for your computer, when the release it takes isn't installed yet. It checks the download against the fingerprint GitHub recorded for the file before installing it. It installs nothing outside your home folder, and never asks for your password.
+Read the script before you run it, or have someone you trust read it: it downloads a program and connects your blog to GitHub. If you don't read shell scripts, paste it into an AI model you trust and ask what it does. More than half of the script is the text of the files it writes. It connects only to GitHub, and only when it has to: on the first run, to ask which Zola release is newest and download it, and when you run it with `update`. It checks the download against the fingerprint GitHub recorded for the file before installing it. It installs nothing outside your home folder, and never asks for your password.
 
 ### Step 3: change the settings
 
@@ -97,11 +103,11 @@ The name in capitals is the setting; what follows the `=` is its value. Everythi
 
 Rules for changing a value:
 
-- Change the setting's own line; don't add a second line for the same setting. A second line stops the script with an error such as `line 82: GIT_REPO_URL: readonly variable`.
+- Change the setting's own line; don't add a second line for the same setting. A second line stops the script with an error such as `line 77: GIT_REPO_URL: readonly variable`.
 - Change only what comes after the `=`. Leave everything before it alone, and don't put spaces around the `=`.
 - Text goes inside double quotes: `readonly SITE_TITLE="John's Notes"`. An apostrophe inside double quotes is fine.
-- Inside the quotes, put a backslash before any `$`, `"` or `` ` ``: `readonly SITE_DESCRIPTION="Notes on \$5 gadgets"`, or `readonly FOOTER_TEXT="Motto: \"ora et labora\""`. Without it the script stops with an error such as `line 89: $5: unbound variable`, or, for a `"` or `` ` ``, `line 117: FOOTER_TEXT isn't quoted as the script needs`. The one exception is `$HOME` in `PROJECT_DIR`'s default, which is meant to be read as your home folder.
-- `true` and `false` have no quotes. If one is wrong, the script stops with a message such as `SHOW_TOC must be true or false (unquoted), got: 'yes'`.
+- Inside the quotes, put a backslash before any `$`, `"` or `` ` ``: `readonly SITE_DESCRIPTION="Notes on \$5 gadgets"`, or `readonly FOOTER_TEXT="Motto: \"ora et labora\""`. Without it the script stops with an error such as `line 84: $5: unbound variable`, or, for a `"` or `` ` ``, `line 117: FOOTER_TEXT isn't quoted as the script needs`. The one exception is `$HOME` in `PROJECT_DIR`'s default, which is meant to be read as your home folder.
+- `true` and `false` have no quotes. Anything else in their place stops the run when it builds the site, with Zola's `TOML parse error` and the line it means, such as `show_toc = yes`.
 - An empty value is two quotes with nothing between them: `readonly SITE_DESCRIPTION=""`.
 
 For a first try you can change nothing at all. You'll get a blog called "Myblog" in `~/Desktop/myblog`, with two example posts, and nothing is published until you set up GitHub.
@@ -129,17 +135,17 @@ The first run downloads Zola, which takes a moment. You should see something lik
 
 ```
 looking up the newest releases on GitHub
-release: zola v0.23.6
+release: zola v0.23.6; update looks for a newer one
 installing zola 0.23.6 into /home/you/.local/bin...
 installed: zola 0.23.6 (sha256 8f5132b35224...)
 
 creating /home/you/Desktop/myblog ...
-wrote the script-owned files (config.toml, templates/, serve, build, new, attach, README.md, .gitignore)
+wrote the script-owned files (zola.toml, templates/, serve, build, new, README.md, .gitignore)
 wrote content/ (yours from here; a re-run will not touch it)
 blog created in /home/you/Desktop/myblog
 
 initialised git repo on branch: main
-made initial commit as Your Name <12345678+you@users.noreply.github.com>, timed in UTC; a push publishes that name and address (guide: "What a push publishes")
+nothing is committed: check what's in the folder, then commit it yourself (guide: "Your first blog", step 6)
 
 Building site...
 -> Creating 3 pages (0 orphan) and 1 sections
@@ -149,7 +155,7 @@ starting the live preview (your browser will open). Ctrl+C to stop.
 to start it again later, from anywhere: /home/you/Desktop/myblog/serve
 ```
 
-If that release is in `~/.local/bin` already, from another blog, the two lines about installing it are one: `zola 0.23.6 is installed in /home/you/.local/bin`. If an older one is there, the run replaces it and says so: `updating zola in /home/you/.local/bin from 0.23.5 to 0.23.6: every blog on this computer runs this one`. A newer one, such as a 0.24 you put there yourself, is replaced too: `replacing zola 0.24.0 in /home/you/.local/bin with 0.23.6, an older release: every blog on this computer runs this one`.
+If a 0.23 release of Zola, 0.23.3 or later, is in `~/.local/bin` already, from another blog, the run asks GitHub for nothing: the first line is gone, and the two lines about installing are one, `zola 0.23.6 is installed in /home/you/.local/bin`. A Zola there that the templates aren't written for, such as 0.22, is replaced, and the run says so first: `the zola in /home/you/.local/bin is 0.22.1, and this script's templates need a 0.23 release from 0.23.3 on: taking the newest`.
 
 The three lines from `Building site...` are `./build`: before the preview, the run checks the links in your posts and builds the site once, the way GitHub will. If a link is broken, the run stops there, lists it, and starts no preview; see "Broken links".
 
@@ -160,7 +166,7 @@ Building site...
 -> Creating 3 pages (0 orphan) and 1 sections
 Done in 64ms.
 
-Listening for changes in /home/you/Desktop/myblog/{config.toml,content,static,templates}
+Listening for changes in /home/you/Desktop/myblog/{zola.toml,content,static,templates}
 Press Ctrl+C to stop
 
 Web server is available at http://127.0.0.1:1111 (bound to 127.0.0.1:1111)
@@ -170,10 +176,11 @@ Your browser opens the preview at `http://127.0.0.1:1111`. (If another preview i
 
 Some lines look alarming but are normal:
 
-- `(sha256 8f5132b35224...)` is the start of the download's fingerprint, which matched the one GitHub recorded for the file. See "What the checksum proves".
-- If `~/.local/bin`, where Zola goes, isn't yet among the folders your terminal looks in for programs (your `PATH`), a note after `installed: zola 0.23.6` says so, starting `note: /home/you/.local/bin is not on your PATH`, and each run says it again until it is. The preview this run starts works anyway; the note is about the next terminal you open. Log out and back in, and see "Zola not found after installing" if that isn't enough.
-- If git didn't know your name and email yet, you see `(no initial commit: Author identity unknown)` instead of `made initial commit as …`. The blog is fine. Do step 1 above, then make the first commit yourself. In a second terminal window (the preview is using this one), go into the blog folder, the one named after `blog created in`, with a command such as `cd ~/Desktop/myblog`. Then run `git add -A`, which prints nothing, and `TZ=UTC git commit -m "First commit"`, which prints a line starting `[main (root-commit)`. `TZ=UTC` in front makes the commit's time UTC, as the script's own would have been. If the commit failed for another reason, such as commit signing that didn't work, you see `(no initial commit; git says:` instead, then git's own message, indented, and how to make the commit yourself once that's fixed.
-- If you set `GIT_REPO_URL`, the line after `looking up the newest releases on GitHub` starts `releases:` and also names the releases of the three GitHub actions the workflow uses, and you see `added remote 'origin': git@github.com:you/yourrepo.git`. That's the link to GitHub being set up.
+- `(sha256 8f5132b35224...)` is the start of the download's fingerprint, which matched the one GitHub recorded for the file. See "Updating and removing Zola".
+- `update looks for a newer one` is a reminder, not a problem: this run used what it had, and only `update` looks for newer releases.
+- If `~/.local/bin`, where Zola goes, isn't yet among the folders your terminal looks in for programs (your `PATH`), a note after `installed: zola 0.23.6` says so: `note: /home/you/.local/bin is not on your PATH, so a new terminal will not run this zola: log out and back in (guide: "Zola not found after installing").` Each run says it again until it is. The preview this run starts works anyway; the note is about the next terminal you open. Log out and back in, and see "Zola not found after installing" if that isn't enough.
+- `nothing is committed` is how it should be: the script never commits. Step 6 makes the first commit.
+- If you set `GIT_REPO_URL`, the `release:` line is `releases:` and also names the releases of the three GitHub actions the workflow uses, and you see `added remote 'origin': git@github.com:you/yourrepo.git`. That's the link to GitHub being set up.
 - If you set `GIT_REPO_URL` and some settings still have the values the script came with, a line starting `still the examples the script came with` names them. It's a reminder, not an error; see "Before you publish".
 
 If a first run stops with an error instead, it deletes the folder it was creating, so fix what the message names and run it again. Troubleshooting lists the messages.
@@ -192,17 +199,37 @@ The blog folder now holds:
 
 - `content/`: your writing. Each post is a `.md` file here, and `content/attachments/` holds the pictures, GIFs and videos for any post or page. `content/about.md` is the About page, and `content/_index.md` holds any text you want at the top of the home page. The two example posts, `hello-world.md` and `second-post.md`, show how things look, and `hello-world.md` doubles as a Markdown cheat sheet; its picture is `content/attachments/demo.svg`.
 - `static/`: files published exactly as they are, such as fonts and the About page's placeholder picture.
-- `config.toml` and `templates/`: generated by the script from its settings. Don't edit these directly; see "How changes work".
+- `zola.toml` and `templates/`: generated by the script from its settings. Don't edit these directly; see "How changes work".
 - `serve` and `build`: shortcuts. From inside the blog folder, `./serve` starts the preview and `./build` checks the links in your posts and makes the finished site in `public/`, the same way GitHub will, so a problem that would stop GitHub's build stops it here first, with a message.
-- `new` and `attach`: helpers for writing. `./new` starts a post with its front matter filled in (see "A new post"), and `./attach` copies a picture or video into `content/attachments/` with its hidden data removed (see "Pictures, GIFs and video").
+- `new`: starts a post with its front matter filled in (see "A new post").
 - `README.md`: a short note for the repository's page on GitHub, written by the script until you edit it; after that it's yours (see "The hand-edit check").
-- `.gitignore`, `.zola-blog-setup.manifest` and, once you set up publishing, `.github/workflows/deploy.yml`. `.gitignore` tells git what not to commit, such as the built site in `public/`; the manifest is the script's record of the files it wrote (see "The hand-edit check"); and `deploy.yml` tells GitHub how to build and publish the site. Names starting with a dot are hidden in most file managers; Ctrl+H shows them.
+- `.gitignore`, `.zola-blog-setup.manifest` and, once you set up publishing, `.github/workflows/deploy.yml`. `.gitignore` tells git what not to commit, such as the built site in `public/` and your editor's swap and backup files; the manifest is the script's record of the files it wrote (see "The hand-edit check"); and `deploy.yml` tells GitHub how to build and publish the site. Names starting with a dot are hidden in most file managers; Ctrl+H shows them.
+- `.git/`, git's own folder, with the commit hook that cleans pictures in `.git/hooks/pre-commit`.
 
 In book mode, the writing is in `book/` instead, `content/` is made from it, and there's one more helper, `genbook`; see "Book mode".
 
 From here on, this guide writes the blog folder as `~/Desktop/myblog` and the script as `~/Downloads/zola-blog-setup.sh`, the defaults. If yours are somewhere else, use your own paths in their place.
 
 Replace the example posts with your own when you're ready. Delete both together, or `hello-world.md` first: it links to `second-post.md`, so deleting only `second-post.md` stops the build with a broken-link error. Delete `content/attachments/demo.svg` along with them.
+
+### Step 6: make the first commit
+
+The script doesn't commit anything, on the first run or any other: a commit puts its files, and your name, address and time, into a history that a push publishes, so each one is yours to check and make. In a second terminal window (the preview is using the first), go into the blog folder:
+
+```bash
+cd ~/Desktop/myblog
+git status
+```
+
+`git status` prints `No commits yet` and then a list headed `Untracked files:`: the files and folders the script wrote, `content/`, `static/`, `templates/`, `build`, `serve`, `new`, `README.md`, `zola.toml`, `.gitignore` and `.zola-blog-setup.manifest`, and `.github/` if you set `GIT_REPO_URL`. Look through it for anything you didn't expect, such as a file you put in the folder yourself. Then:
+
+```bash
+git config user.email
+git add -A
+TZ=UTC git commit -m "First commit"
+```
+
+The first prints the address the commit will carry; check it's the one you chose in step 1. `git add -A` prints nothing. The commit prints a line starting `[main (root-commit)`, then how many files it took and a line for each. `TZ=UTC` in front makes the commit's time UTC, so it doesn't show your time zone; see "What a push publishes". If it says `Author identity unknown`, git has no name and email yet: do step 1, then run the commit again.
 
 ## Putting it online
 
@@ -295,10 +322,10 @@ START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh
 found an existing blog in /home/you/Desktop/myblog
 updating the script-owned files; content/ is left untouched.
 
-looking up the newest releases on GitHub
-releases: zola v0.23.6; v7.0.1, v5.0.0, v5.0.1 of the actions
+looking up the newest releases of the GitHub actions the workflow uses
+releases: zola v0.23.6; v7.0.1, v5.0.0, v5.0.1 of the actions; update looks for newer ones
 zola 0.23.6 is installed in /home/you/.local/bin
-wrote the script-owned files (config.toml, templates/, serve, build, new, attach, README.md, .gitignore)
+wrote the script-owned files (zola.toml, templates/, serve, build, new, README.md, .gitignore)
 added remote 'origin': git@github.com:John/notes.git
 
 updated.
@@ -311,9 +338,11 @@ skipping the live preview. start it any time, from anywhere:
     /home/you/Desktop/myblog/serve
 ```
 
+The first time a blog on your computer gets a workflow, the run asks GitHub for the newest release of each of the three GitHub actions the workflow uses, and keeps the answer, so another blog that gets a workflow later takes the same releases with no lookup. If the Zola in `~/.local/bin` wasn't installed by this script, the run also asks GitHub for that release's fingerprint, which the workflow needs, and the first line is `looking up zola v0.23.6's fingerprint on GitHub, for the workflow` instead.
+
 If some settings still have the values the script came with, you also see a line starting `still the examples the script came with` that names them; see "Before you publish".
 
-This wrote `.github/workflows/deploy.yml`, the instructions GitHub follows to build and publish the site, with the releases the `releases:` line names: the Zola release, with the fingerprint GitHub recorded for its Linux file, which GitHub's build checks its download against, and the three GitHub actions the workflow uses, each pinned by its commit. It set the site's address to `https://John.github.io/notes`, and told git where to push (a link called `origin`). See "Moving to a newer Zola".
+This wrote `.github/workflows/deploy.yml`, the instructions GitHub follows to build and publish the site, with the releases the `releases:` line names: the Zola release, with the fingerprint GitHub recorded for its Linux file, which GitHub's build checks its download against, and the three GitHub actions the workflow uses, each pinned by its commit. It set the site's address to `https://John.github.io/notes`, and told git where to push (a link called `origin`). See "Updating and removing Zola".
 
 A re-run doesn't commit anything, so commit the new files yourself, from inside the blog folder:
 
@@ -366,7 +395,7 @@ git commit -m "New post about tea"
 git push
 ```
 
-`./build` isn't required, but GitHub runs the same file, so a mistake, a broken link included, shows up in seconds on your computer instead of as a failed run on GitHub. It should end with `Done in ...`. The words after `-m` are a note to yourself about what changed. GitHub rebuilds and republishes in a minute or two; the Actions tab shows the progress.
+`./build` isn't required, but GitHub runs the same file, so a mistake, a broken link included, shows up in seconds on your computer instead of as a failed run on GitHub. It should end with `Done in ...`. The words after `-m` are a note to yourself about what changed. If the commit has pictures or videos in it, a line before git's own says `removed the location and camera data from 1 picture(s) and video(s) being committed`; see "Pictures, GIFs and video". GitHub rebuilds and republishes in a minute or two; the Actions tab shows the progress.
 
 `git status` tells you where you are. `nothing to commit, working tree clean` means every change is committed. If it also says `Your branch is ahead of 'origin/main'`, you have commits that aren't on GitHub yet, so run `git push`.
 
@@ -378,9 +407,9 @@ There are three kinds of change, and each has its own place:
 
 1. **Your writing and pictures**, in `content/` and `static/`, except `static/favicon.svg` and `static/search.js`, which are script-owned (see below). Edit these files directly, whenever you like. The script writes them once, when it creates the blog, and never touches them again. In book mode the writing is in `book/`, and `content/` is made from it; see "Book mode".
 2. **Settings**, in the configuration block at the top of the script. Change a value, then run the script again.
-3. **The design and the page layouts**, which also live in the script: each generated file is written by one `render_` function. `render_base_html` writes `templates/base.html`, which holds the whole stylesheet; `render_site_config` writes `config.toml`; `render_page_html` writes the layout of a post. Change the text inside the function, then run the script again. A function starts with a line such as `render_page_html() {`, and the file's text runs from the line after the one ending `<< 'EOF'` (in some functions, `<< EOF`) to the next line that is just `EOF`. You rarely need to find one by name, though: the sections below each give a piece of text to search for, which takes you to the line to change.
+3. **The design and the page layouts**, which also live in the script: each generated file is written by one `render_` function. `render_base_html` writes `templates/base.html`, which holds the whole stylesheet; `render_site_config` writes `zola.toml`; `render_page_html` writes the layout of a post. Change the text inside the function, then run the script again. A function starts with a line such as `render_page_html() {`, and the file's text runs from the line after the one ending `<< 'EOF'` (in some functions, `<< EOF`) to the next line that is just `EOF`. You rarely need to find one by name, though: the sections below each give a piece of text to search for, which takes you to the line to change.
 
-Zola never reads the script. It reads the files the script writes from its settings and `render_` functions, such as `config.toml` and `templates/`, so a change to either does nothing until a run writes it into those files. To run the script again, from any folder:
+Zola never reads the script. It reads the files the script writes from its settings and `render_` functions, such as `zola.toml` and `templates/`, so a change to either does nothing until a run writes it into those files. To run the script again, from any folder:
 
 ```bash
 START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh
@@ -388,11 +417,11 @@ START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh
 
 It prints `updated.`, then the site's build, ending `Done in ...`, then a note that it skipped the preview. `START_PREVIEW=false` is there because a run ends by starting the preview, and while you work you usually have one running already: that one reloads its page by itself, and without the flag the run would start a second one, at another address. If no preview is running, leave the flag off, and the run starts one.
 
-The generated files are script-owned: `config.toml`, everything in `templates/`, `serve`, `build`, `new`, `attach`, `.gitignore`, `static/favicon.svg`, `static/search.js`, `.github/workflows/deploy.yml`, and, in book mode, `genbook`. Every run writes them again from the script, so a change made to one of them directly lasts only until the next run. So that such a change isn't lost without you noticing, a run stops before writing anything if one of them was edited by hand, and names the file. The script writes `README.md` too, but editing it doesn't stop a run: the file becomes yours instead. See "The hand-edit check".
+The generated files are script-owned: `zola.toml`, everything in `templates/`, `serve`, `build`, `new`, `.gitignore`, `static/favicon.svg`, `static/search.js`, `.github/workflows/deploy.yml`, and, in book mode, `genbook`. Every run writes them again from the script, so a change made to one of them directly lasts only until the next run. So that such a change isn't lost without you noticing, a run stops before writing anything if one of them was edited by hand, and names the file. The script writes `README.md` too, but editing it doesn't stop a run: the file becomes yours instead. See "The hand-edit check".
 
 A re-run changes files but doesn't commit them. After it, check the preview, then commit and push as in "Publishing changes from now on".
 
-If you have a blog made with this script but don't have the script itself, none of this rewriting happens, and you can edit `config.toml` and `templates/` directly.
+If you have a blog made with this script but don't have the script itself, none of this rewriting happens, and you can edit `zola.toml` and `templates/` directly.
 
 ### Settings, one by one
 
@@ -418,7 +447,7 @@ Changing either after the blog exists doesn't move the blog: the next run makes 
 
 **`SITE_DESCRIPTION`**: one line about the blog. It appears in small italics under the blog's name, on the home page only. It is also the feed's subtitle, and the description search engines and link previews show for any page that doesn't have its own `description` (see "A new post"). Default: `"one-line description"`, a placeholder. Set it to `""` for none.
 
-**`SITE_AUTHOR`**: your name as it appears in the feed. Default: `"your name"`. Always set it to something: the feed format requires an author, and without one the feed isn't valid, so while `GENERATE_FEEDS` is on, a run with it empty stops and says so.
+**`SITE_AUTHOR`**: your name as it appears in the feed. Default: `"your name"`. Always set it to something: while `GENERATE_FEEDS` is on, a run with it empty stops and says so, since every post in the feed would name its author as "Unknown".
 
 **`SITE_LANGUAGE`**: the language you write in, as a short code: `"en"` for English, `"hi"` for Hindi, `"ta"` for Tamil, `"fr"` for French, and so on. Default: `"en"`. Browsers, screen readers and search engines use it to handle your text correctly.
 
@@ -446,6 +475,8 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 **`BOOK_MODE`**: `false` (the default) gives a blog, as the rest of this guide describes. `true` gives a site built from an outline, `book/SUMMARY.md`, with no posts, dates, tags or feed, and needs `GENERATE_FEEDS` and `ENABLE_TAGS` set to `false`; the run stops and names the one that isn't. Choose it before the first run; see "Book mode", which also says which of the settings below do nothing in book mode.
 
+**`OUTLINE_NUMBERS`**: book mode only. `false` (the default) shows the outline's bullets and numbers as you wrote them. `true` numbers its headings and list items as one tree, 1, 1.1, 1.1.1, and puts each page's number in front of its title; see "The outline".
+
 #### What's on the pages
 
 **`SHOW_TOC`**: `true` (the default) puts a Contents box at the top of every post that has a date and at least two headings (or one heading with sub-headings under it), listing the headings as links. It starts folded, as one line, "▸ Contents", with a thin line under it, and opens when the reader clicks it. A page without a date, such as About, gets one only if it asks for it with `toc = true`; see "Adding a page to the menu". `false` leaves them all out.
@@ -458,15 +489,15 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 **`ENABLE_TAGS`**: `true` (the default) turns on tags. Tags show on posts and in lists, the menu gets a Tags link, and each tag gets a page listing its posts. `false` turns all of that off. Posts that still have tags in their front matter keep working; the tags are ignored.
 
-**`ENABLE_SEARCH`**: `true` (the default) puts a Search button at the start of the menu, which opens a search box over the page. This is the only script on the blog's pages. `false` removes the button, the script and the search index, and the pages then run no JavaScript at all. See "Search".
+**`ENABLE_SEARCH`**: `true` (the default) puts a Search button at the start of the menu, which opens a search box over the page, and turns on the keyboard shortcuts. This is the only script on the blog's pages. `false` removes the button, the shortcuts, the script and the search index, and the pages then run no JavaScript at all. See "Search" and "Keyboard shortcuts".
 
 **`GENERATE_FEEDS`**: `true` (the default) publishes your feed at `/atom.xml`, a list of your posts that feed reader apps and email services check for new ones. While tags are on, each tag also gets a feed of its own. `false` publishes no feeds and removes the RSS link. The feed needs `SITE_AUTHOR`: with it empty, the run stops. Email updates need the feed; see "Email subscription".
 
 **`SHOW_RSS_LINK`**: `true` (the default) puts an RSS link in the menu. `false` removes just the link. The feed is still published, and feed readers still find it, because every page names it in its HTML head, the part of the page that browsers read but readers don't see. It has no effect when `GENERATE_FEEDS` is `false`.
 
-**`SHOW_HISTORY_LINK`**: `false` (the default). `true` adds a "View history" link to each post's date line, leading to the list of commits that changed that post on GitHub. It needs `GIT_REPO_URL`. That list shows the name and email on each commit, which is one more reason to choose them with care (see "Your first blog", step 1).
+**`SHOW_HISTORY_LINK`**: `false` (the default). `true` adds a "View history" link to each post's date line, leading, in a new tab, to the list of commits that changed that post on GitHub. It needs `GIT_REPO_URL`. That list shows the name and email on each commit, which is one more reason to choose them with care (see "Your first blog", step 1).
 
-**`SHOW_SUGGEST_EDIT`**: `false` (the default). `true` adds a "Suggest an edit" link to each post's date line, leading to the post's file on GitHub, where a reader with a GitHub account can propose a change. It needs `GIT_REPO_URL`.
+**`SHOW_SUGGEST_EDIT`**: `false` (the default). `true` adds a "Suggest an edit" link to each post's date line, leading, in a new tab, to the post's file on GitHub, where a reader with a GitHub account can propose a change. It needs `GIT_REPO_URL`.
 
 #### The menu
 
@@ -480,13 +511,11 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 #### Settings for a single run
 
-These three are easiest to set for one run only, by putting them in front of the command rather than changing the file:
+These two are easiest to set for one run only, by putting them in front of the command rather than changing the file:
 
 **`START_PREVIEW`**: `true` (the default) starts the preview when the run ends. Either way, the run first builds the site with `./build`, and stops there if a link is broken. For one run without it: `START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh`. The preview is also skipped when the script's output isn't going to a terminal, for example when another script runs it.
 
 **`REGENERATE_TEMPLATES`**: `false` (the default). `true` lets a run overwrite script-owned files even if they were edited by hand. A `README.md` you've edited stays yours even then. For one run: `REGENERATE_TEMPLATES=true bash ~/Downloads/zola-blog-setup.sh`. See "The hand-edit check".
-
-**`KEEP_PINS`**: `false` (the default). `true` takes the releases the workflow already pins, Zola's and the actions', instead of looking up the newest; see "Moving to a newer Zola". For one run: `KEEP_PINS=true bash ~/Downloads/zola-blog-setup.sh`. It's only ever set in front of the command: it has no line in the configuration block.
 
 #### Leave these alone
 
@@ -531,19 +560,21 @@ The menu at the top of each page shows Search, then the pages named in `MENU_PAG
 
    It prints `updated.`, then the site's build, ending `Done in ...`, then a note that it skipped the preview. If the preview is already running, its page reloads by itself, and with the default settings the menu then reads Search, About, Now, Tags, RSS. If the preview isn't running, start it with `~/Desktop/myblog/serve`.
 
-If the page isn't there, because step 1 was skipped or the name is misspelt, the run stops before changing anything:
+If the page isn't there, because step 1 was skipped or the name is misspelt, the build at the end of the run stops and names it:
 
 ```
-MENU_PAGES names nwo, but there's no content/nwo.md. make that page first (guide: "Adding a page to the menu"), or take nwo out of MENU_PAGES. nothing has been changed.
+ERROR Failed to build the site
+ERROR Failed to render 404.html
+ERROR Reason: error: Page `nwo.md` not found.
 ```
 
-It stops the same way, naming the page, if the page doesn't say `hidden = true`. Without it the page counts as a post: listed on the home page if it has a `weight`, and left out of the site if it hasn't, so `./build` fails with a message about pages that produced no HTML.
+Make the page, or fix the name in `MENU_PAGES`, and run the script again. If the page doesn't say `hidden = true`, the run stops before changing anything, and names it. Without it the page counts as a post: listed on the home page if it has a `weight`, and left out of the site if it hasn't.
 
 On a new blog, the first run makes a starter page for each name in `MENU_PAGES` other than `about`: with `MENU_PAGES="about now"` set before the first run, you get `content/now.md`, titled "Now", ready to fill in.
 
 To take a page out of the menu, delete its name from `MENU_PAGES` and run the script again. The page itself stays, at its address. `MENU_PAGES=""` leaves only Search, Tags and RSS.
 
-The menu shows only the blog's own pages. A link to another site goes in the footer instead; see "Footer text and links". A menu page with pages of its own under it is a folder instead, `content/projects/_index.md`, without `hidden = true`, and `MENU_PAGES` takes it by the same name, `projects`; "Child pages" says how to make one, or turn a menu page into one. A folder in the menu isn't also listed on the home page. Don't keep both `projects.md` and `projects/_index.md`: Zola won't build two pages at one address, and the run stops and says so.
+The menu shows only the blog's own pages. A link to another site goes in the footer instead; see "Footer text and links". A menu page with pages of its own under it is a folder instead, `content/projects/_index.md`, without `hidden = true`, and `MENU_PAGES` takes it by the same name, `projects`; "Child pages" says how to make one, or turn a menu page into one. A folder in the menu isn't also listed on the home page. Don't keep both `projects.md` and `projects/_index.md`: Zola won't build two pages at one address, and the build stops.
 
 **A subtitle and a Contents box.** A menu page can have both, as a post can. For a subtitle under the title, add a `description` line to its front matter. For a Contents box listing the page's headings, add `toc = true` under an `[extra]` line. Keep `[extra]` below `title`, `description` and `hidden`, because everything written after it counts as part of it:
 
@@ -575,7 +606,7 @@ To add a link, add a pair where you want it to appear. This adds Mastodon after 
 readonly FOOTER_LINKS="X=https://x.com/John Mastodon=https://mastodon.social/@John GitHub=https://github.com/John/notes"
 ```
 
-`FOOTER_LINKS=""` drops every link. Save the script and run it again after each change. Each label is one word. Each address must start with `https://`, `http://` or `mailto:` (for an email link, `Email=mailto:you@example.com`); anything else stops the run with a message that names the link, because an address without one would lead to a page inside your own blog.
+`FOOTER_LINKS=""` drops every link. Save the script and run it again after each change. Each label is one word. Each address must start with `https://`, `http://` or `mailto:` (for an email link, `Email=mailto:you@example.com`); anything else stops the run with a message that names the link, because an address without one would lead to a page inside your own blog. Each link opens in a new tab, as links to other sites in posts do; an email link opens the reader's mail program instead.
 
 The small print is one line, such as a copyright notice, shown under the links in smaller, fainter type:
 
@@ -597,15 +628,7 @@ Curly quotes, “ and ”, need no backslash.
 
 The About page shows a round placeholder picture. To use a photo of yourself instead:
 
-1. **Copy the photo into the blog, without its hidden data.** From inside the blog folder, with your photo's path in place of `~/Pictures/me.jpg`:
-
-   ```bash
-   ./attach ~/Pictures/me.jpg me
-   ```
-
-   It prints `copied to content/attachments/me.jpg, without its location and camera data. in a post, write:` and a line for posts, which you don't need here. Your original file isn't changed.
-
-   Photos from phones and cameras carry hidden data called EXIF, which often includes where and when the photo was taken, and the phone or camera model. Everything you commit is published, in your public repository and on the site, so `./attach` removes that data on the way in. It keeps only the tag that says which way up the photo goes, so the photo isn't shown sideways. It needs exiftool (on Debian, Devuan or Ubuntu, `sudo apt install libimage-exiftool-perl`; on a Mac, `brew install exiftool`); without it, `./attach` says how to install it and copies nothing.
+1. **Put the photo in the attachments folder.** Copy it into `content/attachments/` under a short lowercase name, such as `me.jpg`. A file manager, `cp ~/Pictures/IMG_0001.jpg ~/Desktop/myblog/content/attachments/me.jpg`, or an editor that pastes pictures into that folder all work.
 
 2. **Name the photo in the About page.** In `content/about.md`, find `avatar_photo = ""` in the `[extra]` part and change it to:
 
@@ -615,54 +638,52 @@ The About page shows a round placeholder picture. To use a photo of yourself ins
 
    The path starts from the `content` folder, so a bare `"me.jpg"` isn't found and the build stops with `` `resize_image`: Cannot find file: me.jpg ``.
 
-When it builds the site, Zola makes a small square copy of the photo (240 by 240 pixels, shown at 120), so readers download a small file. The original is published too, at `/attachments/me.jpg`, which is why step 1 cleans it first.
+3. **Commit it.** Photos from phones and cameras carry hidden data called EXIF, which often includes where and when the photo was taken, and the phone or camera model. When you commit the photo, the commit hook the script installed removes that data from it, in the file itself and in what's committed, and keeps only the tag that says which way up the photo goes, so it isn't shown sideways. The commit prints `removed the location and camera data from 1 picture(s) and video(s) being committed`. See "Pictures, GIFs and video".
 
-**Without `./attach`.** The same cleaning is one exiftool command, run from inside the blog folder. It writes a cleaned copy into the attachments folder and leaves your original as it was:
+When it builds the site, Zola makes a small square copy of the photo (240 by 240 pixels, shown at 120), so readers download a small file. The original is published too, at `/attachments/me.jpg`, which is why the hook cleans it first.
 
-```bash
-exiftool -all= -tagsfromfile @ -orientation -o content/attachments/me.jpg ~/Pictures/me.jpg
-```
-
-It prints `1 image files created`. To check the copy, run `exiftool content/attachments/me.jpg`: no line in its output should start with GPS, Make, Camera Model Name, or Date/Time Original.
+To check a photo yourself, run `exiftool content/attachments/me.jpg` from inside the blog folder after the commit: no line in its output should start with GPS, Make, Camera Model Name, or Date/Time Original.
 
 The other key, `avatar = "avatar.svg"`, is the placeholder. It names a file in `static/`, which is shown as it is, without being shrunk. Use it for an SVG drawing (a picture made of shapes rather than dots, which most drawing programs can save), because Zola can't shrink those. If both keys are set, `avatar_photo` wins.
 
 ### Pictures, GIFs and video
 
-Pictures, GIFs and videos all go in one folder, `content/attachments/`, and any post or page can use them.
-
-To put a picture in a post, add it with the blog's `attach` helper, from inside the blog folder, giving the picture's path and a new name for it:
-
-```bash
-./attach ~/Pictures/IMG_0001.jpg tea-hills
-```
-
-It prints:
-
-```
-copied to content/attachments/tea-hills.jpg, without its location and camera data. in a post, write:
-![what it shows](@/attachments/tea-hills.jpg)
-```
-
-Paste the second line into the post, and replace "what it shows" with a description of the picture:
+Pictures, GIFs and videos all go in one folder, `content/attachments/`, and any post or page can use them. Put a file there however you like: copy it in, save it there, or paste it in from an editor such as VSCodium that saves pasted pictures into the folder. Give it a short lowercase name with dashes, such as `tea-hills.jpg`: every file shares this one folder, so `IMG_0001.jpg` from two phones would clash. Then link to it in the post:
 
 ```markdown
 ![Hills at sunrise, seen from the ridge](@/attachments/tea-hills.jpg)
 ```
 
-The helper removes the photo's hidden data (see "Your photo", step 1), keeps the tag that says which way up it goes, and leaves your original as it was. The file keeps its own extension, in lower case. Every file shares this one folder, so two files can't have the same name: `IMG_0001.jpg` from two phones would clash, which is why you give each a new name, after its post, in lowercase with dashes. The helper refuses a name that's taken, and refuses HEIC pictures, which most browsers can't show; export those as JPEG first. It needs exiftool; if it isn't installed, `./attach` says how to install it. To do it without the helper, use the exiftool command at the end of "Your photo", with the picture's path and its new name.
-
-An SVG drawing is the one kind of picture that neither `./attach` nor exiftool can clean, so `./attach` says so and copies nothing. Save the drawing as a plain SVG instead (in Inkscape, File, then Save As, with Plain SVG as the type), which leaves out Inkscape's own notes, such as the file's name and a folder on your computer. Then copy it into `content/attachments/` yourself, under a new name, and link to it as above.
-
 The words in square brackets describe the picture for readers who can't see it, including blind readers using screen readers, so always fill them in. `@/` means "starting from the `content` folder". Zola turns the path into the picture's full address, so it works at any site address and in feed readers, and if the name is wrong, the build stops instead of publishing a missing picture. A picture never shows wider than the text column, or taller than 85% of the window; a big photo is shrunk to fit.
 
-A GIF goes in the same way, as a picture. A video needs a line of its own, because Markdown has no way to show one:
+**Hidden data is removed as you commit.** Photos and videos from phones and cameras carry hidden data, often where and when they were taken, and the device's make and model. Everything you commit is published, in your public repository and on the site, so the script installs a commit hook, `.git/hooks/pre-commit`, that removes that data from each picture or video in `content/attachments/` (and, in book mode, `book/attachments/`) that a commit adds or changes. It keeps the tag that says which way up a photo goes, cleans the file on your computer as well as the committed copy, and prints `removed the location and camera data from 1 picture(s) and video(s) being committed`. It works on JPEG, PNG, GIF, WebP, TIFF and HEIC pictures and on MP4, M4V and MOV videos. It needs exiftool; without it, the commit stops before anything is saved:
+
+```
+commit stopped: exiftool removes the location and camera data from pictures and videos before they're published. install it (on Debian, Devuan or Ubuntu: sudo apt install libimage-exiftool-perl), then commit again.
+```
+
+Until you commit, the picture on your computer still has its data, and the preview shows it as it is; nothing leaves your computer before a push. Three things get past the hook:
+
+- **A file added on GitHub's website**, by uploading it there: it never passes through your computer's git.
+- **`git commit --no-verify`**, which skips hooks.
+- **A new copy of the repository.** git doesn't copy hooks with a clone, so on another computer, or after cloning the blog again, run the setup script against the blog once: it installs the hook again.
+
+If `.git/hooks/pre-commit` is a hook of your own, the script leaves it as it is and says so on every run: `.git/hooks/pre-commit is your own, so it's left as it is: pictures you commit keep their location and camera data unless you remove it`. To clean a picture by hand, from inside the blog folder: `exiftool -all= -tagsfromfile @ -orientation content/attachments/me.jpg`. It prints `1 image files updated`, and leaves the original as `me.jpg_original`, which `.gitignore` keeps out of commits; delete it once you've checked the result.
+
+Two kinds of file the hook can't clean, because exiftool can't write them:
+
+- **SVG drawings.** Save the drawing as a plain SVG instead (in Inkscape, File, then Save As, with Plain SVG as the type), which leaves out Inkscape's own notes, such as the file's name and a folder on your computer.
+- **WebM videos.** They're committed as they are. Make the video an MP4 if it came from a phone or camera.
+
+HEIC pictures are cleaned, but most browsers can't show them; export those as JPEG first.
+
+A GIF goes in the same way as a picture. A video needs a line of its own, because Markdown has no way to show one:
 
 ```
 {{<video src="attachments/tea-bus.mp4" />}}
 ```
 
-That shows the video with its play button and controls. `./attach` works for MP4 and MOV videos too, and prints this line for them; it can't clean WebM videos, because exiftool can't write them. To have a video play by itself, silently and on a loop, like a GIF, add `loop="yes"`:
+That shows the video with its play button and controls. To have a video play by itself, silently and on a loop, like a GIF, add `loop="yes"`:
 
 ```
 {{<video src="attachments/tea-bus.mp4" loop="yes" />}}
@@ -679,7 +700,6 @@ If `content/attachments/_index.md` goes missing, each run warns you, and `./buil
 ```markdown
 +++
 title = "Attachments"
-sort_by = "none"
 in_search_index = false
 redirect_to = "/"
 +++
@@ -692,7 +712,7 @@ Don't put pictures in `static/` and refer to them with a path starting with `/`,
 The design uses a typeface called Charter. It doesn't come with the script; you download it yourself, and until you do, readers see the first of several similar typefaces that their own computer has. That fallback can look quite different. In the text column, Charter fits about 79 characters to a line, Palatino 76 and DejaVu Serif 68. A Times-like typeface such as Liberation Serif, common on Linux, fits about 85, which is too many for comfortable reading. So install Charter:
 
 1. Download it from practicaltypography.com/charter.html. It's free, including for commercial use. The download is a zip file with several formats in it. Open it (double-click it in your file manager) and find the four files whose names end in `.woff2`.
-2. Copy the four `.woff2` files (regular, italic, bold, and bold italic) into your blog's `static/fonts/` folder, named exactly:
+2. Copy the four `.woff2` files (regular, italic, bold, and bold italic) into your blog's `static/fonts/` folder, making the folder if it isn't there, named exactly:
 
    ```
    charter_regular.woff2
@@ -705,7 +725,7 @@ The design uses a typeface called Charter. It doesn't come with the script; you 
 
 3. Reload the page in your browser (F5). The text should change typeface.
 
-`static/fonts/` is yours, so re-runs never touch these files. `static/fonts/README.txt` is published along with everything else in `static/`, at `/fonts/README.txt`. It's harmless, but you can delete it once the fonts are in.
+`static/fonts/` is yours, so re-runs never touch these files. A blog made before v111 has a note there, `static/fonts/README.txt`, published at `/fonts/README.txt`: harmless, but you can delete it once the fonts are in.
 
 Don't load fonts from a font service such as Google Fonts. Each reader's browser would then contact that service, which would learn their IP address and which page they were reading. The site's security policy blocks this anyway, unless you change the policy.
 
@@ -730,9 +750,9 @@ The settings are called custom properties, lines like `--accent: #ffb454;`. Colo
 | `--hairline` | The style of those lines; `none` removes them all | `1px solid var(--border-strong)` | |
 | `--measure` | Width of the text column | `42rem` | |
 | `--wide` | Widest a wide page or wide element can go | `62rem` | |
-| `--body-size`, `--body-leading` | Text size and line spacing | `1.2rem`, `1.55` | |
-| `--wordmark-size` | Size of the blog's name at the top left | `1.5em` | |
-| `--h1-size`, `--h2-size`, `--h3-size` | Heading sizes. On screens narrower than 576 pixels, `--h1-size` is `1.9rem`, set just below the light list | `2.25rem`, `1.7rem`, `1.35rem` | |
+| `--body-size`, `--body-leading` | Text size and line spacing | `1.2rem`, `1.45` | |
+| `--wordmark-size` | Size of the blog's name at the top left | `1.35em` | |
+| `--h1-size`, `--h2-size`, `--h3-size` | Heading sizes, in even steps of about 1.2 over the text. On screens narrower than 576 pixels, `--h1-size` is `1.65rem`, set just below the light list | `1.8rem`, `1.5rem`, `1.32rem` | |
 | `--serif`, `--mono` | Typefaces for text and for code, first choice first | Charter, …; system monospace, … | |
 
 The dark values come first in the block. The light values, used only when `LIGHT_THEME=true`, are in a second list just below it, headed `@media (prefers-color-scheme: light)`. With the light version on, change a colour in both lists.
@@ -743,19 +763,19 @@ For example, to make the accent colour teal:
 2. Change it to `--accent: #4fd1c5;` and save.
 3. Run the script again with `START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh`. If the preview is running, it reloads by itself; if not, start it with `~/Desktop/myblog/serve`. Code words in the example post are now teal.
 
-Keep `--wordmark-size` between about `1.45em` and `1.85em`. Below that, headings inside posts are bigger than the blog's name; above it, the name is bigger than each post's title. If you make `--h2-size` bigger, the lower limit goes up with it: the name has to stay bigger than an `h2`.
+Keep `--wordmark-size` between about `1.3em` and `1.45em`. Below that, headings inside posts are bigger than the blog's name; above it, the name is bigger than each post's title. If you make `--h2-size` or `--h1-size` bigger, the limits move with them: the name has to stay bigger than an `h2` and smaller than an `h1`.
 
 For a bigger redesign, copy everything from `YOUR DESIGN` to `END DESIGN`, give it to an AI model with a request such as "restyle this to look like an old typewritten letter, and leave everything inside `{{ }}` and `{% %}` exactly as it is", and paste the result back in place of the original. That last part matters: the block has template code in it, in the font lines and around the light colours, and changing that breaks the fonts or the build. Code examples don't follow these colours; they use `LIGHT_CODE_THEME` and `DARK_CODE_THEME`.
 
 ### Using a logo
 
-With `MASTHEAD="image"`, the top left shows `static/logo.svg`, which you supply. The logo is used as a stencil: its shape is filled with the text colour, so the same file works on dark and light pages. Make it a flat shape, such as a monogram, on a transparent background, and save it as an SVG file. Any background in the file counts as part of the shape, so the whole box comes out solid. If the file is missing, the top left shows an empty space, and each run warns you about it. The logo's size follows `--wordmark-size`.
+With `MASTHEAD="image"`, the top left shows `static/logo.svg`, which you supply. The logo is used as a stencil: its shape is filled with the text colour, so the same file works on dark and light pages. Make it a flat shape, such as a monogram, on a transparent background, and save it as an SVG file. Any background in the file counts as part of the shape, so the whole box comes out solid. If the file is missing, the top left shows an empty space, and each run warns you: `MASTHEAD is "image" but static/logo.svg is not there; the masthead shows an empty box until you add it (guide: "Using a logo").` The logo's size follows `--wordmark-size`.
 
 ### Using your own favicon
 
 The script draws `static/favicon.svg` from `FAVICON_TEXT`, and draws it again on every run, so change the setting, not the file. The letter is dark, and turns light when the reader's browser or computer is in dark mode, because the tab bar it sits in follows that setting even when your site is dark for everyone.
 
-To use a favicon of your own, set `FAVICON_TEXT=""`, put your file in place as `static/favicon.svg`, and run the script. The run deletes the favicon only if it's still exactly the one the script drew, so your own file is safe, and from then on the script doesn't write, check or delete it. Don't swap the file while `FAVICON_TEXT` is still set: the run then stops at the hand-edit check, and `REGENERATE_TEMPLATES=true` would draw over your file.
+To use a favicon of your own, set `FAVICON_TEXT=""`, put your file in place as `static/favicon.svg`, and run the script. The run deletes the favicon only if it's still exactly the one the script drew (`removed static/favicon.svg (FAVICON_TEXT draws none)`), so your own file is safe, and from then on the script doesn't write, check or delete it. Don't swap the file while `FAVICON_TEXT` is still set: the run then stops at the hand-edit check, and `REGENERATE_TEMPLATES=true` would draw over your file.
 
 A favicon can't use Charter or any other web font, because browsers load it as an image, and images can't load fonts. The drawn one uses Palatino, Georgia or another serif typeface, depending on what the reader's computer has.
 
@@ -766,6 +786,26 @@ With `LIGHT_THEME=false` the site is dark for every reader, whatever their compu
 Code examples follow the same rule. The highlighter writes both a light and a dark colour into every code example, and with `LIGHT_THEME=false` the stylesheet forces the dark ones, so a reader in light mode doesn't get pale code on a dark page.
 
 If dark mode looks wrong on your own computer but right on others, suspect your desktop's settings rather than the blog. On some Linux desktops, including XFCE, the browser can't always tell whether you prefer dark and guesses from your desktop theme. To test the light version, use the browser's developer tools, which can pretend the computer prefers light or dark.
+
+### Keyboard shortcuts
+
+While search is on, every page answers these keys:
+
+| Key | What it does |
+|---|---|
+| `/` | Opens the search box |
+| ← | The previous page, as the Previous link at the bottom of the page. From the first post, the home page |
+| → | The next page, as the Next link. On the home page, the first post in the list |
+| `h` | The home page, from any page |
+| ↑ and ↓ | In the search box: move through the results; a bar beside one marks it |
+| Enter | In the search box: opens the result marked, the first until you move |
+| Esc | Closes the search box |
+
+Hovering over a link that has a shortcut shows it: "Search (/)" on the Search button, "Previous (←)" and "Next (→)" on those links, and "Home (h)" on the blog's name at the top left, on the menu's Home link when `MASTHEAD="none"`, and on the link between Previous and Next.
+
+The keys do nothing while you're typing in a box, or with Ctrl, Alt or the Windows or Command key held, so the browser's own shortcuts still work. Shift+H does nothing, and neither do Shift and an arrow. ← and → do nothing on a page without Previous and Next, such as About; on a box that scrolls sideways, which you've clicked into, they scroll it instead.
+
+The shortcuts live in `static/search.js`, with search: `ENABLE_SEARCH=false` turns them off along with it. There's no setting for the keys alone. Single-letter shortcuts can be set off by accident by people who control their computer by voice, which accessibility guidelines warn about; if your readers need that, the way to turn them off is `ENABLE_SEARCH=false`.
 
 ### Changing the fixed words
 
@@ -781,7 +821,8 @@ The words the site shows by itself, such as "All posts" or "min read", are writt
 | 1 result, results (read out to screen readers as you search) | `1 result`, the line with both |
 | Contents, Updated, min read, View history, Suggest an edit | `>Contents<`, `Updated <time`, `min read<`, `>View history<`, `>Suggest an edit<` |
 | (draft) | `>(draft)<`, which finds two lines: a row in a list, and a post's own title |
-| Tags:, Previous, All posts, Next (at the bottom of a post), and Contents, which a book shows in place of All posts | `>Tags:`, `Previous<`, `}Contents{`, `}All posts{`, `>Next<` |
+| Tags:, Previous, All posts, Next (at the bottom of a post), and Home, which a book shows in place of All posts | `>Tags:`, `Previous</span>`, `}All posts{`, `}Home{`, `Next&nbsp;&rarr;</span>` |
+| The tooltips that name the shortcuts | `title="Search (/)"`, `title="Previous (←)"`, `title="Next (→)"`, and `title="Home (h)"`, which finds three lines (change all three) |
 | Tags (the heading of the tags page, and its name in the browser tab) | `>Tags</h1>` and `title %}Tags` |
 | Posts tagged:, post, posts, All tags | `Posts tagged:`, which finds two lines (change both), `post{% if`, `All tags` |
 | The "page not found" page | `Page not found` for its title, `This page isn't here` for its text |
@@ -807,7 +848,7 @@ Dates follow the `DATE_FORMAT` setting. For month names in another language, sea
 date(format="d MMMM y", locale="hi_IN")
 ```
 
-That shows `22 सितंबर 2026`; use `ta_IN` for Tamil, `fr_FR` for French, and so on. With a locale, the format is written this other way, `d MMMM y`, not with `%` codes, and `DATE_FORMAT` no longer applies. The `locale` option needs Zola 0.23.5 or later, which the script installs, unless the workflow pins an older 0.23 release and you run with `KEEP_PINS=true`: on 0.23.4 and earlier the date comes out as the letters `d MMMM y`, with no error. `zola --version` shows which you have.
+That shows `22 सितंबर 2026`; use `ta_IN` for Tamil, `fr_FR` for French, and so on. With a locale, the format is written this other way, `d MMMM y`, not with `%` codes, and `DATE_FORMAT` no longer applies. The `locale` option needs Zola 0.23.5 or later: on 0.23.4 and earlier the date comes out as the letters `d MMMM y`, with no error. `zola --version` shows which you have; `update` moves you to the newest 0.23 release.
 
 ## Writing posts
 
@@ -868,7 +909,7 @@ The home page lists posts by `weight`, lightest first, and numbers them 1, 2, 3 
 
 Number the weights 10, 20, 30 rather than 1, 2, 3. Then a post that belongs between two others can have 15, and no other file needs changing. Readers never see the weights, only the position in the list, so gaps don't show, and deleting a post renumbers the rest. Addresses come from file names, so reordering never changes them. `./new` works this way too: it gives a new post a weight 10 more than the heaviest post or folder, so the post goes at the end of the list.
 
-The Previous and Next links at the bottom of each post follow the same order. They're Zola's own: the posts either side of this one in the list. So a folder listed among the posts is skipped, and Next from the post above it leads to the post below it; a child page's links stay within its folder's list (see "Child pages"); and a folder's page has none. The first post has no Previous and the last no Next; with either goes an All posts link back to the home page. A post with neither, as when it's alone in its list or in a folder that isn't sorted, has none of the three.
+The Previous and Next links at the bottom of each post follow the same order. They're Zola's own: the posts either side of this one in the list, each with its label, "← Previous" or "Next →", on a line above the post's title. So a folder listed among the posts is skipped, and Next from the post above it leads to the post below it; a child page's links stay within its folder's list (see "Child pages"); and a folder's page has none. The first post has no Previous and the last no Next; with either goes an All posts link back to the home page. A post with neither, as when it's alone in its list or in a folder that isn't sorted, has none of the three. ← and → on the keyboard follow the same links; see "Keyboard shortcuts".
 
 To list posts by date instead, newest first, open `content/_index.md` (it's yours, so edit it directly) and change `sort_by = "weight"` to `sort_by = "date"`. Every post then needs a `date`, and weights are ignored, except a folder's: a folder has no date, so the folders come first, in the order of their weights. `sort_by = "update_date"` does the same but uses `updated` when a post has one, so a post you give a newer `updated` date moves back to the top. Posts stay numbered; to show bullets instead, change `<ol class="post-list">` and its closing `</ol>` to `<ul class="post-list">` and `</ul>` in `render_components` in the script, and run it again.
 
@@ -896,7 +937,7 @@ The example post, `content/hello-world.md`, shows all of these and more: tables,
 
 **To another post**, write `@/` and the file's path inside `content/`: `[the second post](@/second-post.md)`. The link comes out right whatever your site's address, and if the file doesn't exist the build stops, so a typo can't reach the published site: the preview with `Broken relative link`, and `./build` naming the file and line.
 
-**Not like this:** `[the second post](second-post.md)` or `[the second post](./second-post.md)`. Zola doesn't turn a path to a `.md` file into the address of its page, so the link points at a file that isn't published, and readers get a "page not found". `./build` stops on a link like that, and names the `@/` link to write instead. Links to your own pages start with `@/`, Zola's own sign for "find this file and link to its page", and the path after it starts from the `content` folder, wherever the page with the link is.
+**Not like this:** `[the second post](second-post.md)` or `[the second post](./second-post.md)`. Zola doesn't turn a path to a `.md` file into the address of its page, so the link points at a file that isn't published, and readers get a "page not found". `./build` stops on a link like that, and names the `@/` link to write instead. Links to your own pages start with `@/`, Zola's own sign for "find this file and link to its page", and the path after it starts from the `content` folder, wherever the page with the link is. (In book mode it's the other way round: pages are linked by file name, as in mdBook; see "Links between pages".)
 
 **To a folder's page**, name its `_index.md`: `[the projects](@/projects/_index.md)`.
 
@@ -906,7 +947,7 @@ The example post, `content/hello-world.md`, shows all of these and more: tables,
 ## Ingredients and tools {#ingredients}
 ```
 
-**To other websites**, write ordinary links. They open in a new tab, and Zola adds `rel="noopener nofollow noreferrer external"` to each one. That stops the other site learning which of your pages the reader came from, and tells search engines the link isn't an endorsement.
+**To other websites**, write ordinary links. They open in a new tab, and Zola adds `rel="noopener nofollow noreferrer external"` to each one. That stops the other site learning which of your pages the reader came from, and tells search engines the link isn't an endorsement. A link written in HTML, `<a href="https://…">`, opens in a new tab too, though Zola adds nothing else to it; write its address in double quotes, which is what the blog looks for.
 
 **An address on its own is a link too.** `https://example.com`, pasted into a sentence as it is, becomes a link that shows the address, the same as `<https://example.com>`, and opens in a new tab like other links to other sites. A full stop, comma or closing bracket straight after it stays outside the link, unless the bracket belongs to the address, as in some Wikipedia addresses. It needs the `https://` or `http://` at the front: for `example.com` alone, write `<https://example.com>`, or give it words, as in `[the dictionary entry](https://example.com)`. An address in code, between backticks or in a code example, stays plain text.
 
@@ -917,9 +958,9 @@ Headings don't have link symbols beside them. To get a link to a section, open t
 `./build` checks the links in your posts before it builds anything, and if any is broken, it stops and lists each one, by file and line. Every run of the script runs `./build` too, and so does the build on GitHub, so a broken link stops all three with the same list. For example, after adding two links written the way another app might write them:
 
 ```
-content/hello-world.md:157: second-post.md
+content/hello-world.md:120: second-post.md
     without @/ this leads to "page not found"; write @/second-post.md
-content/hello-world.md:159: tea.jpg
+content/hello-world.md:122: tea.jpg
     a page looks for this under its own address; put it in content/attachments/ and write @/attachments/tea.jpg
 
 stopped: 2 broken links, listed above. fix them, then run ./build again.
@@ -1147,7 +1188,7 @@ WARN  - /home/you/Desktop/myblog/content/colophon.md
 
 So `./build`, and the build on GitHub, stop with an error when that happens. Give the page a weight, or add `hidden = true`.
 
-In book mode a page off the outline is an unlisted page, written in the outline without a dash, and it stays in the search box's index; see "Book mode".
+In book mode a page the outline doesn't link is an unlisted page, and it stays in the search box's index; see "Book mode".
 
 ### Bringing in notes from elsewhere
 
@@ -1183,19 +1224,19 @@ Notes written in another app can become posts, but each needs a few changes firs
    |---|---|
    | `[[Other note]]` | `[Other note](@/other-note.md)`, naming the other post's file |
    | `[Other note](other-note.md)` or `(./other-note.md)` | `[Other note](@/other-note.md)`: without `@/` the link leads to "page not found" |
-   | `![[photo.jpg]]` | `![What the photo shows](@/attachments/photo.jpg)`, with the file added by `./attach` |
-   | `![photo](https://...)`, a picture from another site | The same, after downloading the picture and adding it with `./attach`: the security policy blocks pictures from other sites |
+   | `![[photo.jpg]]` | `![What the photo shows](@/attachments/photo.jpg)`, with the file copied into `content/attachments/` |
+   | `![photo](https://...)`, a picture from another site | The same, after downloading the picture into `content/attachments/`: the security policy blocks pictures from other sites |
    | `> [!note]` and the lines under it | An `<aside>`, as in "Notes, fold-away sections, and wide items" |
 
-4. **Save it in `content/`** with a lowercase, dashed file name, which becomes its address, add its pictures with `./attach`, and run `./build`. If the build stops with `Error when parsing front matter`, see Troubleshooting.
+4. **Save it in `content/`** with a lowercase, dashed file name, which becomes its address, copy its pictures into `content/attachments/`, and run `./build`. If the build stops with `Error when parsing front matter`, see Troubleshooting.
 
 ## Book mode
 
-A blog is a list of dated posts. Some sites aren't: a reference, a manual, a set of bibliographies, course notes, anything with a fixed order and no dates. Book mode builds that, the way mdBook builds a book from `SUMMARY.md`: you write plain Markdown files in a folder called `book/`, with one outline file, and the home page shows the outline, with each page in its place. The pages carry no front matter, there are no posts, dates, tags or feed, and the menu is Search and About, unless you change `MENU_PAGES`.
+A blog is a list of dated posts. Some sites aren't: a reference, a manual, a set of bibliographies, course notes, anything with a fixed order and no dates. Book mode builds that, the way mdBook builds a book from `SUMMARY.md`: you write plain Markdown files in a folder called `book/`, with one outline file, and the home page shows the outline. The pages carry no front matter, there are no posts, dates, tags or feed, and the menu is Search and About, unless you change `MENU_PAGES`.
 
-Both kinds of site order their pages by weight; the difference is who writes the numbers. Zola sorts a list only by something written in each page, a `weight`, a `date` or a title, never by the order of lines in some other file, so an outline can reach it only through a program that turns each of its lines into a weight in a page. In book mode that program is `./genbook`, which is why `content/` is made and not yours to edit. A blog has no program in between: Zola reads your posts as you wrote them, so each post's place sits in its own front matter, beside its date and tags. Choose a blog when posts need dates, the feed, tags or drafts. Choose a book when they don't, and you want the whole order in one file, changed by moving a line, with Previous and Next running through every part.
+Both kinds of site order their pages by weight; the difference is who writes the numbers. Zola sorts a list only by something written in each page, a `weight`, a `date` or a title, never by the order of lines in some other file, so an outline can reach it only through a program that turns each of its links into a weight in a page. In book mode that program is `./genbook`, which is why `content/` is made and not yours to edit. A blog has no program in between: Zola reads your posts as you wrote them, so each post's place sits in its own front matter, beside its date and tags. Choose a blog when posts need dates, the feed, tags or drafts. Choose a book when they don't, and you want the whole order in one file, changed by moving a line, with Previous and Next running through every part.
 
-What readers get: a home page with the outline, each part a heading and each page a numbered link; each page with its title, its text, a Contents box when it has two or more headings, and Previous and Next in the outline's order, with a Contents link back to the home page between them; unlisted pages, which search finds but the outline doesn't show; and the search box, over every page in the outline and every unlisted page. Publishing works as for a blog, and so do pictures, GIFs and video, the design settings, the footer, the preview, and `./build`.
+What readers get: a home page with the outline, as you wrote it; each page with its title, its text, a Contents box when it has two or more headings, a list of the pages under it when the outline puts any there, and Previous and Next in the outline's order, with a Home link between them; unlisted pages, which search finds but the outline doesn't show; the search box, over every page but the menu's; and the keyboard shortcuts. Publishing works as for a blog, and so do the design settings, the footer, the preview, and `./build`.
 
 ### Turning it on
 
@@ -1220,81 +1261,147 @@ book/hello-world.md   a page: the same tour of Markdown a blog starts with
 book/second-page.md   a second page, so Previous and Next have somewhere to go
 book/about.md         the About page, in the menu
 book/colophon.md      an unlisted page, which About links to
+book/attachments/     pictures, GIFs and videos; demo.svg to start
 ```
 
-Each page is a plain Markdown file. Its first line is its title, written as a heading, `# Hello world`; everything after that is the page. There's no front matter, and a file that starts with `+++` stops the build and says so. Headings inside the page use `##` and `###`, as in a post. Pictures, GIFs and videos go in `content/attachments/`, added with `./attach` and written into a page exactly as in a post, `![what it shows](@/attachments/tea-hills.jpg)`; see "Pictures, GIFs and video".
+Each page is a plain Markdown file. Its first line is its title, written as a heading, `# Hello world`; everything after that is the page. A page without that line takes its title from the outline's link to it, or else from its file name, with dashes as spaces: `tea-hills.md` is "Tea hills". There's no front matter. Headings inside the page use `##` to `######`, as in a post. Pictures, GIFs and videos go in `book/attachments/`; see "Pictures, GIFs and video in a book".
 
-`content/` is made from `book/` by `./genbook`, a helper the script writes in book mode, which `./build` and `./serve` run first (on GitHub too: `content/` isn't committed, only `content/attachments/` is, and the build there makes it again). Never write in `content/` yourself: a file put there by hand stops the build, named, so nothing of yours is deleted. For each page, `./genbook` writes the file Zola needs, with the title and the page's place as its front matter, and the outline as the home page's text. The files it writes carry a marker on their second line, `# genbook: made from book/hello-world.md, whose line 2 is line 8 here; edit that file, not this one`, which is how it tells its own files from yours, and how `./build` names the line in `book/` when a link is broken.
+A file's name is its page's address: `book/hello-world.md` is published at `/hello-world/`. A name takes letters, digits, `-` and `_`; use lowercase letters and dashes, as for a post. A name with a space or other sign in it would be a page no link could reach, so the build stops and suggests one:
+
+```
+these files in book/ have names that can't be a page's address, which takes letters, digits, - and _:
+  - book/My Notes.md: rename it my-notes.md
+rename them, and the links to them. nothing has been changed.
+```
+
+Every `.md` file in `book/` is built, whether anything links to it or not. One the outline links is in the outline, with Previous and Next. One named in `MENU_PAGES` is in the menu. Any other is unlisted: it's published at its own address and search finds it, but nothing lists it, so readers reach it only through your links, as the About page links to the colophon.
+
+`content/` is made from `book/` by `./genbook`, a helper the script writes in book mode, which `./build` and `./serve` run first (on GitHub too: `content/` isn't committed, and the build there makes it again). Never write in `content/` yourself: a file put there by hand stops the build, named, so nothing of yours is deleted. For each page, `./genbook` writes the file Zola needs, with the title and the page's place as its front matter, and the outline as the home page's text. The files it writes carry a marker on their second line, `# genbook: made from book/hello-world.md, whose line 2 is line 8 here; edit that file, not this one`, which is how it tells its own files from yours, and how `./build` names the line in `book/` when a link is broken. It writes only the files that changed, so the preview reloads only for those.
 
 ### The outline
 
-`book/SUMMARY.md` is read as mdBook reads it. An outline with two parts, a group of pages under a name, and one unlisted page:
+`book/SUMMARY.md` is an ordinary Markdown page, and the home page shows it as you write it: headings from `##` to `######`, text, lists bulleted or numbered, items with or without links, nested as deep as you like, and `---` lines wherever you want a dividing line. What makes it an outline is its links. Each page it links, in the order of its first link, is a page of the book, and Previous and Next follow that order. An outline written for mdBook works as it is:
 
 ```markdown
-# Part One
+# Summary
 
-- [Alpha](alpha.md)
-- [Beta](beta.md)
-- [A name with no page]()
-- [A group]()
-    - [Gamma](gamma.md)
-    - [Delta](delta.md)
+## Part one
 
-# Part Two
+- [Alpha](./alpha.md)
+    - [Alpha's details](./alpha-details.md)
+- [Beta](./beta.md)
+- A note with no link
 
-- [Epsilon](epsilon.md)
+---
 
-[The spec](spec.md)
+## Part two
+
+1. [Gamma](./gamma.md)
+2. [Delta](./delta.md)
 ```
 
-- `# Title` is a part: a heading on the home page. Every line starting `#` is a part, so there's no title line: mdBook's usual first line, `# Summary`, would be a part with nothing under it, and the build stops and says so. Delete it; `SITE_TITLE` names the site.
-- `- [Title](file.md)` is a page: a numbered link on the home page, with Previous and Next in this order, through every part. The file is `book/file.md`; the name takes lowercase letters and digits, with single dashes between them, then `.md`, with no folder in front and no `#` after it, and it becomes the page's address, `/alpha/`. The title here is what the outline shows; the page itself, and the Previous and Next links, show the title from the page's own first line, so keep the two the same unless you want them different.
-- `- [Title]()`, with nothing in the brackets, is a name with no page. On its own it's plain text in the list. With items indented under it, by four spaces, it's a heading one level down, and those items are its list; a name under a name goes one level further. Four levels of names fit under a part; a fifth stops the build.
-- `[Title](file.md)` without the dash is an unlisted page: built and in the search box's index, but not on the home page, with no Previous or Next, and no page leads to it unless you link to it, as the About page links to the colophon. It can be anywhere in the file. The reference pages of a book go here: a specification, a changelog, a page about the site.
-- Under one heading, the pages come first and then the names with items under them. A page after such a name would look, on the home page, like one of its items, so the build stops and says so. The numbers restart under each heading. A part needs at least one page or name under it; unlisted pages don't count, since the home page doesn't show them.
-- A page can't have items under it: put a name with no page above them instead.
-- Blank lines are fine anywhere. Any other line stops the build, naming its number: a numbered item, a `---`, a note.
+- A `# Title` on the first line is the outline's title and isn't shown, as in mdBook; the site's name is `SITE_TITLE`. Any other `#` heading shows as `##`, because each page's one top heading is the site's name.
+- A link to a page is its file name, `alpha.md` or `./alpha.md`, with an optional `#heading` after it. Its words are what the outline shows, and what Previous and Next show for the page: when they differ from the page's title, as with `[Genesis](./genesis.md)` for a page titled "Genesis: Bibliography", Previous and Next show "Genesis", and the page itself shows its full title.
+- `- [Name]()`, mdBook's way of writing a chapter that isn't written yet, shows as the name alone.
+- A link to a file that isn't in `book/`, or one with a folder in it, such as `../alpha.md`, is broken, and the build stops and lists it with its line: `book/SUMMARY.md, line 7: a link to zeta.md, and there is no book/zeta.md`.
 
-Every file in `book/` has to be in the outline, or be a menu page: a file nothing names stops the build, listed, so a draft can't be left out of the site by accident. A file the outline names twice stops it too, and so does a file the outline names that isn't there.
+**Pages under a page.** Items indented under a page's item, as Alpha's details is under Alpha above, are that page's children: the home page shows them nested under it, and the page lists them at its foot, styled as the outline is, under its own text. Children can have children of their own, to any depth, and they keep their place in Previous and Next. For a long list, put `<!-- fold -->` at the end of the parent's line:
+
+```markdown
+- [Saws](./saws.md) <!-- fold -->
+    - [Hand saw](./hand-saw.md)
+    - [Coping saw](./coping-saw.md)
+```
+
+The home page then shows Saws alone, and the Saws page lists its children. They keep their place in Previous and Next, and their numbers.
+
+**Numbering.** With `OUTLINE_NUMBERS=true`, the outline's headings and list items are numbered as one tree, whatever the outline had as bullets or numbers. A heading one level deeper than the one before is under it, and so is everything after it, lists included:
+
+```markdown
+## Getting started            →  1. Getting started
+- [Install](./install.md)     →  1.1 Install
+- [First run](./first-run.md) →  1.2 First run
+
+### Settings                  →  1.3 Settings
+- [Colours](./colours.md)     →  1.3.1 Colours
+    - [Dark](./dark.md)       →  1.3.1.1 Dark
+
+## Reference                  →  2. Reference
+- [Commands](./commands.md)   →  2.1 Commands
+```
+
+A heading and a list under the same heading count on together, as above: Settings follows First run as 1.3. Deep outlines reach four numbers quickly, so keep the headings to the levels you need. Each page's title on its own page carries its number too: the Dark page's title reads "1.3.1.1 Dark". Without it, the outline shows the bullets and numbers you wrote.
 
 ### Links between pages
 
-Write a link to another page by its file name, as in mdBook: `[the spec](spec.md)`, or to a heading in it, `[the method](spec.md#method)`. `./spec.md` and Zola's `@/spec.md` work the same. `./genbook` turns each into the site's own link, so it comes out right whatever the site's address, and if the file isn't a page of the book, the build stops and names the file and line. The link check in `./build` (see "Broken links") names the file and line in `book/` too, so a picture that isn't in `content/attachments/` is reported as `book/alpha.md:7:`, not as a line of the file `./genbook` made. A link in a code example or between backticks is left as it is. Links to other websites are written as in a post, and open in a new tab; see "Links". `[label]: file.md` on a line of its own, the other way Markdown writes a link, works too.
+Write a link to another page by its file name, as in mdBook: `[the spec](./spec.md)`, or to a heading in it, `[the method](./spec.md#method)`. `./spec.md` is the form that works everywhere: GitHub's file view follows it, and editors such as VS Code and Kate open the file on Ctrl+click. `spec.md` and Zola's `@/spec.md` work the same. `./genbook` turns each into the site's own link, so it comes out right whatever the site's address. A link that leads nowhere stops the build, and every one in the book is listed, by file and line, before it stops:
+
+```
+book/second-page.md, line 37: a link to ./nope.md, and there is no book/nope.md
+book/second-page.md, line 37: a link to ../up.md: the pages of this book are files in book/, linked as (./name.md)
+book/second-page.md, line 37: a link to foo: it leads to no page. a page of this book is linked as (./name.md)
+book/second-page.md, line 37: a link to ./attachments/none.jpg, and there is no book/attachments/none.jpg
+fix what's listed above, then run this again. nothing has been changed.
+```
+
+The link check in `./build` (see "Broken links") names the file and line in `book/` too, not a line of the file `./genbook` made. A link in a code example or between backticks is left as it is. Links to other websites are written as in a post, and open in a new tab; see "Links". `[label]: ./file.md` on a line of its own, the other way Markdown writes a link, works too.
+
+### Pictures, GIFs and video in a book
+
+Pictures, GIFs and videos go in `book/attachments/`, and a page links them from the `book` folder, with `./` in front:
+
+```markdown
+![Hills at sunrise, seen from the ridge](./attachments/tea-hills.jpg)
+```
+
+A video is written as in a post, `{{<video src="attachments/tea-bus.mp4" />}}`. `./genbook` copies each file to `content/attachments/`, where Zola publishes it, and copies it again only when it changes, so a big video isn't copied on every save. A link to a file that isn't in `book/attachments/` stops the build, as above. The commit hook cleans what you commit in `book/attachments/`, as it does in a blog; see "Pictures, GIFs and video".
+
+**The About page's photo.** Put a picture alone on the first line of `book/about.md` after its title, and it becomes the round photo at the top of the page:
+
+```markdown
+# About
+
+![me](./attachments/me.jpg)
+
+Your name. One or two sentences about what this site is for.
+```
+
+Zola shrinks it to a small square, as in a blog; an SVG drawing is shown as it is.
 
 ### Menu pages
 
-`MENU_PAGES` names files in `book/`: with the default, `"about"`, the About page is `book/about.md`, and `MENU_PAGES="about now"` adds `book/now.md`, which the first run makes as a starter. A name is written like a page's file name, lowercase letters and digits with single dashes between them, so pages can link to it. A menu page is written like any other page, a title line and text, and isn't listed in the outline; the build stops if it is. The About page has no photo in book mode, since there's no front matter to name one in, and a menu page gets no Contents box.
+`MENU_PAGES` names files in `book/`: with the default, `"about"`, the About page is `book/about.md`, and `MENU_PAGES="about now"` adds `book/now.md`, which the first run makes as a starter. A menu page is written like any other page. The outline can link to it too; it stays in the menu, out of Previous and Next. A menu page gets no Contents box. The About page's photo is a picture on its first line; see "Pictures, GIFs and video in a book". A name in `MENU_PAGES` with no file stops the build: `MENU_PAGES names now, and there is no book/now.md`.
 
 ### Adding, unlisting, renaming and removing a page
 
-- **Add a page**: save the file in `book/`, starting with its title line, and add its line to `book/SUMMARY.md` where it belongs. Then run `./genbook` (or `./build`, which runs it). `./new` is a blog's helper; in book mode it only says this and stops.
-- **Unlist a page**: rewrite its line in the outline without the dash, `[Title](file.md)`, and link to it from somewhere.
-- **Rename a page**: rename the file, change its line in the outline, and change every link to it; the build stops on each one that still names the old file. Its address changes with the file's name.
-- **Remove a page**: delete the file, its line in the outline, and every link to it. A file left in `book/` that no line names stops the build.
+- **Add a page**: save the file in `book/`, and link to it from `book/SUMMARY.md` where it belongs. Left unlinked, it's an unlisted page. `./new` is a blog's helper; in book mode it only says this and stops.
+- **Unlist a page**: take its link out of the outline, and link to it from somewhere else.
+- **Rename a page**: rename the file and change every link to it; the build stops on each one that still names the old file. Its address changes with the file's name.
+- **Remove a page**: delete the file and every link to it.
 
 ### The preview
 
-`./serve` runs `./genbook`, then starts the preview. The preview reloads a page when something in `content/` changes, and `book/` isn't `content/`: after you edit a page or the outline, run `./genbook` from inside the blog folder, in a second terminal, and the preview reloads by itself. Stopping `./serve` and starting it again does the same. `./genbook` prints one line when it's done, `made content/ from book/: 5 pages, 1 unlisted, 1 in the menu`, or a message naming what stopped it; see "Book mode" under Troubleshooting. Run twice on an unchanged `book/`, it writes the same files again, byte for byte, so the preview has nothing to reload.
+`./serve` runs `./genbook`, starts the preview, and then checks `book/` every second: when a file there changes, is added or is deleted, it runs `./genbook` again, and the preview reloads the page by itself, a second or two after you save. If `./genbook` stops, at a broken link say, its message appears in the terminal where `./serve` runs, the preview keeps the last good version, and the next save tries again. Ctrl+C stops both. `./genbook` prints one line each time it's done, `made content/ from book/: 5 pages, 1 unlisted, 1 in the menu`. Only one `./genbook` runs at a time, so a `./build` in another terminal while the preview runs waits for it rather than clashing.
 
 ### What's different from a blog
 
 - No dates, so no date line, and `SHOW_READING_TIME`, `SHOW_HISTORY_LINK` and `SHOW_SUGGEST_EDIT` do nothing. `GENERATE_FEEDS` and `ENABLE_TAGS` have to be `false`, so there's no feed, no RSS link and no Tags link.
-- `SHOW_BREADCRUMBS` does nothing: a book has no folders of pages.
+- `SHOW_BREADCRUMBS` does nothing: a book has no folders of pages. Pages under a page are listed at its foot instead.
 - Every page in the outline, and every unlisted page, gets a Contents box when it has two or more headings, or one with sub-headings, while `SHOW_TOC` is on. Menu pages don't.
-- The link between Previous and Next reads Contents, not All posts, and leads to the home page.
-- The outline's links keep the colour of the text, followed or not, as a blog's list does.
-- Search covers the pages in the outline and the unlisted pages. Menu pages aren't in the index, as in a blog.
-- Every page's address is its file name: `/alpha/`, and `/spec/` for an unlisted page too. Unlisted pages are built from a folder of their own, so `/unlisted/` exists as a redirect to the home page, like `/attachments/`, and appears in `sitemap.xml` the same way. That's harmless.
-- In the repository, `book/` is committed and `content/` isn't, except `content/attachments/`; `.gitignore` says so. `git status` never shows `content/`.
-- `./new` does nothing but say where a page goes. `./attach` works as in a blog.
+- The link between Previous and Next reads Home, not All posts.
+- The outline's links, and a page's list of the pages under it, keep the colour of the text, followed or not, as a blog's list does.
+- Search covers the pages in the outline and the unlisted pages. Menu pages aren't in the index, as in a blog, and nor is the home page.
+- Every page's address is its file name: `/alpha/`, and `/spec/` for an unlisted page too. Unlisted pages are built from a folder of their own, so `/unlisted/` exists as a redirect to the home page, like `/attachments/`, and appears in `sitemap.xml` the same way. That's harmless. For the same reason, a page can't be called `unlisted.md` or `attachments.md`.
+- In the repository, `book/` is committed and `content/` isn't; `.gitignore` says so. `git status` never shows `content/`.
+- `./new` does nothing but say where a page goes.
 
 ### A blog can't become a book
 
-Book mode is for a site made with it. Switched on for an existing blog, the run stops at once, with nothing changed: `BOOK_MODE is true, but /home/you/Desktop/myblog was made as a blog: it has no book/, and a blog can't become a book`, and it says what to set instead. Given a `book/` made by hand, `./genbook` then stops at the posts in `content/`, which it didn't write. The posts would need rewriting anyway: a book's page has its title as its first line and no front matter. Make a new site with `BOOK_MODE=true`, copy the text of each post into a file in `book/`, and list the files in the outline. Switched off again on a book, a run removes `genbook`, and `content/` stays as the last `./genbook` left it, as a blog's content would.
+Book mode is for a site made with it. Switched on for an existing blog, the run stops at once, with nothing changed: `BOOK_MODE is true, but /home/you/Desktop/myblog was made as a blog: it has no book/, and a blog can't become a book`, and it says what to set instead. Given a `book/` made by hand, `./genbook` then stops at the posts in `content/`, which it didn't write. The posts would need rewriting anyway: a book's page has its title as its first line and no front matter. Make a new site with `BOOK_MODE=true`, copy the text of each post into a file in `book/`, and link the files from the outline. Switched off again on a book, a run removes `genbook`, and `content/` stays as the last `./genbook` left it, as a blog's content would.
 
 ## Search
 
-The Search button at the start of the menu opens a search box over the page you're on. Type one or more words, and the pages that contain all of them are listed under the box, with pages whose titles match first. Under each title is a short piece of the page's text around the first match, with your words in bold. Click a result to go to that page. Esc, or a click on the darkened page around the box, closes it and leaves you where you were.
+The Search button at the start of the menu, or the `/` key, opens a search box over the page you're on (`/` does nothing while you're typing in a field). Type one or more words, and the pages that contain all of them are listed under the box, with pages whose titles match first. Under each title is a short piece of the page's text around the first match, with your words in bold. A bar beside the first result marks it: ↓ and ↑ move the bar, and Enter opens the result it marks. Clicking a result opens it too. Esc, or a click on the darkened page around the box, closes it and leaves you where you were.
 
 How words are matched:
 
@@ -1307,7 +1414,7 @@ How it works:
 
 - When the site is built, Zola writes a search index, `search_index.en.json` (the `en` is your `SITE_LANGUAGE`), holding the title and full text of every post and section.
 - `static/search.js`, which the script writes, is loaded by every page. The first time someone types in the box, it fetches the index from your site and searches it in the reader's browser. There's no search service and no code from anywhere else.
-- The box is a standard browser dialog: the page behind it is dimmed, the keyboard stays inside the box while it's open, and when it closes the keyboard goes back to the Search button. Enter opens the first result, and a screen reader hears how many results there are, or "nothing matches".
+- The box is a standard browser dialog: the page behind it is dimmed, the keyboard stays inside the box while it's open, and when it closes the keyboard goes back to the Search button. A screen reader hears how many results there are, or "nothing matches".
 - Results are shown as plain text, so code in a post, such as `<img src=x>`, appears in the results as those characters and is never run.
 - The Search button starts out hidden, and the script shows it. So a reader with JavaScript turned off sees no Search button, rather than a button that does nothing.
 - If the index fails to load, the box says `search is unavailable: the index did not load`, and the next letter typed tries again.
@@ -1361,7 +1468,7 @@ Optional, and the only part that costs money: a domain name costs roughly 10 to 
 
 Step 3 is needed. Links, the stylesheet's fonts, the favicon and the feed all use the site's address, so without it your site loads at the new domain but still points readers back at `github.io` for all of those.
 
-Set it in the script, not in `config.toml`, which is rewritten on every run. `CUSTOM_DOMAIN` changes the site's address and nothing else; the "View history" and "Suggest an edit" links still point at the repository, where the files are.
+Set it in the script, not in `zola.toml`, which is rewritten on every run. `CUSTOM_DOMAIN` changes the site's address and nothing else; the "View history" and "Suggest an edit" links still point at the repository, where the files are.
 
 You don't need a `CNAME` file in the repository. GitHub's documentation says that when a site is published by an Actions workflow, as this one is, a `CNAME` file isn't created, and one that exists is ignored. The domain is kept in the repository's Pages settings.
 
@@ -1373,7 +1480,7 @@ The rest of this guide is for looking things up.
 
 ### Running the script again
 
-Running the script again is how every change to a setting is applied; there's nothing else to learn. It finds the existing blog, rewrites the script-owned files from the current settings, and leaves `content/`, the rest of `static/` and a `README.md` you've edited alone. Then it builds the site with `./build`, and stops there if a link is broken, before the preview. It doesn't make a new folder. It asks GitHub which releases are out, and downloads Zola only when the release it takes isn't the one in `~/.local/bin` yet; see "Moving to a newer Zola".
+Running the script again is how every change to a setting is applied; there's nothing else to learn. It finds the existing blog, rewrites the script-owned files from the current settings, and leaves `content/` (in book mode, `book/`), the rest of `static/` and a `README.md` you've edited alone. Then it builds the site with `./build`, and stops there if a link is broken, before the preview. It doesn't make a new folder, and it asks GitHub for nothing: it uses the Zola in `~/.local/bin` and the releases the workflow pins. Only `update` looks for newer ones; see "Updating and removing Zola". It also puts the commit hook back if it's missing, as it is in a fresh clone. It never commits, on this run or the first: what to commit is yours to choose.
 
 Your own files, in `content/` and `static/`, are written once, on the first run, and never touched again. Delete the example posts, replace `avatar.svg`, add fonts: nothing a re-run does will undo it.
 
@@ -1383,7 +1490,8 @@ Clearing a setting that produced a file removes the file, rather than leaving it
 
 - `FAVICON_TEXT=""` removes the favicon the script drew.
 - `ENABLE_SEARCH=false` removes `static/search.js`.
-- An empty `GIT_REPO_URL` removes `.github/workflows/deploy.yml`, and the run tells you to commit the deletion. Do commit it. Otherwise the workflow stays in the repository and goes on publishing on every push, and since the site's address has gone back to a placeholder (`https://yourusername.github.io`), what it publishes has links to an address that isn't yours.
+- `BOOK_MODE=false` on a book removes `genbook`.
+- An empty `GIT_REPO_URL` removes `.github/workflows/deploy.yml`, and the run tells you to commit the deletion: `removed .github/workflows/deploy.yml (GIT_REPO_URL is empty); commit the deletion to stop the deploy`. Do commit it. Otherwise the workflow stays in the repository and goes on publishing on every push, and since the site's address has gone back to a placeholder (`https://yourusername.github.io`), what it publishes has links to an address that isn't yours.
 
 In each case the file is removed only if it's exactly as the script last wrote it. A file you edited, or one the script has no record of writing, is left where it is. For the workflow, the run also warns you when it leaves it, because a leftover workflow goes on publishing.
 
@@ -1395,9 +1503,8 @@ If a script-owned file has been changed since the script last wrote it, a run st
 these files have been changed since this script last wrote them, and a re-run
 would overwrite them:
   - templates/base.html
-
-they are script-owned: change the matching render_* function or a configuration
-variable rather than the file. to overwrite them anyway, run once with
+change the script's settings or its render_ functions instead (guide: "The hand-edit check").
+to overwrite them anyway, run once with
     REGENERATE_TEMPLATES=true bash /home/you/Downloads/zola-blog-setup.sh
 nothing has been changed.
 ```
@@ -1407,15 +1514,15 @@ This is so a change you made directly to a generated file isn't lost without you
 - Keep the change: make it again in the script, in the `render_` function that writes that file (here `render_base_html`), and then run once with `REGENERATE_TEMPLATES=true bash ~/Downloads/zola-blog-setup.sh`. To see what you changed, run `git diff templates/base.html` from inside the blog folder; it shows the change if you committed after the last run.
 - Throw the change away: run once with `REGENERATE_TEMPLATES=true bash ~/Downloads/zola-blog-setup.sh`.
 
-The script compares each file with what the last run left, as recorded in `.zola-blog-setup.manifest`, not with what this run would write. So changing a setting never trips the check, even though it changes `config.toml`; only an edit made outside the script does. A blog without its `.zola-blog-setup.manifest`, because it was deleted, trips it for every script-owned file, and the message says so; one run with `REGENERATE_TEMPLATES=true` fixes that for good. The check needs `sha256sum` or `shasum`, and a run with neither stops before it, at `missing required tools:`. With `KEEP_PINS=true` in front of the run, the command it prints keeps it: `KEEP_PINS=true REGENERATE_TEMPLATES=true bash …`.
+The script compares each file with what the last run left, as recorded in `.zola-blog-setup.manifest`, not with what this run would write. So changing a setting never trips the check, even though it changes `zola.toml`; only an edit made outside the script does. A blog without its `.zola-blog-setup.manifest`, because it was deleted, trips it for every script-owned file, and the message adds `(there's no .zola-blog-setup.manifest, the script's record of what it wrote, so every file is listed)`; one run with `REGENERATE_TEMPLATES=true` fixes that for good.
 
 `README.md` is the exception. It's the page GitHub shows for your repository, and nothing on the site is built from it, so editing it doesn't stop a run, whether you edit it on your computer or on GitHub and then pull the change. The first run after the edit leaves the file as it is and says:
 
 ```
-README.md was edited, so it's yours now: runs leave it alone (delete it to get the script's back)
+README.md is yours: it was edited, so runs leave it alone (delete it to get the script's back)
 ```
 
-From then on runs don't touch it, so it no longer changes when `GIT_REPO_URL` or `CUSTOM_DOMAIN` does. To have the script write it again, delete it and run the script; `REGENERATE_TEMPLATES=true` leaves it alone too. A blog without its `.zola-blog-setup.manifest` gives a run nothing to tell your edit from the script's own, so the run leaves `README.md` as it is then as well, and says `README.md was left as it is: with no .zola-blog-setup.manifest, this run can't tell an edit from the script's own (delete it to get the script's back)`.
+From then on runs don't touch it, so it no longer changes when `GIT_REPO_URL` or `CUSTOM_DOMAIN` does. To have the script write it again, delete it and run the script; `REGENERATE_TEMPLATES=true` leaves it alone too. A blog without its `.zola-blog-setup.manifest` gives a run nothing to tell your edit from the script's own, so the run leaves `README.md` as it is then as well.
 
 #### Upgrading to a new version of the script
 
@@ -1423,25 +1530,47 @@ Your settings live in the script, so a new copy of the script starts with the de
 
 Then run the new script against the blog's folder, with the same `PROJECT_DIR` and `BLOG_NAME`. It rewrites the script-owned files, and stops first if you edited one of them by hand; see "The hand-edit check".
 
-This guide covers upgrading a blog made with v109, v108 or v107. A blog made with v28 to v35, or with v96 to v103, upgrades the same way, since nothing those versions rely on has been removed, but what the versions since then changed is listed in the guides that came with them. The numbers jump from v35 to v96 because they now also count the versions from before the script's numbering was restarted: v96 is the version that came after v35. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
+This guide covers upgrading a blog made with v122, v121, v120, v119, v118, v117, v116 or v115. A blog made with v108 to v114 upgrades the same way, and v49's guide lists what those versions changed; a blog made with v28 to v35, or with v96 to v107, upgrades the same way too, since nothing those versions rely on has been removed, but what the versions since then changed is listed in the guides that came with them. The numbers jump from v35 to v96 because they now also count the versions from before the script's numbering was restarted: v96 is the version that came after v35. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
 
-What changes from v109:
+What changes from v122:
 
-- **`BOOK_MODE=true` on a blog stops with a message that says so**, naming the blog's folder and pointing at `BLOG_NAME`; v109 stopped at the menu (`MENU_PAGES names about, but there's no book/about.md`), which sent you to the wrong setting. A book whose `book/` has gone gets its own message.
-- **A re-run says `updating the script-owned files` only once its checks have passed.** v109 said it first, so a stop could follow it.
-- No script-owned file changes, so a re-run leaves nothing to commit.
+- **The script makes no commits at all**, on a new blog either: the first run prints `nothing is committed: check what's in the folder, then commit it yourself`, and you make the first commit, as in "Your first blog", step 6. A blog that's already committed is unaffected.
+- **Every link to another site opens in a new tab**, a link written in HTML in a post (`<a href="https://…">`) included: Zola does it only for links written in Markdown. An email link doesn't.
+- The run rewrites `templates/components.html` and `.zola-blog-setup.manifest`, so commit them.
 
-And from v108, if the blog was made with that:
+And from v121, if the site was made with that:
 
-- **An empty `SITE_AUTHOR` stops the run while feeds are on**, because the feed format requires an author; v108 went on and wrote a feed without one, which feed readers and email services may refuse. See `GENERATE_FEEDS` under "Settings, one by one".
-- No script-owned file changes, so a re-run leaves nothing to commit.
+- **The footer's links, and View history and Suggest an edit, open in a new tab**, as links to other sites in posts do. An email link in the footer doesn't.
+- **Editors' swap, lock and backup files stay out of commits.** `.gitignore` now lists `.*.sw[a-p]` (vim), `.#*` and `#*#` (Emacs) beside `*~`: they hold your login name, the computer's name and the folder's path. See "What a push publishes".
+- **git is checked by running it.** With `GIT_REPO_URL` set, a run stops with `missing: git` when `git --version` fails, as it does on Whonix with git not installed, where `/usr/bin/git` is a wrapper that's there either way; before, the run went on and git failed later. See "Whonix".
+- The run rewrites `.gitignore`, `templates/base.html`, `templates/page.html` and `.zola-blog-setup.manifest`, so commit them.
 
-And from v107, if the blog was made with that:
+And from v120, if the site was made with that:
 
-- **Book mode**: `BOOK_MODE=true` builds a site from an outline, `book/SUMMARY.md`, and plain Markdown files, with no posts; see "Book mode". It's for a new site, and changes nothing for a blog.
-- **`./attach` takes a new name with the file's extension on it.** `./attach ~/Pictures/me.jpg me.jpg` now copies to `content/attachments/me.jpg`; v107 refused the name, saying it takes lowercase letters, digits and dashes.
-- **A home page with nothing to list draws no empty list.** On a blog with every post deleted, v107 left an empty numbered list's space on the page.
-- The run rewrites `attach`, `build`, `config.toml` and four templates (`base.html`, `components.html`, `index.html` and `page.html`), and updates `.zola-blog-setup.manifest`, so commit them. The change in `build` and the templates does nothing on a blog.
+- **`h` goes to the home page**, from any page, and "Home (h)" shows when you hover over the blog's name, the menu's Home link and the link between Previous and Next. See "Keyboard shortcuts".
+- **Book mode: a page's list of the pages under it is styled as the home page's outline again.** v120 left it unstyled while `OUTLINE_NUMBERS` was `false`, the default, so its items sat closer together than the outline's.
+- **Book mode: two stops say what's wrong more plainly.** A `MENU_PAGES` name with no file in `book/` stops with that one line, without a line of awk's own after it, and ends `fix what's listed above` rather than `fix the broken links above`. A file found in `content/` says a picture goes in `book/attachments/`, not `content/attachments/`.
+
+And from v119, if the site was made with that:
+
+- **Keyboard shortcuts**: ← and → follow Previous and Next, and ↑, ↓ and Enter move through and open search results, with tooltips on the links that name them. See "Keyboard shortcuts".
+- **`./attach` is gone.** The commit hook removes pictures' hidden data as you commit them instead, however they came into the folder, so install exiftool; see "Pictures, GIFs and video". The run says `removed ./attach: pictures and videos are cleaned as they're committed now`, and installs the hook.
+- **The type is set on an evener scale**: headings 1.8, 1.5 and 1.32rem, the blog's name 1.35em, and line spacing 1.45. See "Colours, sizes and typefaces".
+- **Book mode: the link between Previous and Next reads Home**, not Contents. `./genbook` writes only the files that changed, and only one runs at a time.
+
+And from v118, if the site was made with that, for a book only: a page without a `# Title` line takes its title from the outline's link to it; with `OUTLINE_NUMBERS=true`, each page's title carries its number; and a link with no `.md`, a link out of `book/`, or a file named with a space or other sign stops the build, named.
+
+And from v117, if the site was made with that: a page's list of the pages under it is styled as the outline is; Previous and Next show the outline's words for a page, not its full title; and their labels, "← Previous" and "Next →", sit on a line of their own, in a blog too.
+
+And from v116, if the site was made with that, for a book only: `<!-- fold -->` at the end of a page's line in the outline keeps its children off the home page (see "The outline"); `./genbook` moves pictures left in `content/attachments/` into `book/attachments/` instead of stopping; and a run says when git still tracks files in `content/`.
+
+And from v115, if the site was made with that:
+
+- **Releases are looked up only when asked.** A run uses the Zola installed and the releases the workflow pins, and asks GitHub for nothing; `update` looks for newer ones, and `remove` deletes the Zola the script installed. `KEEP_PINS` isn't needed any more, and a run with it set says so. See "Updating and removing Zola".
+- **Book mode: a page lists the pages under it.** Items indented under a page's item in the outline are listed at the foot of that page. See "The outline".
+- **Book mode: pictures live in `book/attachments/`**, linked as `(./attachments/me.jpg)`, and `./genbook` copies them to `content/attachments/`; a picture alone on the first line of `book/about.md` is the round photo. The first build moves any pictures left in `content/attachments/`, saying `moved content/attachments/me.jpg to book/attachments/me.jpg: pictures and videos live in book/attachments/ now` for each; links written `@/attachments/me.jpg` keep working. `content/` isn't committed any more: while git still has files there from before, each run says `note: git still tracks files in content/, which ./genbook makes on every build. once, from inside the blog folder: git rm -r -q --cached content, then commit (guide: "Book mode").` Run that command once; it prints nothing.
+
+Each of these versions rewrites some script-owned files, so commit everything a run changes: `git add -A` picks up removed files too.
 
 #### Looking at one generated file
 
@@ -1455,36 +1584,69 @@ Press q to leave `less`. `render_page_html`, `render_components`, `render_site_c
 
 If you write a file out this way into the blog, the manifest no longer matches it, so the next run treats it as edited by hand, as it should; see "The hand-edit check".
 
-### Moving to a newer Zola
+### Updating and removing Zola
 
-There's nothing to run for it but the setup script. Every run asks GitHub for Zola's releases and takes the newest 0.23 release, 0.23.3 or later, that has been out a week (`RELEASE_WAIT_DAYS`, near the top of the script), and whose files for your computer and for GitHub's build have been up that long: most hijacked releases are found and pulled within a week, so the wait keeps one off your computer and out of your builds. Newest means the highest number, not the latest date, and a release counts only if GitHub doesn't mark it as a pre-release or a draft. If that release isn't the Zola in `~/.local/bin`, the run downloads it, checks it, and puts it there, for every blog on your computer, and the workflow of the blog you ran it against pins the same release. Each other blog's workflow keeps the release it pinned until you run the script against that blog too, then commit and push.
+A run uses what's already on your computer: the Zola in `~/.local/bin`, and the releases the blog's workflow pins. It asks GitHub for nothing, so it works offline and gives the same blog every time. Only three things make a run ask GitHub:
 
-Once a newer series of Zola is out, the run says so and goes on with 0.23 (`zola v0.24.0 is out, but this script's templates are written for zola 0.23: using v0.23.6`); a later version of the script moves to the new series, with templates written for it.
+- **No Zola in `~/.local/bin`, or one the templates aren't written for.** The run looks up the newest 0.23 release, 0.23.3 or later, and installs it, as on a first run.
+- **A blog that gets a workflow** while the script has no record of the GitHub actions' releases: it looks up the newest of each, as in "Putting it online", step 3, and keeps the answer for other blogs.
+- **A Zola that this script didn't install**, on a blog with `GIT_REPO_URL`: it asks GitHub for that release's fingerprint, which the workflow needs, and stops if GitHub doesn't offer that release (`GitHub doesn't offer zola v0.23.4, the one in /home/you/.local/bin, as a stable release with its Linux file out 7 days, so the workflow can't pin it. nothing has been changed. bash /home/you/Downloads/zola-blog-setup.sh update takes the newest that is.`).
 
-With `GIT_REPO_URL` set, the workflow's three GitHub actions (`actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`) are looked up the same way, each at its newest release out a week, and pinned by the commit its release's tag names, with the tag as a comment (`uses: actions/checkout@<commit> # v7.0.1`): a tag can be moved to another commit later, and a commit can't change. The wait counts from the release, and a tag can be moved long after it, so the commit is the one the tag names on the day of the run. Before it asks, the run says `looking up the newest releases on GitHub`, so a slow network doesn't look like a hang; after, it prints what it took:
+The script keeps its record of what it found in `~/.local/share/zola-blog-setup/releases`, shared by every blog on your computer.
+
+**Updating.**
+
+```bash
+bash ~/Downloads/zola-blog-setup.sh update
+```
+
+This is a normal run, plus a lookup. It takes the newest Zola 0.23 release, 0.23.3 or later, that has been out a week (`RELEASE_WAIT_DAYS`, near the top of the script), and whose file has been up that long too: most hijacked releases are found and pulled within a week, so the wait keeps one off your computer and out of your builds. Newest means the highest number, not the latest date, and a release counts only if GitHub doesn't mark it as a pre-release or a draft. With `GIT_REPO_URL` set, it does the same for each of the workflow's three GitHub actions (`actions/checkout`, `actions/upload-pages-artifact` and `actions/deploy-pages`), each pinned by the commit its release's tag names, with the tag as a comment (`uses: actions/checkout@<commit> # v7.0.1`): a tag can be moved to another commit later, and a commit can't change. You should see something like this, with the numbers of the day:
 
 ```
-releases: zola v0.23.6; v7.0.1, v5.0.0, v5.0.1 of the actions
+found an existing blog in /home/you/Desktop/myblog
+updating the script-owned files; content/ is left untouched.
+
+looking up the newest releases on GitHub
+releases: zola v0.23.7; v7.0.1, v5.0.0, v5.0.1 of the actions
+replacing zola 0.23.6 in /home/you/.local/bin with 0.23.7: every blog on this computer runs this one
+installed: zola 0.23.7 (sha256 c17c3b46d336...)
 ```
 
-No newer Zola or action reaches your published blog until you run the script and push. GitHub's build machine moves with GitHub (`ubuntu-latest`).
+If nothing newer is out, the last two lines are `zola 0.23.6 is installed in /home/you/.local/bin` instead. Then commit and push, so GitHub builds with the new release too.
 
-**Keeping what the workflow pins.** `KEEP_PINS=true bash ~/Downloads/zola-blog-setup.sh` takes exactly the releases the workflow pins, without asking GitHub about them, and installs that Zola if it isn't the one in `~/.local/bin`: on a Linux x86_64 computer, checked against the fingerprint the workflow pins; on any other, GitHub is asked for the fingerprint of your computer's file, which must have been up a week, as for a new release, or the run stops (`GitHub doesn't show zola v0.23.6's …, the file for this computer, as uploaded 7 days ago or more`). The `releases:` line then ends `(KEEP_PINS: those the workflow pins, kept)`. Use it to change a setting without moving to newer releases, or to go back after a new release breaks something: put back the workflow from your last good commit, then run `KEEP_PINS=true REGENERATE_TEMPLATES=true bash ~/Downloads/zola-blog-setup.sh`: the workflow you put back isn't the one the last run wrote, so without `REGENERATE_TEMPLATES` the hand-edit check stops at it. `git log --oneline -- .github/workflows/deploy.yml` lists the commits that changed the workflow, newest first; `git checkout HASH -- .github/workflows/deploy.yml`, with the short hash of the last good one, puts that version back and prints nothing. A run without `KEEP_PINS` takes the newest releases again, so keep adding it until a newer release, or the script's next version, fixes the break; a run against another of your blogs without it puts the newest Zola back in `~/.local/bin`, for every blog. It trusts the workflow as it is, checking no action's commit, so use it only on a workflow from your own commits. What the workflow doesn't pin yet is looked up as usual, and the run says so (`KEEP_PINS: nothing to keep for zola in the workflow; looking it up`). A workflow that pins a Zola outside 0.23, or before 0.23.3, stops the run with nothing changed: run it without `KEEP_PINS`.
+`update` moves the blog it runs against. Each of your other blogs keeps what its workflow pins until its next run. That run sees the newer Zola in `~/.local/bin` and pins it, with no lookup, and says so: `the workflow pinned zola v0.23.6, and now pins v0.23.7, the one installed here, so GitHub builds with the zola you preview with`. Commit and push that blog too. Its GitHub actions stay as they were until you run `update` against it as well.
 
-**GitHub out of reach.** A re-run that can't ask GitHub keeps what the workflow pins and says so (`could not look up getzola/zola's releases (…): keeping zola v0.23.6, which the workflow pins`); a blog without a workflow, on its first run too, keeps the Zola in `~/.local/bin`, if it's a 0.23 release, 0.23.3 or later, and otherwise stops, with nothing changed. A first run with `GIT_REPO_URL` stops, with nothing changed, and so does a re-run that sets it for the first time, with no workflow yet to keep. GitHub answers 60 requests an hour from one address, and a run makes four (one without `GIT_REPO_URL`), so behind an address many people share (an office, a VPN) the limit can run out: try again within the hour. No token is sent or needed, since everything the script asks is public. None of the script's own requests reads a config file, and none waits for ever: curl gives up after its time limits, `git ls-remote` when a transfer stalls for a minute, or within five minutes when a connection can't be set up. curl runs with `-q`, so `~/.curlrc` doesn't apply, and `git ls-remote` runs without git's system, global and repository config, so no setting there can turn its security checks off or send it elsewhere. Both still take the environment's proxy and certificate settings: behind a proxy, set `https_proxy`; behind one that inspects encrypted traffic, add its certificate to the system's certificate store, or name it in `CURL_CA_BUNDLE` for curl and `GIT_SSL_CAINFO` for git. A proxy that lets only listed hosts through needs `api.github.com`, `github.com` and `release-assets.githubusercontent.com`, where GitHub sends release downloads; curl reports a refusal there as `The requested URL returned error: 403`, the line GitHub's limit gives too.
+Once a newer series of Zola is out, `update` says so and goes on with 0.23 (`zola v0.24.0 is out, but this script's templates are written for zola 0.23: using v0.23.7`); a later version of the script moves to the new series, with templates written for it.
 
-**What a re-run refuses.** It stops before it downloads or writes anything when something the workflow pins has changed since:
+**Removing.**
 
-- **The release's Linux file has changed.** GitHub's fingerprint for the Zola release the workflow pins isn't the pinned one, so the file was replaced after it was pinned: `GitHub's digest for zola v0.23.6's Linux file is …, but the workflow pins … for it`. Check the release's page on github.com/getzola/zola/releases before trusting it. To go on, delete the line with the pinned fingerprint (`echo "…  zola.tar.gz" | sha256sum -c -`) from `.github/workflows/deploy.yml`, and run the script with `REGENERATE_TEMPLATES=true` in front, since the hand-edit check would stop at the edited workflow: Zola is then looked up as on a first run, and like any file the new one is taken once it has been up a week.
-- **An action's tag has moved.** The tag the workflow pins for an action names another commit now: `actions/checkout's tag v7.0.1 now names commit …, but the workflow pins … for it`. Check the release's page; to go on, delete that action's `uses:` line from the workflow, and run with `REGENERATE_TEMPLATES=true`: the action is then looked up as on a first run.
+```bash
+bash ~/Downloads/zola-blog-setup.sh remove
+```
 
-A release the workflow pins that GitHub no longer offers as a stable release out a week (pulled, marked a pre-release, its file removed, or uploaded again) isn't refused: the run takes the newest one that is, and when that's older than the pinned one, it says so (`the workflow pins zola v0.23.6, which GitHub doesn't offer now as a stable release out 7 days …: using v0.23.5`), and puts that Zola in `~/.local/bin`. If the pinned release was pulled, Zola's releases page or its security advisories on GitHub may say why. A newer release whose file for your computer or for GitHub's build isn't there, or went up again less than a week ago, is passed over too, and the run says so (`zola v0.23.7 is out, but has no … uploaded 7 days ago or more: using v0.23.6`).
+It deletes the Zola in `~/.local/bin`, and `~/.local/share/zola-blog-setup/`, the script's record of releases. Nothing else. You should see:
 
-### What the checksum proves
+```
+removed zola 0.23.6 from /home/you/.local/bin
+removed /home/you/.local/share/zola-blog-setup, the record of the releases it pinned
+your blogs are as they were, and GitHub still builds each one with the zola its workflow pins.
+the next run of this script downloads zola again. git, curl and python3 stay: this script didn't install them.
+```
 
-GitHub has recorded a SHA-256 fingerprint for every file uploaded to a release since June 2025, and gives it with the release. When the script downloads Zola, it compares the download's fingerprint with GitHub's before installing anything, and stops if they differ (`… isn't the file it should be`). It writes GitHub's fingerprint for the Linux file into `deploy.yml`, and every build on GitHub checks its download against that before using it; there's no way for the workflow to skip the check. Your computer doesn't download the Linux file for this, unless it's your computer's own file.
+With no Zola there, the first line is `there's no zola in /home/you/.local/bin`. git, curl and python3 came from your system, and other programs use them, so `remove` leaves them; so does it leave exiftool. To remove those too, `sudo apt remove` them yourself, if nothing else needs them.
 
-So the Zola GitHub's build runs is the file GitHub recorded for the release the workflow pins, and it can't change behind that number without a re-run refusing it (see "Moving to a newer Zola") and every build failing. Your computer's own copy is checked against GitHub's fingerprint when it's downloaded. On Linux x86_64 that's the file the workflow pins; on a Mac, in Git Bash or on ARM Linux it isn't pinned, so a replaced one is taken like a new release, once it has been up a week. A fingerprint GitHub gives in a form the script doesn't know (GitHub's are `sha256:` and 64 hexadecimal digits) stops a run that would download that file, or pin it in the workflow, before it does (`GitHub gives the digest of … in a form this script doesn't know, so the download can't be checked`), unless it's for the Linux file of the release the workflow pins, which the pin checks; a run without `GIT_REPO_URL` keeps the Zola in `~/.local/bin` instead, if it's a 0.23 release, 0.23.3 or later, and says so. What the fingerprint can't show is that GitHub received the file Zola's developers meant to publish; that rests on GitHub, on the secure (HTTPS) connections to it, and on the week's wait. A file with no fingerprint from GitHub, one uploaded before June 2025, is installed as it came, and the run says so (`GitHub has no digest for …, so it can't be checked`); for the workflow, the run then pins the fingerprint of the file as it downloads it.
+**How the lookups reach GitHub.** GitHub answers 60 requests an hour from one address, and an `update` makes four (one without `GIT_REPO_URL`), so behind an address many people share (an office, a VPN, a Tor exit) the limit can run out: try again within the hour. No token is sent or needed, since everything the script asks is public. None of the script's own requests reads a config file, and none waits for ever: curl gives up after its time limits, and `git ls-remote`, which asks github.com which commit an action's tag names, gives up when a transfer stalls for a minute. curl runs with `-q`, so `~/.curlrc` doesn't apply, and `git ls-remote` runs without git's system, global and repository config, so no setting there can turn its security checks off or send it elsewhere. Both still take the environment's proxy and certificate settings: behind a proxy, set `https_proxy`; behind one that inspects encrypted traffic, add its certificate to the system's certificate store, or name it in `CURL_CA_BUNDLE` for curl and `GIT_SSL_CAINFO` for git. A proxy that lets only listed hosts through needs `api.github.com`, `github.com` and `release-assets.githubusercontent.com`, where GitHub sends release downloads; curl reports a refusal there as `The requested URL returned error: 403`, the line GitHub's limit gives too.
+
+#### What a lookup refuses
+
+A lookup stops before it downloads or writes anything when something the workflow pins has changed on GitHub since:
+
+- **The release's file has changed.** GitHub's fingerprint for the Zola release the workflow pins isn't the pinned one, so the file was replaced after it was pinned: `GitHub's fingerprint for zola v0.23.6's Linux file is …, but the workflow pins … for it: the file has changed since it was pinned.` Check the release's page on github.com/getzola/zola/releases before trusting it. To go on, delete the line with the pinned fingerprint (`echo "…  zola.tar.gz" | sha256sum -c -`) from `.github/workflows/deploy.yml`, and run the script with `REGENERATE_TEMPLATES=true` in front, since the hand-edit check would stop at the edited workflow.
+- **An action's tag has moved.** The tag the workflow pins for an action names another commit now: `actions/checkout's tag v7.0.1 now names commit …, but the workflow pins … for it: the tag has been moved since.` Check the release's page; to go on, delete that action's `uses:` line from the workflow, and run `update` with `REGENERATE_TEMPLATES=true` in front.
+
+A release the workflow pins that GitHub no longer offers as a stable release out a week (pulled, marked a pre-release, or its file uploaded again) isn't refused: `update` takes the newest one that is, and when that's older than the pinned one, it says so (`the workflow pins zola v0.23.6, which GitHub doesn't offer now as a stable release out 7 days (pulled, marked a pre-release, or its file uploaded again since): using v0.23.5. zola's releases page may say why.`), and puts that Zola in `~/.local/bin`. The same goes for an action.
+
+**What the checksum proves.** GitHub has recorded a SHA-256 fingerprint for every file uploaded to a release since June 2025, and gives it with the release. When the script downloads Zola, it compares the download's fingerprint with GitHub's before installing anything, and stops if they differ (`… isn't the file it should be`). It writes the same fingerprint into `deploy.yml`, and every build on GitHub checks its download against it before using it; there's no way for the workflow to skip the check. So the Zola GitHub's build runs is the file GitHub recorded for the release the workflow pins, and it can't change behind that number without a lookup refusing it and every build failing. A file GitHub gives no fingerprint for can't be checked, so the script won't take it. What the fingerprint can't show is that GitHub received the file Zola's developers meant to publish; that rests on GitHub, on the secure (HTTPS) connections to it, and on the week's wait.
 
 ### Publishing and permissions
 
@@ -1493,7 +1655,7 @@ The workflow runs on every push to `main` (or `master`), and when you start it b
 - **build** gets the files and Zola, checks Zola's checksum, takes the `zola` program out of its archive, and runs `./build`, the same file you run, so a broken link stops it too. It can read the repository but not change it, and it doesn't keep git's access key once it has the files, because it runs code from your repository.
 - **deploy** publishes the built site. It's the only part with permission to publish (`pages: write` and `id-token: write`, which GitHub's own publishing action needs). It never changes the repository.
 
-The workflow pins what it runs: the three GitHub actions it uses (by their commit code, a string of 40 letters and digits), Zola's version, and Zola's checksum, each looked up when you run the script (see "Moving to a newer Zola"), so a new release reaches the published site only after you've run the script and pushed. The kind of machine it runs on moves with GitHub (`ubuntu-latest`); if a change there ever breaks the build, the deploy doesn't run, and the site stays as it was.
+The workflow pins what it runs: the three GitHub actions it uses (by their commit code, a string of 40 letters and digits), Zola's version, and Zola's checksum (see "Updating and removing Zola"), so a new release reaches the published site only after you've run `update` and pushed. The kind of machine it runs on moves with GitHub (`ubuntu-latest`); if a change there ever breaks the build, the deploy doesn't run, and the site stays as it was.
 
 To add a licence to the repository, do it after the first push, so that it arrives as an ordinary commit. Then, before you next push, bring that commit to your computer: from inside the blog folder, run `git pull --rebase`. It prints `Fast-forward` and the licence's file name, or, if you've committed since, `Successfully rebased and updated refs/heads/main.` Plain `git pull` refuses in that second case, with `You have divergent branches`.
 
@@ -1527,9 +1689,10 @@ To see the policy at work, open your browser's developer tools (F12), then the C
 
 On a free account the repository is public, and so is everything in it: every file you've committed, every earlier version of it, drafts included, and every commit with its details. Things there can say who you are:
 
-- **Commits show a name, an email and a time.** Each carries git's `user.name` and `user.email`, and its time with your time zone's offset (`+0530`, say); a commit's `.patch` page on GitHub shows all three. Use GitHub's private address (see "Your first blog", step 1). The script makes the first commit only with a name and email you've set, so git can't fill in ones it made up from your computer's account, and makes it in UTC (`+0000`); it prints the name and address it used, and the committer's too when that's someone else, as git's `author.*` and `committer.*` settings or the `GIT_AUTHOR_*` and `GIT_COMMITTER_*` variables can make it; a push publishes both names and addresses. A time `GIT_AUTHOR_DATE` or `GIT_COMMITTER_DATE` gives with an offset keeps it, and the line names it (`with the offsets +0530 (author) and +0000 (committer)`); one given without an offset is taken as UTC. To make your own commits in UTC too, add `alias git='TZ=UTC git'` to `~/.bashrc` (on a Mac, `~/.zshrc`). UTC hides the offset, not the hours: commit times across weeks still show when you work. Before the first push, `git log --format='%an <%ae> %ad'` lists what each commit says; to redo the first commit under another name, set `user.name` and `user.email`, and unset any `author.name`, `author.email`, `committer.name` or `committer.email` setting and any `GIT_AUTHOR_*` or `GIT_COMMITTER_*` variable, which git takes before them, and for the `_DATE` ones before the clock (`git config --show-origin --get-regexp '^(author|committer)\.'` lists those settings and the file each is in, and prints nothing when there are none); then run `TZ=UTC git commit --amend --reset-author --no-edit`, which changes its author and its committer both.
+- **Commits show a name, an email and a time.** Each carries git's `user.name` and `user.email`, and its time with your time zone's offset (`+0530`, say); a commit's `.patch` page on GitHub shows all three. Use GitHub's private address, and `user.useConfigOnly`, so git can't fill in a name and address it made up from your computer's account (see "Your first blog", step 1). The script makes no commits: you make each, the first included, and `TZ=UTC` in front of `git commit` makes its time UTC (`+0000`). `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE`, when set, give a time with their own offset instead. git's `committer.*` settings and `GIT_COMMITTER_*` variables can make the committer someone other than the author, and a push publishes both: `git log --format='%cn <%ce>'` shows the committer. To make your own commits in UTC too, add `alias git='TZ=UTC git'` to `~/.bashrc`. UTC hides the offset, not the hours: commit times across weeks still show when you work. Before the first push, `git log --format='%an <%ae> %ad'` lists what each commit says; to redo the first commit under another name, set `user.name` and `user.email`, and unset any `author.name`, `author.email`, `committer.name` or `committer.email` setting and any `GIT_AUTHOR_*` or `GIT_COMMITTER_*` variable, which git takes before them, and for the `_DATE` ones before the clock (`git config --show-origin --get-regexp '^(author|committer)\.'` lists those settings and the file each is in, and prints nothing when there are none); then run `TZ=UTC git commit --amend --reset-author --no-edit`, which changes its author and its committer both.
 - **Your GitHub account.** Its name is in the site's address (`yourname.github.io`), unless you use your own domain, and in the repository's address, which `README.md` and the "View history" and "Suggest an edit" links name.
 - **Photos carry hidden location and camera data** until you remove it, and the original file is published. See "Your photo".
+- **Editors' swap, lock and backup files** hold your login name, the computer's name and the folder's path: vim's `.name.swp`, Emacs's `.#name` and `#name#`, and `name~`. `.gitignore` keeps those out of commits. Another editor may leave files of its own, so read what `git status` lists before you commit.
 - **Hidden pages are public.** `hidden = true` keeps a page off the lists, the feed, search and the sitemap, but anyone with its address can read it, and its file is in your repository. Only a draft stays off the site, and its file is in the repository too.
 - **HTML comments aren't hidden.** A note written in a post as `<!-- ... -->` doesn't show on the page, but it's in your repository, and in the feed, `atom.xml`, which carries the full text of every post with a date.
 
@@ -1543,101 +1706,107 @@ On a free account the repository is public, and so is everything in it: every fi
 
 #### Running the script
 
-**`unknown command: ...`** Everything is set in the configuration block at the top of the script. The only word the script accepts after its name is `help`, or `-h` or `--help`.
+**`unknown command: ...`** The script takes `update`, `remove`, or nothing after its name, and `help`, `-h` or `--help` lists them. Everything else is a setting in the configuration block.
 
-**`update-zola is gone`.** Every run installs the newest Zola it takes (with a workflow, the one it pins), so running the script against a blog is how Zola is updated; see "Moving to a newer Zola". Nothing was changed.
+**`KEEP_PINS isn't needed any more`.** Not an error: every run now keeps the Zola installed and the releases the workflow pins by itself, and only `update` looks for newer ones. The run carries on; leave `KEEP_PINS=true` off from now on.
 
-**`ZOLA_VERSION_OVERRIDE is gone`.** Each run takes the newest 0.23 release out a week, and `KEEP_PINS=true` keeps the one the workflow pins. Unset it (`unset ZOLA_VERSION_OVERRIDE`, or open a new terminal) and run the script again. Nothing was changed.
-
-**`run this script with bash: bash zola-blog-setup.sh`.** You ran it with `sh` (or with `zsh`), which can't run it. Type `bash` in front, as in `bash ~/Downloads/zola-blog-setup.sh`.
+**`set: Illegal option -o pipefail`.** You ran it with `sh`, which can't run it. Type `bash` in front, as in `bash ~/Downloads/zola-blog-setup.sh`.
 
 **`bash: /home/you/Downloads/zola-blog-setup.sh: No such file or directory`, or another path.** The script isn't where the command says. Use the folder you saved it in, as in `bash ~/Desktop/zola-blog-setup.sh` for one saved on the Desktop.
 
-**`line 82: GIT_REPO_URL: readonly variable`, or the same about another setting.** The configuration block has two lines for that setting, because a line was added instead of the existing one being changed. Delete one of them.
+**`run zola-blog-setup from its saved file, not piped from curl`.** The script was piped into bash, as in `curl … | bash`, which runs it before you've read it, and runs half of it if the download is cut off. Save it as in "Your first blog", step 2, and run the saved file.
 
-**`line 89: $5: unbound variable`, or another line number and name.** A setting contains a `$` without a backslash in front of it. Write `\$`, and likewise `\"` and `` \` ``.
+**`line 77: GIT_REPO_URL: readonly variable`, or the same about another setting.** The configuration block has two lines for that setting, because a line was added instead of the existing one being changed. Delete one of them.
+
+**`line 84: $5: unbound variable`, or another line number and name.** A setting contains a `$` without a backslash in front of it. Write `\$`, and likewise `\"` and `` \` ``.
 
 **`line 117: FOOTER_TEXT isn't quoted as the script needs`, or the same about another setting.** A `"` or `` ` `` inside the value has no backslash before it, or the value's closing `"` is missing. Put a backslash before each `"` or `` ` `` that should be shown, as in `readonly FOOTER_TEXT="Motto: \"ora et labora\""`; a doubled `""` doesn't work. Nothing was changed.
 
-**`SHOW_TOC must be true or false (unquoted), got: 'yes'`, or a similar message about another setting.** `true` and `false` go without quotes. Messages about `MASTHEAD`, `BLOG_NAME`, `GIT_REPO_URL`, `CUSTOM_DOMAIN`, `MENU_PAGES`, `FOOTER_LINKS` or `DATE_FORMAT` say what's allowed.
+**`TOML parse error at line 40, column 12`, when the run builds the site, with a line such as `show_toc = yes` under it.** A setting that takes `true` or `false` has something else in it, or has them in quotes. Fix that line in the script's configuration block, not in `zola.toml`, and run the script again.
 
-**`GENERATE_FEEDS is true, and SITE_AUTHOR is empty`.** The feed format requires an author, and without one the feed isn't valid, so feed readers and email services may refuse it. Set `SITE_AUTHOR` to your name, or turn the feed off with `GENERATE_FEEDS=false`. Nothing was changed.
+**`MASTHEAD must be none, text or image, got: …`, or a similar message about another setting.** Messages about `MASTHEAD`, `BLOG_NAME`, `GIT_REPO_URL`, `CUSTOM_DOMAIN`, `FOOTER_LINKS` or `DATE_FORMAT` say what's allowed. Nothing was changed.
 
-**`MENU_PAGES names now, but there's no content/now.md`.** Make the page first, as in "Adding a page to the menu", step 1, or take the name out of `MENU_PAGES`. Check the spelling: the name must match the file's, without `.md`. Nothing was changed.
+**`GENERATE_FEEDS is true, and SITE_AUTHOR is empty`.** Every post in the feed would name its author as "Unknown". Set `SITE_AUTHOR` to your name, or turn the feed off with `GENERATE_FEEDS=false`. Nothing was changed.
 
 **`MENU_PAGES names now, but content/now.md doesn't say hidden = true`.** Add `hidden = true` on the line after the page's `title`. Without it the page counts as a post; see "Adding a page to the menu". Nothing was changed.
 
-**`MENU_PAGES names now, but there's both content/now.md and content/now/_index.md`.** Keep one: the file for a single page, or the folder for a page with pages under it. Nothing was changed.
-
 **`still the examples the script came with, and GIT_REPO_URL will publish them: ...`.** A reminder, not an error: the run finished. The settings it names, or the About page, still have the values the script came with. Change them before you push; see "Before you publish".
 
-**`missing required tools:`** followed by a list. Install what it names; on Linux, the next line is the `sudo apt install` command for Debian, Devuan or Ubuntu. Nothing was changed. curl is needed, not just wget; so is `sha256sum` or `shasum`, for the checksum checks; and git, once `GIT_REPO_URL` is set, since the run asks github.com which commit each action's release names.
+**`missing: python3. on Debian, Devuan or Ubuntu: sudo apt install python3`**, or another program. Install what it names with the command it gives, then run the script again. Nothing was changed. curl and python3 are needed for every run, and git once `GIT_REPO_URL` is set. The script runs each one to check it, so `missing: git` can appear while `/usr/bin/git` is there, as on Whonix, where that file is a wrapper whether git is installed or not; see "Whonix".
 
-**`not a git repo; remote not updated`, or `git init failed - run manually later`.** The blog folder has no git repository of its own, usually because git wasn't installed when the blog was made. Make one: from inside the blog folder, run `git init -b main`, which prints `Initialized empty Git repository in` and the folder's path. Then, once git knows your name and email (see "Your first blog", step 1), run `git add -A` and `TZ=UTC git commit -m "First commit"`, and run the script again. With `GIT_REPO_URL` set, it prints `added remote 'origin':` and the repository's address.
+**`this run is root's: run this as yourself, without sudo`.** The script was run as root, with `sudo` or `su`, or in a container whose user is root. Nothing it does needs root, and the files it made would be root's, so your next run couldn't change them. Run it as yourself. Nothing was changed.
 
-**`'...' exists but holds no config.toml; move it aside or point BLOG_NAME somewhere else. nothing has been changed.`** A folder with that name is already there, and it isn't a blog made by this script, so the script won't write into it. Rename that folder, or choose another `BLOG_NAME`.
+**`this script runs on Linux x86_64, and this is Darwin arm64`**, or another system. The script runs only on Linux on an x86_64 computer; see "Other computers and hosts". Nothing was changed.
+
+**`Permission denied`, naming a file or folder in the blog, or in `~/.local/bin`.** It isn't yours to change, usually because a run with `sudo` made it. Make the blog's folder yours again with `sudo chown -R "$(id -un)" ~/Desktop/myblog`, with your own blog folder in its place, or `sudo chown -R "$(id -un)" ~/.local` if that's what's named. Both print nothing. Then run the script again, which finishes the job.
+
+**`not a git repo; remote not updated`, `git not installed - skipping repo init (blog still works)`, or `git init failed - run manually later`.** The blog folder has no git repository of its own, usually because git wasn't installed when the blog was made. Install git if it isn't, then make the repository: from inside the blog folder, run `git init -b main`, which prints `Initialized empty Git repository in` and the folder's path. Then, once git knows your name and email (see "Your first blog", step 1), run `git add -A` and `TZ=UTC git commit -m "First commit"`, and run the script again. With `GIT_REPO_URL` set, it prints `added remote 'origin':` and the repository's address, and it installs the commit hook.
+
+**`'...' exists but holds no zola.toml; move it aside or point BLOG_NAME somewhere else. nothing has been changed.`** A folder with that name is already there, and it isn't a blog made by this script, so the script won't write into it. Rename that folder, or choose another `BLOG_NAME`.
 
 **The blog appeared somewhere unexpected, or a second blog appeared.** See `PROJECT_DIR` and `BLOG_NAME` in "Settings, one by one".
 
 **The run stops and lists files it would overwrite.** That's the hand-edit check; see "The hand-edit check". Either `.zola-blog-setup.manifest` is missing (one run with `REGENERATE_TEMPLATES=true` fixes it), or a script-owned file was edited directly.
 
-**`zola v0.24.0 is out, but this script's templates are written for zola 0.23: using v0.23.6`**, or other numbers. Not an error: a Zola newer than the script's templates is out, so the run keeps to the newest 0.23 release and carries on. A version of the script with templates for the newer Zola will move on to it.
+**`GIT_REPO_URL is empty, but .github/workflows/deploy.yml was edited by hand, or not written by this script, so it's still here.`** It goes on publishing on every push, with a placeholder address. Delete it yourself once you've kept what you need, then commit and push the deletion.
 
-**`could not look up getzola/zola's releases (…)`**, or the same about an action. GitHub's API didn't answer: no network, a proxy refusing `api.github.com`, or GitHub's limit of 60 requests an hour from one address; the message lists them. On a re-run, the run keeps what the workflow pins and carries on, and a blog without a workflow, on its first run too, keeps the Zola in `~/.local/bin`, if it's a 0.23 release, 0.23.3 or later; otherwise it stops, with nothing changed, so run it again later. See "Moving to a newer Zola".
+**`config.toml was edited by hand, or not written by this script, so it's still here, and Zola ignores it`.** Zola 0.23 reads `zola.toml`, which the script writes from the configuration block. Move anything you added to `config.toml` into the configuration block, then delete `config.toml`.
 
-**`could not ask github.com which commit actions/checkout's tag v7.0.1 names`**, or another action. git couldn't reach github.com, and git's own message is above this one. On a re-run, the run keeps what the workflow pins; a first run stops, with nothing changed. Behind a proxy that inspects encrypted traffic, name its certificate in `GIT_SSL_CAINFO`: git here reads none of its own config.
+**`templates/atom.xml was edited by hand, or not written by this script, so it's still here`.** The feed is built from it rather than from Zola's own template. Delete it to use Zola's, which the script's templates are written for.
 
-**`no stable zola 0.23 release from 0.23.3 on with … has been out 7 days yet`**, or `no stable actions/checkout release has been out 7 days yet`, or another action. GitHub lists no stable release that has been out a week: for Zola, none of 0.23 from 0.23.3 on with every file this run needs up that long too. Nothing was changed; run it again in a few days.
+**`FAVICON_TEXT draws no favicon`.** `SITE_TITLE` has no letter A to Z or digit for `"auto"` to draw, or `FAVICON_TEXT` is `""`. Set it to up to three characters, or add `static/favicon.svg` yourself; see "Using your own favicon".
 
-**`could not read GitHub's answer about getzola/zola's releases`**, or about an action's. Something other than GitHub's list came back, such as a proxy's sign-in page, or the answer was cut short. Nothing was changed; run it again later.
+**`.git/hooks/pre-commit is your own, so it's left as it is`.** You have a commit hook of your own, so the script doesn't install its own. Pictures you commit keep their hidden data unless you remove it; see "Pictures, GIFs and video".
+
+**`the zola in /home/you/.local/bin is 0.22.1, and this script's templates need a 0.23 release from 0.23.3 on: taking the newest`**, or other numbers. Not an error: the Zola there is one the templates aren't written for, so the run looks up the newest 0.23 release and puts it in its place, for every blog on this computer.
+
+**`the workflow pinned zola v0.23.6, and now pins v0.23.7, the one installed here`**, or other numbers. Not an error: `update` against another blog moved the Zola in `~/.local/bin`, and this blog's workflow now pins the same one. Commit and push.
+
+**`zola v0.24.0 is out, but this script's templates are written for zola 0.23: using v0.23.6`**, or other numbers. Not an error: a Zola newer than the script's templates is out, so `update` keeps to the newest 0.23 release and carries on. A version of the script with templates for the newer Zola will move on to it.
+
+**`could not ask GitHub for zola's releases (…)`**, or the same about an action. GitHub's API didn't answer: no network, a proxy refusing `api.github.com`, or GitHub's limit of 60 requests an hour from one address; the message lists them. Nothing was changed. Only a run that has something to look up asks, as "Updating and removing Zola" says: run it again later, or once you're online. Over Tor, the limit is shared with everyone on the same exit; see "Whonix".
+
+**`could not ask github.com which commit actions/checkout's tag v7.0.1 names`**, or another action. git couldn't reach github.com, and git's own message is above this one. Nothing was changed; run it again later. Behind a proxy that inspects encrypted traffic, name its certificate in `GIT_SSL_CAINFO`: git here reads none of its own config.
+
+**`no stable zola 0.23 release from 0.23.3 on, with its Linux file, has been out 7 days yet`**, or `no stable actions/checkout release has been out 7 days yet`, or another action. GitHub lists no stable release that has been out a week. Nothing was changed; run it again in a few days.
+
+**`could not read GitHub's answer about zola's releases`**, or about an action's. Something other than GitHub's list came back, such as a proxy's sign-in page, or the answer was cut short. Nothing was changed; run it again later.
 
 **`could not find the commit actions/checkout's tag v7.0.1 names`**, or another action and tag. GitHub lists the release, but github.com gave no commit for its tag. Nothing was changed; run it again later.
 
-**`GitHub gives the digest of zola v0.23.7's … in a form this script doesn't know`.** GitHub has changed how it writes a file's fingerprint, so a download of that file, yours or the workflow's, can't be checked against it. Nothing was changed. A newer version of the script may know the new form. Till then, on a re-run, the message may end `KEEP_PINS=true keeps zola 0.23.6, which the workflow pins.`: GitHub still offers that release, and a run with that in front keeps it and gets through. A run without `GIT_REPO_URL` doesn't stop there: it keeps the Zola in `~/.local/bin`, if it's a 0.23 release, 0.23.3 or later, and says so (`GitHub gives the digest of … in a form this script doesn't know, so the download couldn't be checked: keeping zola 0.23.6, installed in /home/you/.local/bin`). The run that first sets `GIT_REPO_URL` does stop: the workflow it writes needs the Linux file's fingerprint.
+**`GitHub gives the fingerprint of zola v0.23.7's Linux file in a form this script doesn't know`.** GitHub has changed how it writes a file's fingerprint, so the download can't be checked against it. Nothing was changed. A newer version of the script may know the new form; till then, a run without `update` keeps the Zola installed and the releases the workflow pins.
 
-**`zola 0.23.6 isn't installed in /home/you/.local/bin, and …, the file for this computer, can't be checked: GitHub's digest for it couldn't be looked up`.** On a Mac, in Git Bash or on ARM Linux, installing the release the workflow pins (with `KEEP_PINS`, or with GitHub out of reach) needs GitHub's fingerprint for your computer's file, which the workflow doesn't have. Nothing was changed; run it again when GitHub answers.
+**`GitHub doesn't offer zola v0.23.4, the one in /home/you/.local/bin, as a stable release with its Linux file out 7 days, so the workflow can't pin it.`** The Zola in `~/.local/bin` wasn't installed by this script, and its release isn't one the script would take, so the workflow can't pin it. Nothing was changed. Run the script with `update`, which installs the newest that qualifies.
 
-**`zola's release v0.23.6 has no … on GitHub now (pulled, or its file removed)`.** With `KEEP_PINS`, the release the workflow pins no longer has your computer's file on GitHub. Nothing was changed. Run it without `KEEP_PINS`, which takes the newest release that has.
+**`could not download https://github.com/getzola/zola/releases/download/…`.** The download failed: no network, a proxy refusing `github.com` or `release-assets.githubusercontent.com`, or, with `The requested URL returned error: 404` above it, the release pulled or its file removed. Nothing was changed. Run it again later.
 
-**`GitHub doesn't show zola v0.23.6's …, the file for this computer, as uploaded 7 days ago or more`.** With `KEEP_PINS`, on a Mac, in Git Bash or on ARM Linux, the release the workflow pins has your computer's file uploaded or changed in the last week, so it isn't taken yet, as a new release wouldn't be. Nothing was changed. Check the release's page on GitHub; run it again once the file has been up a week, or without `KEEP_PINS`, which takes the newest release whose files have.
+**`… isn't the file it should be: its sha256 is …, not …`.** The download's fingerprint isn't the one GitHub recorded for the file, or the one the workflow pins, so it wasn't installed, and nothing was changed. Run the script again; if it says the same, don't work around it: something between you and GitHub is changing the file.
 
-**`this script's templates are written for zola 0.23, from 0.23.3 on, and the workflow pins v0.23.2, which KEEP_PINS=true keeps`**, or **`… from 0.23.3 on, and with GitHub out of reach this run would keep v0.23.2, which the workflow pins`**, or other numbers. The workflow pins a Zola the templates aren't written for. Nothing was changed. Run it without `KEEP_PINS`, or when GitHub answers.
+**`GitHub's fingerprint for zola v0.23.6's Linux file is …, but the workflow pins … for it`**, or **`actions/checkout's tag v7.0.1 now names commit …, but the workflow pins … for it`.** Something the workflow pins has changed on GitHub since the script pinned it, and the run stopped with nothing changed. See "What a lookup refuses".
 
-**`could not download https://github.com/getzola/zola/releases/download/…`.** The download failed: no network, a proxy refusing `github.com` or `release-assets.githubusercontent.com`, or, with `The requested URL returned error: 404` above it, the release pulled or its file removed. Nothing was changed. A run that can ask GitHub, without `KEEP_PINS`, takes another release.
+**`the workflow pins zola v0.23.6, which GitHub doesn't offer now as a stable release out 7 days`**, ending `using v0.23.5`, or other numbers, or the same about an action. Not an error: the release the workflow pinned has been pulled, marked a pre-release, or had its file uploaded again, so the run took the newest one that qualifies, and put that Zola in `~/.local/bin`. Zola's releases page may say why.
 
-**`… isn't the file it should be: its sha256 is …, not …`.** The download's fingerprint isn't the one GitHub recorded for the file, so it wasn't installed, and nothing was changed. Run the script again; if it says the same, don't work around it: something between you and GitHub is changing the file.
+**`zola 0.23.6 doesn't run here (…)`.** The Zola file didn't start on this computer, and the system's own reason is in the brackets: on a Linux too old for it, such as Debian 11 or Devuan 4, ``version `GLIBC_2.35' not found``. It wasn't installed, and nothing was changed; see "Other computers and hosts".
 
-**`GitHub's digest for zola v0.23.6's Linux file is …, but the workflow pins … for it`**, or **`actions/checkout's tag v7.0.1 now names commit …, but the workflow pins … for it`.** Something the workflow pins has changed on GitHub since the script pinned it, and the run stopped with nothing changed. See "What a re-run refuses", under "Moving to a newer Zola".
+**`could not make /home/you/.local/bin`, or `could not make a folder in` it, or the same about `/home/you/.local/share/zola-blog-setup`.** Often a folder made with `sudo`, which you don't own; `sudo chown -R "$(id -un)" ~/.local` gives it back. Nothing was changed.
 
-**`the workflow pins zola v0.23.6, which GitHub doesn't offer now as a stable release out 7 days`**, ending `using v0.23.5`, or other numbers, or the same about an action. Not an error: the release the workflow pinned has been pulled, marked a pre-release, or had its file removed or uploaded again, so the run took the newest one that qualifies, and put that Zola in `~/.local/bin`. Zola's releases page may say why.
+**`could not take zola out of …: this release may lay its archive out differently`.** The download was the right file, but the `zola` program isn't where the script looks for it in the archive. Nothing was changed, and `~/.local/bin` keeps the Zola it had. A newer version of the script may know the new layout; till then, a run without `update` keeps the Zola installed and the releases the workflow pins.
 
-**`zola 0.23.6's Linux build needs glibc 2.35 or later, and this system has 2.31`**, or other numbers. This computer's Linux is too old for that Zola, so it wasn't installed, and nothing was changed; see "Other computers and hosts". On a re-run where `~/.local/bin` still has the release the workflow pins, its fingerprint pinned too, a 0.23 release from 0.23.3 on that GitHub still offers, the message ends `KEEP_PINS=true keeps zola …, which the workflow pins and … has.`: a run with that in front keeps it.
-
-**`zola 0.23.6 doesn't run here (…)`.** The Zola file for this computer didn't start: on Windows 10 on ARM, for one, which can't run the x86_64 build, or on a Linux without glibc, such as Alpine. Nothing was changed. The message can end the same way, `KEEP_PINS=true keeps zola …`.
-
-**`the download of … is empty`.** Usually a proxy. Nothing was changed; run it again.
-
-**`could not make /home/you/.local/bin`, or `could not make a folder in` it.** Often a folder made with `sudo`, which you don't own; `sudo chown -R "$USER" ~/.local` gives it back. Nothing was changed.
-
-**`could not put zola in …`.** On Windows, another blog's preview is running the Zola there: stop it with Ctrl+C, then run the script again. Nothing was changed.
-
-**`this run is root's, and … isn't`.** The script was run as root, with `sudo`, `su` or `doas`, or in a container whose user is root, on a blog, or a `~/.local/bin`, that isn't root's: `sudo -E` and `su -m` keep your `HOME`, so a run as root works on your folders, and so does a `PROJECT_DIR` that names one of them, or a folder of yours mounted in the container. It would leave files of root's there, such as the built site in `public/`, that your next run couldn't change. Nothing was changed. Run it as yourself, without `sudo` (in a container, as the folder's owner, with a home it can write, since a user the image doesn't know gets `/`: `docker run --user "$(id -u):$(id -g)" -e HOME=/tmp`, say): nothing it does needs root.
-
-**`this run rewrites these in …, and can't read or write them:`**, then a list. Some of the blog's files, the folders they're in, the folders its build writes in (`public/`, and `static/processed_images/`, where a shrunk photo goes), or its repository, aren't yours to change, usually because a run with `sudo`, or as another user, made them; or a file is read-only. The repository is listed as the blog's `.git/`, or, when `.git` is a file git can read (a worktree's or a submodule's), as the repository's own folder: a worktree's main `.git`, or a submodule's folder in the `.git/modules` of the repository it's in. When git can't use it, git's reason follows it in brackets, such as `detected dubious ownership` when git refuses it as another user's, or `not a git repository` for a `.git` with something in it you can't read: another user's that's closed to you, or yours with files of root's in it, as a `sudo git` command leaves them under a umask of 077 or 027, or one closed with `chmod`. Nothing was changed. Make them yours and writable with the command the message ends with, `sudo chown -R "$(id -un)"` on the blog's folder, and on each folder outside it that the list leads to, such as that repository's folder, or the folder a symlink in the blog points to (a `.git`, or a `static/processed_images` kept on another drive), then `chmod -R u+rwX` on the same, then run the script again. In Git Bash the message ends `make them writable for you, then run this again.`, with no command, or, when git refused the repository, `make them writable for you, and the repository yours: …`: git checks who owns a repository, not its permissions, and on a USB drive formatted FAT32 or exFAT, which records no owner, or a network folder, `git config --global --add safe.directory` with the folder git names lets git use it. Run as root, on a blog that's root's, it ends `this run is root's: run this as the user who owns …` when git refused the repository, and otherwise `this run is root's, and root can't write them either: …`: a read-only filesystem, a file marked immutable, or a network folder or container that treats root as another user.
-
-**`….git isn't a repository git can read, so git takes the blog for part of the one at …`.** The blog's `.git` is empty or broken, so git looks further up and finds a repository the blog's folder sits in, whose `origin` the run would otherwise have set. Nothing was changed. Move `.git` aside (an empty one can go), then run the script again, which then says `not a git repo; remote not updated`: that entry says how to make the blog a repository of its own.
-
-**`….git isn't a repository git can read (git: …)`.** git can't use the blog's `.git`, though you can read all of it: it's empty, or it names a repository that has moved, gone, or is closed to you (a worktree's, say). A `.git` with something in it you can't read, another user's or yours with files of root's in it, is listed under `this run rewrites these in …` instead, for the command there. Nothing was changed. Move `.git` aside (an empty one can go), or fix what git says in the brackets, then run the script again.
-
-**`could not take zola out of …: this release may lay its archive out differently`.** The download was the right file, but the `zola` program isn't where the script looks for it in the archive. Nothing was changed, and `~/.local/bin` keeps the Zola it had. A newer version of the script may know the new layout. Till then, on a re-run, the message may end `KEEP_PINS=true keeps zola 0.23.6, which the workflow pins.`: GitHub still offers that release, and a run with that in front keeps it and gets through.
-
-**Zola not found after installing: `zola: command not found`.** The script puts Zola in `~/.local/bin`, and your terminal doesn't look there yet; each run says so, in a note starting `note: /home/you/.local/bin is not on your PATH`. On Debian, Devuan and Ubuntu, logging out and back in usually fixes it, because the standard `~/.profile` adds `~/.local/bin` once that folder exists. Otherwise, add this line to `~/.profile`, then log out and back in: `~/.profile` is read when you log in, not by each new terminal. On a Mac, add it to `~/.zprofile` instead, and open a new terminal:
+**Zola not found after installing: `zola: command not found`.** The script puts Zola in `~/.local/bin`, and your terminal doesn't look there yet; each run says so, in a note starting `note: /home/you/.local/bin is not on your PATH`. On Debian, Devuan and Ubuntu, logging out and back in usually fixes it, because the standard `~/.profile` adds `~/.local/bin` once that folder exists. Otherwise, add this line to `~/.profile`, then log out and back in: `~/.profile` is read when you log in, not by each new terminal.
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-**Two Zolas.** If Zola was already installed some other way, for example with Homebrew or Snap, the one in `~/.local/bin` is a second copy, and the order of folders in your `PATH` decides which runs. When the other one comes first, each run says so: `a terminal here runs /usr/bin/zola, which comes before /home/you/.local/bin in your PATH: ./serve and ./build would run it, not zola 0.23.6, the one in /home/you/.local/bin, which the workflow pins (guide: "Two Zolas")`, or without a workflow, `the one in /home/you/.local/bin`. That's how a site ends up building on your computer but failing on GitHub, or the other way round. `command -v zola` shows which one runs. Remove the other one, or put `~/.local/bin` first in your `PATH`.
+**Two Zolas.** If Zola was already installed some other way, for example from a package, the one in `~/.local/bin` is a second copy, and the order of folders in your `PATH` decides which runs: `command -v zola` shows which. `./serve` and `./build` run that one, so the site can build on your computer but fail on GitHub, or the other way round. Remove the other one, or put `~/.local/bin` first in your `PATH`.
+
+#### Committing
+
+**`commit stopped: exiftool removes the location and camera data from pictures and videos before they're published.`** The commit has pictures or videos in it, and exiftool isn't installed. Install it, as the message says, and commit again; nothing was committed.
+
+**`commit stopped: exiftool couldn't clean one of: …`.** exiftool couldn't write one of the files named, usually because it's damaged, or isn't the kind of file its name says. Nothing was committed. Open the file to check it, save it again from an image editor, or take it out of the commit with `git restore --staged` and its path.
+
+**`Author identity unknown`, from `git commit`.** git has no name and email, and with `user.useConfigOnly` set it won't make them up. Set them (see "Your first blog", step 1, and on Whonix, "Whonix"), then commit again. Nothing was committed.
 
 #### Previewing and building
 
@@ -1645,7 +1814,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **`./build` fails with "the page(s) named above produced no HTML".** A page at the top of `content/`, or a child page whose parent sorts by weight, has no `weight`, so Zola left it out while still listing its address in the sitemap. Give it a weight, or add `hidden = true` if it shouldn't be listed, as a page in the menu shouldn't; see "Pages that aren't posts".
 
-**``Page `now.md` not found`` or ``Section `projects/_index.md` not found``, pointing at `base.html`.** A page in the menu was moved, renamed or deleted after the script last ran, and the menu still points at its old place. Run the script again, which finds where the page is now. If the page is gone, take its name out of `MENU_PAGES` first.
+**``Page `now.md` not found`` or ``Section `projects/_index.md` not found``.** A page named in `MENU_PAGES` isn't there: the name is misspelt, or the page was moved, renamed or deleted after the script last ran. Run the script again, which finds where the page is now; if the page is gone, or the name is wrong, fix `MENU_PAGES` first.
 
 **`` Broken relative link `@/...` ``, or `Found 1 broken internal anchor link(s)`.** An `@/` link names a file or heading that doesn't exist. `./build` lists every missing file with its line; see "Broken links". Fix the link; the check is there to stop broken links reaching your site. Deleting `second-post.md` but keeping `hello-world.md`, which links to it, causes this too. For a picture, `@/attachments/...`, check that the file is in `content/attachments/` with exactly that name (capital letters count), and that `content/attachments/_index.md` is there and doesn't say `render = false`.
 
@@ -1663,19 +1832,21 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **In the preview, the fonts, pictures or favicon are missing, and the browser's console says `Refused to load`.** The preview is open at an address other than the one `zola serve` printed, such as your computer's network address when it printed `127.0.0.1`. The security policy then counts the preview's own files as coming from elsewhere. Open the address it printed. To preview on another device, start the preview from inside the blog folder with `zola serve --drafts -i 0.0.0.0 -u` and your computer's network address, such as `zola serve --drafts -i 0.0.0.0 -u 192.168.1.5`, and open the address it prints, `http://192.168.1.5:1111`, on every device, this computer included. While it runs, anyone on the same network can open it too, drafts included, so leave out `--drafts` unless you trust the network, and stop it with Ctrl+C when you're done.
 
+**The preview shows `Unable to connect`, in Tor Browser.** Tor Browser sends `127.0.0.1` through Tor, which can't reach your own computer; see "Whonix".
+
 **`Couldn't find front matter`, naming a file.** A file in `content/` has no front matter block at its top. Give it one; see "Bringing in notes from elsewhere".
 
 **``Theme `...` does not exist``.** `LIGHT_CODE_THEME` or `DARK_CODE_THEME` isn't a name from Zola's list; see "Settings, one by one".
 
-**`` unknown field `...` `` about `config.toml`.** A line was added in the wrong place in `render_site_config`, or directly to `config.toml`. Zola rejects settings it doesn't know.
+**`` unknown field `...` `` about `zola.toml`.** A line was added in the wrong place in `render_site_config`, or directly to `zola.toml`. Zola rejects settings it doesn't know.
 
-**`TOML parse error at line ...`.** A line you added in `render_site_config` in the script, such as `skip_content_templating`, has a slip: a missing quote or comma, curly quotes, or a line in the wrong place. The line number is in `config.toml`, which the script writes; fix the same line in the script and run it again.
+**`TOML parse error at line ...`.** A line you added in `render_site_config` in the script, such as `skip_content_templating`, has a slip: a missing quote or comma, curly quotes, or a line in the wrong place. The line number is in `zola.toml`, which the script writes; fix the same line in the script and run it again.
 
 **`Error when parsing front matter of page`, naming a post or page.** The block between its `+++` lines has a slip, and Zola doesn't say which. The usual ones are quotes around a number (`weight = "30"` instead of `weight = 30`), a missing or curly quote, a line written below `[taxonomies]` that isn't `tags`, and a second `[extra]` line.
 
 **A post's tags don't show, and there's no error.** Its `tags` line isn't under `[taxonomies]`. Zola ignores a `tags` line anywhere else, without a message. In a block between `---` lines, `tags:` goes indented under `taxonomies:`; see "Bringing in notes from elsewhere".
 
-**`./serve: Permission denied`.** The file lost its permission to run, usually by being copied or archived. From inside the blog folder, run `chmod +x serve build new attach`.
+**`./serve: Permission denied`.** The file lost its permission to run, usually by being copied or archived. From inside the blog folder, run `chmod +x serve build new`, and `genbook` too in book mode. Or run the script again, which sets it.
 
 **Markdown inside `<aside>` or `<details>` shows up as asterisks and brackets.** It needs a blank line after the opening tag and another before the closing one; see "Notes, fold-away sections, and wide items".
 
@@ -1703,9 +1874,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **A picture in a post shows in the preview but not on the published site.** Its path starts with `/`, which on a `yourname.github.io/notes` address points outside your blog. Put the picture in `content/attachments/` and refer to it with `@/attachments/`; see "Pictures, GIFs and video".
 
-**A picture from another site doesn't show, in the preview or on the published site.** The security policy only lets pictures come from your own site; see "The security policy". The preview blocks them too, so you find out before publishing. Download the picture, add it with `./attach`, and link to it with `@/attachments/`.
+**A picture from another site doesn't show, in the preview or on the published site.** The security policy only lets pictures come from your own site; see "The security policy". The preview blocks them too, so you find out before publishing. Download the picture into `content/attachments/`, and link to it with `@/attachments/`.
 
-**A photo shows on its side.** The tag that says which way up it goes was removed along with its other hidden data. Rotate the picture itself in an image editor and save it, or clean the original again with the command in "Your photo", which keeps that tag.
+**A photo shows on its side.** The photo has no tag saying which way up it goes, or a program removed it before the photo reached the blog; the commit hook keeps it. Rotate the picture itself in an image editor and save it.
 
 #### Getting it online
 
@@ -1717,21 +1888,28 @@ export PATH="$HOME/.local/bin:$PATH"
 git remote set-url origin git@github.com:yourname/notes.git
 ```
 
-**`error: src refspec main does not match any`.** There are no commits yet, usually because git didn't know your name and email during the first run. Set them (see "Your first blog", step 1), then run `git add -A` and `TZ=UTC git commit -m "First commit"`, and push again.
+**`error: src refspec main does not match any`.** There are no commits yet: the script makes none. Make the first commit, as in "Your first blog", step 6, and push again.
 
 **The push is rejected, with a hint beginning "Updates were rejected because the remote contains work".** On the first push, the repository wasn't empty: something such as a README or licence was added when it was created. If it has nothing else in it, the simplest fix is to delete the repository on GitHub (at the bottom of its Settings page), create it again with nothing added, and push again. On a later push, something was committed on GitHub since your last one, such as a licence: from inside the blog folder, run `git pull --rebase`, then `git push`; see "Publishing and permissions".
 
 **The workflow fails at its deploy step, with `Ensure GitHub Pages has been enabled`.** Pages isn't switched on. In Settings, then Pages, set Source to "GitHub Actions", then run the workflow again from the Actions tab.
 
+**A GitHub link on the site, in the footer or a post's View history or Suggest an edit, shows GitHub's "404, page not found".** Which one decides why:
+
+- **The footer's GitHub link is still the example**, `github.com/yourhandle/yourrepo`: set `FOOTER_LINKS` to your own address.
+- **The repository isn't on GitHub yet**: it works once you've made it ("Putting it online", step 2).
+- **The repository is there, with nothing pushed**: its main page shows GitHub's setup steps, and View history and Suggest an edit, which name folders and files in it, give a 404 until the first push.
+- **The repository is private**: GitHub shows a 404 to anyone who isn't signed in to an account with access, Tor Browser included, since it never has your sign-in. GitHub Pages on a free account needs a public one anyway.
+
 **The published address shows your README, or something that isn't your blog.** Settings, then Pages, then Source is set to "Deploy from a branch", so GitHub is building the repository its own way instead of using your workflow. Set it to "GitHub Actions" and run the workflow again.
 
 **The site is up, but links go to the wrong place, or the fonts or favicon are missing.** The site's address doesn't match where it's published. The script works the address out from `GIT_REPO_URL` (and `CUSTOM_DOMAIN`), so check those, especially after renaming the repository, then re-run, commit and push.
 
-**`CUSTOM_DOMAIN` had no effect.** Check that the run finished (the hand-edit check stops a run before anything is written), that you set it in the script and not in `config.toml`, and that you committed and pushed afterwards.
+**`CUSTOM_DOMAIN` had no effect.** Check that the run finished (the hand-edit check stops a run before anything is written), that you set it in the script and not in `zola.toml`, and that you committed and pushed afterwards.
 
 **The build on GitHub uses a different Zola from your computer.** The workflow pins the release the script installed when it last ran against this blog, so the two differ when the script has run against another blog since, which moves `~/.local/bin/zola` for every blog (run it against this one too, then commit and push), when another Zola comes first in your `PATH` (see "Two Zolas"), or when the workflow was edited by hand. The version named in the workflow is the one that counts for the published site.
 
-**The build on GitHub fails with `zola.tar.gz: FAILED` and `WARNING: 1 computed checksum did NOT match`.** The Zola file GitHub's build downloaded isn't the one whose checksum the workflow pins. That can mean the file behind that release was replaced, and that's exactly what the check is for, so don't just record a new checksum. Run the script against the blog: it compares GitHub's fingerprint for that release with the pinned one, and if the file was replaced, it stops with `GitHub's digest for zola … is …, but the workflow pins … for it`; see "What a re-run refuses", under "Moving to a newer Zola". From inside the blog folder, `git log -p .github/workflows/deploy.yml` lists every change made to the workflow, the checksum line included. If the run goes through, GitHub's record still matches the pin, and the build received some other file: run the workflow again from the Actions tab.
+**The build on GitHub fails with `zola.tar.gz: FAILED` and `WARNING: 1 computed checksum did NOT match`.** The Zola file GitHub's build downloaded isn't the one whose checksum the workflow pins. That can mean the file behind that release was replaced, and that's exactly what the check is for, so don't just record a new checksum. Run the script against the blog with `update`: it compares GitHub's fingerprint for that release with the pinned one, and if the file was replaced, it stops with `GitHub's fingerprint for zola …'s Linux file is …, but the workflow pins … for it`; see "What a lookup refuses". From inside the blog folder, `git log -p .github/workflows/deploy.yml` lists every change made to the workflow, the checksum line included. If the run goes through, GitHub's record still matches the pin, and the build received some other file: run the workflow again from the Actions tab.
 
 #### Search
 
@@ -1743,23 +1921,25 @@ git remote set-url origin git@github.com:yourname/notes.git
 
 #### Book mode
 
-Every stop below ends `nothing has been changed.`: `./genbook` writes nothing into `content/` until everything has been checked.
+Every stop below ends `nothing has been changed.`: `./genbook` writes nothing into `content/` until everything has been read.
 
-**`there's no book/SUMMARY.md, the outline the site is built from`.** `BOOK_MODE` is `true` and the outline is missing: the first run writes one, so it was moved or deleted. Put it back; "The outline" says what goes in it.
+**`there's no book/SUMMARY.md, the outline the home page shows`.** `BOOK_MODE` is `true` and the outline is missing: the first run writes one, so it was moved or deleted. Put it back; "The outline" says what goes in it.
 
-**`these pages have no file:`**, then a list. Each is a file in `book/` that a line of the outline, or a name in `MENU_PAGES`, asks for and that isn't there. Make it, with its title as its first line, or take the line or the name out.
+**`book/SUMMARY.md, line 12: a link to gone.md, and there is no book/gone.md`**, or the same for a page, such as `book/alpha.md, line 15: a link to ./zeta.md, and there is no book/zeta.md`, ending `fix what's listed above, then run this again.` A link names a file that isn't in `book/`, by a misspelling or because the file was renamed or deleted. Fix the link, or make the file. One run lists every broken link in the outline and the pages. **`a link to ../zeta.md: the pages of this book are files in book/, linked as (./name.md)`** is the same for a link with a folder in it. See "Links between pages".
 
-**`these files in book/ are neither in book/SUMMARY.md nor in MENU_PAGES, so the site would leave them out:`**, then a list. Add each to the outline, as a page (`- [Title](file.md)`) or an unlisted page (`[Title](file.md)`), or move it out of `book/`. The stop is there so a page can't be forgotten by accident.
+**`MENU_PAGES names now, and there is no book/now.md`.** Make the page, or take the name out of `MENU_PAGES`.
 
-**`content/ is made from book/ by ./genbook, and these files in it weren't:`**, then a list. Something in `content/` other than `content/attachments/` wasn't written by `./genbook`: a page saved there by hand, a picture, or the posts of a site that was a blog before (see "A blog can't become a book"). A page goes in `book/`, with a line in the outline; a picture, GIF or video goes in `content/attachments/`. Move each, then run it again.
+**`these files in book/ have names that can't be a page's address`**, then a list, each with a name to rename it to. A page's file name takes letters, digits, `-` and `_`, and nothing else. Rename each, and change the links to it.
 
-**`book/SUMMARY.md, line 12: …`**, with any line number. That line of the outline isn't one `./genbook` can read, and the message says what it should be; "The outline" lists the forms. The messages are: `… is listed twice`; `"Beta" has items indented under it, and a page can't`; `"Epsilon" comes after "Group", which has items under it` (put the pages before the names with items under them); `the part "Summary" has nothing under it` (mdBook's title line: delete it); `"Alpha" is indented with nothing above it to go under`; `"Zeta" links to "Zeta.md", which should be the name of a file in book/` (the name rule: lowercase letters and digits, single dashes, `.md`, no folder, no `#`); `about.md is a page in the menu (MENU_PAGES), so it isn't listed in the outline too`; `a page can't be named unlisted.md`; `"Nowhere" is an unlisted page, written without a dash, and needs a file`; `… is nested too deep`; and `not an outline line`, for anything else, such as a `---` or a note.
+**`these files in content/attachments/ have the name of a different file in book/attachments/`**, then a list. A book from before v116 kept its pictures in `content/attachments/`, and `./genbook` moves them to `book/attachments/`, but these have the name of a different file already there. Keep one of each: delete it, or rename it and the links to it.
 
-**`book/alpha.md, line 1: its first line isn't the title`**, or **`it starts with +++`**, or **`book/alpha.md: has no title line`**. A page's first line is its title, written `# Title`, with nothing above it: no front matter, as a post has, and no text before the title.
+**`moved content/attachments/me.jpg to book/attachments/me.jpg: pictures and videos live in book/attachments/ now`.** Not an error: an older book's picture moved where pictures go now. Commit the change.
 
-**`book/alpha.md, line 15: a link to zeta.md, and no page zeta.md is in book/SUMMARY.md or MENU_PAGES`.** The page links to a file that isn't a page of the book, by name or by a misspelling. **`a link to ../zeta.md: the pages of this book are files in book/, linked by name`** is the same for a link with a folder in it: the pages are linked by file name alone. See "Links between pages".
+**`note: git still tracks files in content/`.** A book made before v116 committed `content/`, which `./genbook` now makes on every build. Run the command the note gives, `git rm -r -q --cached content`, once from inside the blog folder, then commit: it stops git tracking those files, and leaves them where they are.
 
-**`MENU_PAGES names now, but there's no book/now.md`.** As for a blog, but the file is in `book/`. Make it, starting with its title line, or take the name out of `MENU_PAGES`.
+**`book/unlisted.md can't be a page: content/unlisted/ is a folder of the site`**, or the same for `attachments.md`. Rename the file, and the links to it.
+
+**`content/ is made from book/ by ./genbook, and these files in it weren't:`**, then a list. Something in `content/` other than `content/attachments/` wasn't written by `./genbook`: a page saved there by hand, a picture, or the posts of a site that was a blog before (see "A blog can't become a book"). A page goes in `book/`, and a picture, GIF or video in `book/attachments/`. Move each, then run it again.
 
 **`BOOK_MODE is true, but … was made as a blog: it has no book/`.** `BLOG_NAME` points at a blog, and a blog can't become a book (see "A blog can't become a book"). For a book, set `BLOG_NAME` to a new folder; to update the blog, set `BOOK_MODE=false`. Nothing was changed.
 
@@ -1767,9 +1947,9 @@ Every stop below ends `nothing has been changed.`: `./genbook` writes nothing in
 
 **`BOOK_MODE is true, and so is GENERATE_FEEDS`**, or **`… and so is ENABLE_TAGS`**. Set that one to `false`; a book has no dates or tags for them to work with.
 
-**`in book mode a MENU_PAGES name is a file in book/, …, named like a page`.** A menu page's name follows the rule for a page's file name, lowercase letters and digits with single dashes between them, so that pages can link to it, and it can't be `unlisted` or `attachments`, which are folders of the site.
+**A heading of the outline is missing from the home page.** It's the outline's first line, a `# Title`, which is the outline's title and isn't shown, as in mdBook. Put `# Summary` above it.
 
-**The preview doesn't show an edit.** The edit is in `book/`, and the preview reloads on changes in `content/`. Run `./genbook` from inside the blog folder, and the preview reloads; see "The preview" under "Book mode".
+**The preview doesn't show an edit.** `./serve` reruns `./genbook` within a second or two of each save in `book/`; if the terminal running it shows a stop, fix what it names and save again. An edit in `book/` while `./serve` isn't running shows once you start it.
 
 **`./build` on GitHub fails, and the message is one of the above.** GitHub's build runs `./genbook` too, on the `book/` you pushed, so the stop is the same one `./build` gives on your computer. Run `./build` before you push.
 
@@ -1779,7 +1959,9 @@ With the script saved in Downloads:
 
 | Command | What it does |
 |---|---|
-| `bash ~/Downloads/zola-blog-setup.sh` | Creates the blog at `PROJECT_DIR/BLOG_NAME`, or updates it if it's already there, from the configuration block, and installs the Zola it takes (with `GIT_REPO_URL`, the one the workflow pins). |
+| `bash ~/Downloads/zola-blog-setup.sh` | Creates the blog at `PROJECT_DIR/BLOG_NAME`, or updates it if it's already there, from the configuration block, with the Zola already installed and the releases already pinned. Downloads Zola only if there's none to use. |
+| `bash ~/Downloads/zola-blog-setup.sh update` | The same, moving to the newest Zola 0.23 release and the newest GitHub actions, each out a week. See "Updating and removing Zola". |
+| `bash ~/Downloads/zola-blog-setup.sh remove` | Deletes the Zola in `~/.local/bin` and the script's record of releases. Your blogs stay as they are. |
 | `bash ~/Downloads/zola-blog-setup.sh help` | Lists the commands. `-h` and `--help` work too. |
 
 Everything else is a setting in the configuration block; see "Settings, one by one".
@@ -1790,7 +1972,6 @@ Settings for a single run, put in front of the command:
 |---|---|
 | `START_PREVIEW=false` | Don't start the preview at the end of this run. |
 | `REGENERATE_TEMPLATES=true` | Overwrite script-owned files that were edited by hand. A `README.md` you've edited stays yours. |
-| `KEEP_PINS=true` | Keep the releases the workflow pins, Zola's and the actions', without asking GitHub about them, but for your computer's Zola file off Linux x86_64 when that Zola isn't installed. See "Moving to a newer Zola". |
 
 Inside the blog folder:
 
@@ -1799,16 +1980,28 @@ Inside the blog folder:
 | `./serve` | The preview, at `http://127.0.0.1:1111`, updating as you save, with drafts marked "(draft)". Ctrl+C stops it. |
 | `./build` | Checks the links in your posts, then builds the finished site into `public/`, without drafts. GitHub runs the same file. Stops with a message if a link is broken, naming its file and line, or if anything else would stop GitHub's build. |
 | `./new name-of-post` | Starts `content/name-of-post.md`, a draft at the end of the list, with its front matter filled in and a title made from the name. |
-| `./attach path/to/file new-name` | Copies a picture or video into `content/attachments/` without its hidden data, and prints the line to put in a post. Not for SVG drawings; see "Pictures, GIFs and video". |
-| `./genbook` | Book mode only: makes `content/` from `book/`. `./build` and `./serve` run it first; run it yourself after editing `book/` while the preview is running. See "Book mode". |
+| `./genbook` | Book mode only: makes `content/` from `book/`. `./build` runs it first, and `./serve` runs it again on each change in `book/`. See "Book mode". |
 | `git status` | Shows what has changed since your last commit. |
-| `git add -A` then `git commit -m "..."` | Saves a snapshot of every change. |
+| `git add -A` then `git commit -m "..."` | Saves a snapshot of every change, cleaning any pictures and videos in it on the way. |
 | `git push` | Sends your commits to GitHub, which then publishes the site. |
+
+On the site: `/` search, ← and → previous and next, `h` home; see "Keyboard shortcuts".
 
 ### Other computers and hosts
 
-On a Mac, the script installs Zola into `~/.local/bin`. On Windows, in Git Bash, it installs it into `~/bin`, and needs `unzip` rather than `tar`. Zola publishes no build for Windows on ARM, so there the script installs the x86_64 Windows build, which Windows 11 runs on ARM; the run checks that it starts before installing it. The workflow always runs on GitHub's Linux machines, whatever computer you use.
+The script runs on Linux on an x86_64 computer, which most laptops and desktops are. On Windows, run it in WSL (Windows Subsystem for Linux), which is Linux. A Mac, or an ARM computer such as a Raspberry Pi, can't run it, and the run says so before doing anything. The workflow always runs on GitHub's Linux machines.
 
-On Linux, the script installs Zola's `gnu` build, which uses the system's C library, glibc, and needs one new enough: Zola 0.23.6's needs glibc 2.35, which Debian 12, Devuan 5 and Ubuntu 22.04 have, and later releases of each, but not Debian 11 or Devuan 4. Later Zola releases can need newer. The run checks that Zola starts before putting it in `~/.local/bin`, and on an older system it stops there, naming the glibc it needs, with `~/.local/bin` keeping the Zola it had: `zola 0.23.6's Linux build needs glibc 2.35 or later, and this system has 2.31: it wasn't installed, and /home/you/.local/bin keeps the zola it had, if any.` The way on is a newer system; on a re-run where `~/.local/bin` still has the release the workflow pins, its fingerprint pinned too, and GitHub still offers it, the message adds the other, `KEEP_PINS=true`. GitHub's build machines are new enough. The download is unpacked and tried out in a folder of its own in `~/.local/bin`, not in `/tmp`, so a system that mounts `/tmp` without the right to run programs (`noexec`) installs it too.
+The script installs Zola's `gnu` Linux build, which uses the system's C library, glibc, and needs one new enough: Zola 0.23.6's needs glibc 2.35, which Debian 12, Devuan 5 and Ubuntu 22.04 have, and later releases of each, but not Debian 11 or Devuan 4. Later Zola releases can need newer. The run checks that Zola starts before putting it in `~/.local/bin`, and on an older system it stops there, with the system's own message (``zola 0.23.6 doesn't run here (… version `GLIBC_2.35' not found …)``), and `~/.local/bin` keeps the Zola it had. The way on is a newer system. GitHub's build machines are new enough. The download is unpacked and tried out in a folder of its own in `~/.local/bin`, not in `/tmp`, so a system that mounts `/tmp` without the right to run programs (`noexec`) installs it too.
 
 To publish somewhere other than GitHub Pages, the finished site is just the `public/` folder that `./build` makes, and any host for static sites can serve it. What you'd give up is the workflow, with its pinned versions and checksum check, which you'd have to rebuild for that host.
+
+#### Whonix
+
+On a Whonix Workstation the script runs as it does anywhere else, with these differences:
+
+- **Run it as `user`, in the normal session.** Not in SYSMAINT, and not with `sudo`: the script refuses root, and a blog made as `sysmaint` would sit in `sysmaint`'s home. On Whonix, programs are installed in the SYSMAINT session, so git, curl, python3 and exiftool go in there; the Whonix setup guide has the steps. Run the script once as `user` first: its `missing:` line names everything to install, so one trip to SYSMAINT is enough. The `sudo apt install` in that line, and in the commit hook's message about exiftool, is for SYSMAINT.
+- **`/usr/bin/git` is there whether git is installed or not.** It's Whonix's wrapper, which sends git through Tor. The script checks git by running it, `git --version`. To check yourself, `ls /usr/bin/git.anondist-orig` prints that path when git is installed, and `No such file or directory` when it isn't.
+- **Copy the script out of the shared folder, and keep the blog out of it.** `cp /mnt/shared/zola-blog-setup.sh ~/Downloads/` prints nothing; run that copy, as `bash ~/Downloads/zola-blog-setup.sh`. Leave `PROJECT_DIR` in your home folder: the host can write to `/mnt/shared`, and a folder there isn't yours alone.
+- **Set your name and email for the blog alone, after the first run.** Skip step 1 of "Your first blog": a `--global` name goes on every repository on the Workstation. After the first run, from inside the blog folder, run `git config user.name "Your Name"`, `git config user.email "Your Email"` and `git config user.useConfigOnly true`, without `--global`; none prints anything. Then make the first commit, as in step 6. `git config user.name` printing nothing and exiting with an error only means it isn't set. Only commits need a name and email: the script's lookups, cloning and pulling don't.
+- **Lookups go through Tor**, so they're slow, and GitHub can answer `403` or `429`, which the script reports as `could not ask GitHub for zola's releases`, when others on the same Tor exit have used up its limit of 60 requests an hour. Wait ten minutes or so, which gives new connections another exit, and run it again.
+- **The preview in Tor Browser.** Tor Browser sends `127.0.0.1` through Tor too, so the preview shows `Unable to connect`. To look at it, close every other tab, open `about:config`, set `network.proxy.allow_hijacking_localhost` to `false`, and reload the preview. Set it back to `true` before you open any other site: while it's `false`, any page open in Tor Browser can send requests to programs on the Workstation, and from the answers tell which are running. Or don't preview there at all: run the script with `START_PREVIEW=false` in front, and look at the site once it's published.

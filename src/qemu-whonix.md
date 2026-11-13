@@ -1,4 +1,4 @@
-# QEMU and Whonix Guide
+# QEMU and Whonix Guide, v10
 
 This guide shows you how to install QEMU, the program that runs virtual machines, on Debian 13, with a small [qemu-install] script.sh`. Then it shows you how to set up [Whonix](#whonix) and use it for your anonymous accounts.
 
@@ -454,6 +454,8 @@ Tor Browser, inside the Workstation, updates itself. When it offers an update, l
 
 If `sudo` inside Whonix ever says permission denied, you are in the everyday session. Restart into sysmaint as above.
 
+To add programs, such as git or VSCodium, see [Install programs](#install-programs).
+
 ## 9. Tighten security
 
 ### Do these once
@@ -534,6 +536,165 @@ The same screen sometimes appears by itself when a machine starts. Log in the sa
 Whonix saves your work like a normal computer. Files, bookmarks, settings and updates all stay until you delete them. This is Whonix's persistent mode, and it is what the boot menu starts by itself.
 
 Keep your files in folders you make for each project, inside your home folder, rather than loose in it. Tor Browser saves downloads in the Downloads folder. Move them from there into your project folders.
+
+### Install programs
+
+The everyday session can't install anything, so install programs in sysmaint. Do everything you need in one visit, because each visit takes two restarts.
+
+1. Restart the Workstation into sysmaint, as in step 8, and click **Open Terminal** in the System Maintenance Panel.
+2. Update first:
+
+   ```bash
+   sudo apt update && sudo apt full-upgrade
+   ```
+
+   It lists what it will upgrade and asks `Do you want to continue? [Y/n]`. Type `y` and press Enter. Everything downloads over Tor, so it is slower than on your computer.
+
+3. Install what you need, as the parts below show.
+4. Click **Reboot** in the System Maintenance Panel. The Workstation starts its normal session.
+
+#### git
+
+```bash
+sudo apt install git
+```
+
+apt lists what it will add and asks first. Then check that git is really there:
+
+```bash
+ls /usr/bin/git.anondist-orig
+```
+
+It prints the same path back. If it says `No such file or directory`, git isn't installed yet.
+
+This check matters because in the Workstation, `/usr/bin/git` is a small Whonix program that sends git's traffic through Tor and then runs the real git, which is `git.anondist-orig`. The small program is there even when git isn't. So `command -v git` prints `/usr/bin/git` either way, and running git without the real one says:
+
+```text
+uwtwrapper uwt wrapper ERROR: file '/usr/bin/git.anondist-orig' does not exist.
+```
+
+`curl` and `wget` work the same way.
+
+#### VSCodium
+
+VSCodium isn't in Whonix's own package sources, so first add the VSCodium project's. Its package is called `codium`, not `vscodium`.
+
+Save the project's signing key:
+
+```bash
+wget -qO - https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg | gpg --dearmor | sudo dd of=/usr/share/keyrings/vscodium-archive-keyring.gpg
+```
+
+It ends with lines like `2+1 records in` and `2+1 records out`.
+
+Add the project's package source:
+
+```bash
+sudo tee /etc/apt/sources.list.d/vscodium.sources <<'EOF'
+Types: deb
+URIs: https://download.vscodium.com/debs
+Suites: vscodium
+Components: main
+Architectures: amd64 arm64
+Signed-By: /usr/share/keyrings/vscodium-archive-keyring.gpg
+EOF
+```
+
+It prints the six lines back.
+
+Then install it:
+
+```bash
+sudo apt update && sudo apt install codium
+```
+
+Among the lines `apt update` prints, one names `download.vscodium.com`. If none does, or apt says `Unable to locate package codium`, compare the two commands above with the **Install on Debian / Ubuntu** section of <https://vscodium.com>, and use theirs if they differ.
+
+After the reboot, check it in the normal session with `codium --version`. It prints a version number, a long code and `x64`.
+
+#### What a script needs
+
+A script you run in the normal session may need programs you haven't installed. Scripts written for this setup check first, and stop with a line starting `missing:` that names them. They change nothing when they stop. Run the script once before your sysmaint visit, note the list, and install it all in that one visit.
+
+### Run scripts
+
+Some scripts run as `user`, in the normal session. Others need the administrator, so they only run in sysmaint. To find out which kind you have, search it for `sudo` and `apt`:
+
+```bash
+grep -nE 'sudo|apt' x.sh
+```
+
+It prints each line that matches, with its line number. A match inside a message, such as `sudo apt install …` in the text of an error, doesn't mean the script runs it. Read the lines it shows. The Zola and mdBook scripts run as `user` only. They refuse to run as the administrator.
+
+To bring a script into the Workstation, put it in the shared folder on your computer, as [Copy files into the Workstation](#copy-files-into-the-workstation) shows.
+
+**A script that runs as `user`.** In the normal session, copy it into your home folder and run it from there:
+
+```bash
+cp /mnt/shared/x.sh ~/
+bash ~/x.sh
+```
+
+**A script that needs the administrator.** Copy it into your home folder in the normal session first, as above. Then, in sysmaint, click **Open Terminal**, and copy it into the administrator's own folder:
+
+```bash
+sudo install -m 0700 -o root /home/user/x.sh /root/x.sh
+```
+
+This prints nothing. Read it before you run it, because the copy in your home folder could have been changed. Scroll with the arrow keys, and press Q to close:
+
+```bash
+sudo less /root/x.sh
+```
+
+Then run it:
+
+```bash
+sudo bash /root/x.sh
+```
+
+Never run an administrator's script straight from `/mnt/shared` or from `user`'s home folder. Your account on your computer can change what's in the shared folder, and `user` can change its home folder. The copy in `/root` can only be changed in sysmaint.
+
+### Use git
+
+Inside the Workstation, git sends everything through Tor. Fetching is slower than on your computer. Sometimes GitHub refuses with an error that mentions `403` or `429`, because too many people share the same Tor exit. Wait a minute and run the command again.
+
+Downloading and fetching never need your name, but each commit does. Until you set them, `git config user.name` prints nothing, and that's fine. The first commit then stops with `Please tell me who you are`.
+
+Set a name and an email inside each repository, the folder you run git in:
+
+```bash
+git config user.name "your made-up name"
+git config user.email "your made-up email"
+```
+
+These print nothing. Use the made-up name and email of the identity this Workstation is for, never your real ones. Every commit you publish carries them, and they can't be taken back.
+
+Don't add `--global` to these commands. With it, the name goes on every repository on the Workstation, including ones for something else.
+
+### Preview a website you're building
+
+Website tools such as Zola and mdBook can show your site while you work on it, at an address on the Workstation itself, such as `http://127.0.0.1:1111`. The script prints the exact address.
+
+Tor Browser sends everything through Tor, even this address. The Tor network can't reach the Workstation, so the tab shows `Unable to connect`.
+
+First, check that the site is running. In a terminal:
+
+```bash
+curl -I http://127.0.0.1:1111
+```
+
+Use the address your script printed. It prints `NOTE: Detected loopback address. Stream isolation will be disabled.`, which is normal, and then `HTTP/1.1 200 OK`. If it says `Connection refused`, the site isn't running yet. Read the script's messages.
+
+To open the site in Tor Browser, change one setting, and change it back afterwards. While the setting is off, any page open in Tor Browser can probe programs that run on the Workstation. So:
+
+1. Close every other tab.
+2. In the address bar, type `about:config` and press Enter. Click **Accept the Risk and Continue**.
+3. In the search box, type `network.proxy.allow_hijacking_localhost`. Double-click the setting so it says `false`.
+4. Go to the tab with `Unable to connect`, and reload it. Your site appears.
+5. When you're done, set it back to `true` the same way, before you open any other site.
+
+Or skip the preview. Run the script with `START_PREVIEW=false` (Zola) or `SERVE=false` (mdBook), and check the published site instead.
 
 ### Dark theme
 
@@ -632,7 +793,22 @@ To bring in files from your own computer, give the Workstation a shared folder t
 
 To bring a file in, copy it into that folder on your computer. In the Workstation, it appears in the folder `/mnt/shared`. Open it from there, or copy it into your home folder. The Workstation can read everything in the folder, so put in only what it should have.
 
-If `/mnt/shared` shows only a file called `README.md`, the folder isn't shared. Check the steps above. The folder isn't shared in live mode either.
+If `/mnt/shared` shows only a file called `README.md`, the folder isn't shared. Check the steps above.
+
+The folder isn't shared in live mode either. To share it there too, start the Workstation in sysmaint, as in step 8, click **Open Terminal**, and run:
+
+```bash
+sudoedit /usr/lib/systemd/system/mnt-shared-kvm.service.d/50_user.conf
+```
+
+The file opens in a text editor, usually nano. Type these two lines into it:
+
+```text
+[Unit]
+ConditionKernelCommandLine=
+```
+
+Save and close. In nano, that's Ctrl+X, then Y, then Enter. Click **Reboot**. From then on, `/mnt/shared` shows your files in live mode too.
 
 If a file in `/mnt/shared` won't open, make it readable on your computer with chmod, such as `chmod a+r ~/whonix-shared-research/photo.jpg`, then try again.
 

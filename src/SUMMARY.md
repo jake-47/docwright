@@ -93,15 +93,15 @@
 
 - [Static-site generators](./static-sites.md)
 
-- [Publish a book: Mdbook guide](./publish-book.md)
+- [Publish a book: Mdbook guide](./publish-mdbook-book.md)
 
 - [Bootstrap mdbook script](./bootstrap-mdbook.md)
 
-- [Publish a blog: Zola guide](./publish-blog.md)
+- [Publish a blog: Zola guide](./publish-zola-blog.md)
 
 - [Bootstrap zola blog script](./bootstrap-zola.md)
 
-- [Publish a docs site: Mkdocs guide](./publish-docs.md)
+- [Publish a docs site: Mkdocs guide](./publish-mkdocs-docs.md)
 
 - [Bootstrap mkdocs script](./bootstrap-mkdocs.md)
 

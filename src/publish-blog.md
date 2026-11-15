@@ -10,9 +10,8 @@ The [zola-blog-setup.sh](./bootstrap-zola.md) script makes a small, fast blog on
 - Nothing loaded from other websites: no tracking, no adverts, and no fonts or scripts from other companies. Every page carries a security policy that makes the reader's browser enforce this.
 - One small script, for search and the shortcuts. Search is on by default, so by default the site does run JavaScript: this one file, loaded from your own site and nowhere else. Turn search off (`ENABLE_SEARCH=false`) and the blog's pages run no JavaScript at all, and the shortcuts go with it. The one exception is the address `/attachments/`, which Zola publishes as a redirect to the home page: one line of Zola's own script, on a page without the security policy.
 - Automatic publishing. Each time you push your changes to GitHub, it rebuilds the site and puts it online, usually within a couple of minutes.
-- Photos cleaned before they're published: when you commit a picture or video, its location and camera data are removed (see "Pictures, GIFs and video").
 - Optional email updates for readers, through a newsletter service that sends them each new post from your feed (see "Email subscription").
-- Or, with one setting, a site built from an outline instead of a list of posts, the way mdBook builds a book: a home page that shows the outline, pages in its order with Previous and Next, and search; see "Book mode".
+- Or, with one setting, a site built from an outline instead of a list of posts, the way mdBook builds a book: a home page that shows the outline, pages in its order with Previous and Next, breadcrumbs that follow the outline, and search; see "Book mode".
 
 The preview on your own computer adds a script of its own, which reloads the page when you save a file. It is part of Zola's preview and is never published. The preview also shows your drafts, marked "(draft)", and they aren't published either.
 
@@ -26,7 +25,7 @@ The script runs on Linux, on an x86_64 computer (on Windows, in WSL). It uses Zo
 - **Static site**: a website made of finished files. No program runs on the server, so there's little that can go wrong or be attacked, and it's cheap to host.
 - **GitHub**: the website that stores your blog's files. A **repository** (repo) is one project's folder there.
 - **GitHub Pages**: GitHub's free web hosting. **GitHub Actions** is GitHub's build service, and a **workflow** is the file that tells it what to do. Yours is `.github/workflows/deploy.yml`.
-- **git**: the program on your computer that keeps track of changes and sends them to GitHub. A **commit** is a saved snapshot of your changes. To **push** is to send your commits to GitHub. A **commit hook** is a small program git runs on each commit; the script installs one that cleans pictures.
+- **git**: the program on your computer that keeps track of changes and sends them to GitHub. A **commit** is a saved snapshot of your changes. To **push** is to send your commits to GitHub.
 - **Terminal**: the window where you type commands.
 - **Markdown**: the simple text format you write posts in. `**bold**` becomes **bold**, and a line starting `## ` becomes a heading.
 - **Front matter**: the block of settings at the top of each post, between two lines of `+++`.
@@ -36,6 +35,7 @@ The script runs on Linux, on an x86_64 computer (on Windows, in WSL). It uses Zo
 - **Book mode**: the `BOOK_MODE` setting. Instead of posts, the site is built from an **outline**, `book/SUMMARY.md`, and the plain Markdown files in `book/`; a helper, `./genbook`, makes `content/` from them. See "Book mode".
 - **Preview**: a private copy of the site on your computer, at `http://127.0.0.1:1111`, that updates each time you save a file. Only you can see it.
 - **Build**: making the finished site files, which go into a folder called `public/`.
+- **Breadcrumbs**: the line of links above a page's title, starting with Home, that shows where the page sits; see `SHOW_BREADCRUMBS`.
 - **The configuration block**: the list of settings at the top of the script.
 - **Re-run**: running the script again after changing a setting. That's how every change to a setting is applied.
 - **Script-owned files**: files the script writes again on every run, so changes you make to them directly don't last. Everything in `content/` and most of `static/` is yours instead, and the script never touches it after the first run. So is `README.md`, once you edit it. See "How changes work".
@@ -57,7 +57,6 @@ You need:
 - A computer running Linux on an x86_64 processor, as most laptops and desktops have. On Windows, use WSL (Windows Subsystem for Linux), which is Linux. A Mac, or an ARM computer such as a Raspberry Pi, can't run the script.
 - A terminal, usually called Terminal (in XFCE, Terminal Emulator).
 - git, curl and python3. To check, run `git --version`, `curl --version` and `python3 --version`: each prints its version, such as `git version 2.47.2`. If one prints `command not found`, install it; on Debian, Devuan or Ubuntu, `sudo apt install git curl python3` installs all three. The script uses python3 to read GitHub's list of releases.
-- exiftool, once you add pictures: it removes their hidden location data as you commit them (see "Pictures, GIFs and video"). On Debian, Devuan or Ubuntu, `sudo apt install libimage-exiftool-perl`.
 - A plain-text editor, for changing the script's settings: Mousepad, gedit, Kate, nano, VSCodium, or similar. Don't use a word processor. It may change straight quotes into curly ones, which breaks the script.
 - A GitHub account, if you want the blog online. It's free; sign up at github.com.
 
@@ -157,7 +156,7 @@ to start it again later, from anywhere: /home/you/Desktop/myblog/serve
 
 If a 0.23 release of Zola, 0.23.3 or later, is in `~/.local/bin` already, from another blog, the run asks GitHub for nothing: the first line is gone, and the two lines about installing are one, `zola 0.23.6 is installed in /home/you/.local/bin`. A Zola there that the templates aren't written for, such as 0.22, is replaced, and the run says so first: `the zola in /home/you/.local/bin is 0.22.1, and this script's templates need a 0.23 release from 0.23.3 on: taking the newest`.
 
-The three lines from `Building site...` are `./build`: before the preview, the run checks the links in your posts and builds the site once, the way GitHub will. If a link is broken, the run stops there, lists it, and starts no preview; see "Broken links".
+The three lines from `Building site...` are `./build`: before the preview, the run checks the links in your posts and builds the site once, the way GitHub will. If a link is broken, the run lists it, says `the build stopped, as the deploy would: nothing will be published until what's named above is fixed. the preview starts anyway, and shows each change as you make it.`, and starts the preview, so you can fix the link and watch the page change; see "Broken links". On a first run that can't happen, because the example posts have no broken links.
 
 Then Zola starts the preview:
 
@@ -182,6 +181,7 @@ Some lines look alarming but are normal:
 - `nothing is committed` is how it should be: the script never commits. Step 6 makes the first commit.
 - If you set `GIT_REPO_URL`, the `release:` line is `releases:` and also names the releases of the three GitHub actions the workflow uses, and you see `added remote 'origin': git@github.com:you/yourrepo.git`. That's the link to GitHub being set up.
 - If you set `GIT_REPO_URL` and some settings still have the values the script came with, a line starting `still the examples the script came with` names them. It's a reminder, not an error; see "Before you publish".
+- While a link in your writing is broken, each rebuild of the preview prints a `WARN` line from Zola naming it. That's the preview telling you what `./build` will refuse; see "Broken links".
 
 If a first run stops with an error instead, it deletes the folder it was creating, so fix what the message names and run it again. Troubleshooting lists the messages.
 
@@ -200,17 +200,17 @@ The blog folder now holds:
 - `content/`: your writing. Each post is a `.md` file here, and `content/attachments/` holds the pictures, GIFs and videos for any post or page. `content/about.md` is the About page, and `content/_index.md` holds any text you want at the top of the home page. The two example posts, `hello-world.md` and `second-post.md`, show how things look, and `hello-world.md` doubles as a Markdown cheat sheet; its picture is `content/attachments/demo.svg`.
 - `static/`: files published exactly as they are, such as fonts and the About page's placeholder picture.
 - `zola.toml` and `templates/`: generated by the script from its settings. Don't edit these directly; see "How changes work".
-- `serve` and `build`: shortcuts. From inside the blog folder, `./serve` starts the preview and `./build` checks the links in your posts and makes the finished site in `public/`, the same way GitHub will, so a problem that would stop GitHub's build stops it here first, with a message.
+- `serve` and `build`: shortcuts. From inside the blog folder, `./serve` starts the preview and `./build` checks the links in your posts and makes the finished site in `public/`, the same way GitHub will, so a problem that would stop GitHub's build stops it here first, with a message. The preview doesn't stop on a broken link: it shows the page with the link dead, and names the link in the terminal.
 - `new`: starts a post with its front matter filled in (see "A new post").
 - `README.md`: a short note for the repository's page on GitHub, written by the script until you edit it; after that it's yours (see "The hand-edit check").
 - `.gitignore`, `.zola-blog-setup.manifest` and, once you set up publishing, `.github/workflows/deploy.yml`. `.gitignore` tells git what not to commit, such as the built site in `public/` and your editor's swap and backup files; the manifest is the script's record of the files it wrote (see "The hand-edit check"); and `deploy.yml` tells GitHub how to build and publish the site. Names starting with a dot are hidden in most file managers; Ctrl+H shows them.
-- `.git/`, git's own folder, with the commit hook that cleans pictures in `.git/hooks/pre-commit`.
+- `.git/`, git's own folder.
 
 In book mode, the writing is in `book/` instead, `content/` is made from it, and there's one more helper, `genbook`; see "Book mode".
 
 From here on, this guide writes the blog folder as `~/Desktop/myblog` and the script as `~/Downloads/zola-blog-setup.sh`, the defaults. If yours are somewhere else, use your own paths in their place.
 
-Replace the example posts with your own when you're ready. Delete both together, or `hello-world.md` first: it links to `second-post.md`, so deleting only `second-post.md` stops the build with a broken-link error. Delete `content/attachments/demo.svg` along with them.
+Replace the example posts with your own when you're ready. Delete both together, or `hello-world.md` first: it links to `second-post.md`, so deleting only `second-post.md` leaves a broken link, which `./build` refuses to publish. Delete `content/attachments/demo.svg` along with them.
 
 ### Step 6: make the first commit
 
@@ -395,7 +395,7 @@ git commit -m "New post about tea"
 git push
 ```
 
-`./build` isn't required, but GitHub runs the same file, so a mistake, a broken link included, shows up in seconds on your computer instead of as a failed run on GitHub. It should end with `Done in ...`. The words after `-m` are a note to yourself about what changed. If the commit has pictures or videos in it, a line before git's own says `removed the location and camera data from 1 picture(s) and video(s) being committed`; see "Pictures, GIFs and video". GitHub rebuilds and republishes in a minute or two; the Actions tab shows the progress.
+`./build` isn't required, but GitHub runs the same file, so a mistake, a broken link included, shows up in seconds on your computer instead of as a failed run on GitHub. The preview shows a page even with a broken link in it; `./build` is the check that says whether it can be published. It should end with `Done in ...`. The words after `-m` are a note to yourself about what changed. GitHub rebuilds and republishes in a minute or two; the Actions tab shows the progress.
 
 `git status` tells you where you are. `nothing to commit, working tree clean` means every change is committed. If it also says `Your branch is ahead of 'origin/main'`, you have commits that aren't on GitHub yet, so run `git push`.
 
@@ -475,13 +475,13 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 **`BOOK_MODE`**: `false` (the default) gives a blog, as the rest of this guide describes. `true` gives a site built from an outline, `book/SUMMARY.md`, with no posts, dates, tags or feed, and needs `GENERATE_FEEDS` and `ENABLE_TAGS` set to `false`; the run stops and names the one that isn't. Choose it before the first run; see "Book mode", which also says which of the settings below do nothing in book mode.
 
-**`OUTLINE_NUMBERS`**: book mode only. `false` (the default) shows the outline's bullets and numbers as you wrote them. `true` numbers its headings and list items as one tree, 1, 1.1, 1.1.1, and puts each page's number in front of its title; see "The outline".
+**`OUTLINE_NUMBERS`**: book mode only. `false` (the default) shows the outline's bullets and numbers as you wrote them. `true` numbers its headings and list items as one tree, 1, 1.1, 1.1.1, and puts each page's number in front of its title, and in its breadcrumbs; see "The outline".
 
 #### What's on the pages
 
 **`SHOW_TOC`**: `true` (the default) puts a Contents box at the top of every post that has a date and at least two headings (or one heading with sub-headings under it), listing the headings as links. It starts folded, as one line, "▸ Contents", with a thin line under it, and opens when the reader clicks it. A page without a date, such as About, gets one only if it asks for it with `toc = true`; see "Adding a page to the menu". `false` leaves them all out.
 
-**`SHOW_BREADCRUMBS`**: `true` (the default) puts a line above the title of a page in a folder: Home, then each folder above the page, all of them links, so a page in `content/projects/suite/` shows Home › Projects › Suite, and that folder's own page shows Home › Projects. Posts and other pages at the top of `content/` show nothing, and so do the pages of folders at the top, such as `content/projects/_index.md`, and pages in a folder with `transparent = true`, which are listed as posts. `false` leaves them all out. See "Child pages".
+**`SHOW_BREADCRUMBS`**: `true` (the default) puts a line above the title of a page in a folder: Home, then each folder above the page, all of them links, each followed by ›, the last one leading into the title. So a page in `content/projects/suite/` shows Home › Projects › Suite ›, and that folder's own page shows Home › Projects ›. Posts and other pages at the top of `content/` show nothing, and so do the pages of folders at the top, such as `content/projects/_index.md`, and pages in a folder with `transparent = true`, which are listed as posts. In a book, the line follows the outline instead; see "Breadcrumbs in a book". `false` leaves them all out.
 
 **`SHOW_READING_TIME`**: `true` (the default) shows an estimated reading time, such as "3 min read", on each post's date line. Zola works it out from the number of words. `false` leaves it out.
 
@@ -513,7 +513,7 @@ The About page's placeholder picture, `static/avatar.svg`, is drawn once, to sui
 
 These two are easiest to set for one run only, by putting them in front of the command rather than changing the file:
 
-**`START_PREVIEW`**: `true` (the default) starts the preview when the run ends. Either way, the run first builds the site with `./build`, and stops there if a link is broken. For one run without it: `START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh`. The preview is also skipped when the script's output isn't going to a terminal, for example when another script runs it.
+**`START_PREVIEW`**: `true` (the default) starts the preview when the run ends. Either way, the run first builds the site with `./build`. If that stops, on a broken link say, the run says nothing will be published until it's fixed, and starts the preview anyway, so you can see the fix as you make it; with the preview off, the run stops there, with an error. For one run without it: `START_PREVIEW=false bash ~/Downloads/zola-blog-setup.sh`. The preview is also skipped when the script's output isn't going to a terminal, for example when another script runs it.
 
 **`REGENERATE_TEMPLATES`**: `false` (the default). `true` lets a run overwrite script-owned files even if they were edited by hand. A `README.md` you've edited stays yours even then. For one run: `REGENERATE_TEMPLATES=true bash ~/Downloads/zola-blog-setup.sh`. See "The hand-edit check".
 
@@ -638,11 +638,9 @@ The About page shows a round placeholder picture. To use a photo of yourself ins
 
    The path starts from the `content` folder, so a bare `"me.jpg"` isn't found and the build stops with `` `resize_image`: Cannot find file: me.jpg ``.
 
-3. **Commit it.** Photos from phones and cameras carry hidden data called EXIF, which often includes where and when the photo was taken, and the phone or camera model. When you commit the photo, the commit hook the script installed removes that data from it, in the file itself and in what's committed, and keeps only the tag that says which way up the photo goes, so it isn't shown sideways. The commit prints `removed the location and camera data from 1 picture(s) and video(s) being committed`. See "Pictures, GIFs and video".
+3. **Remove its hidden data before you commit it.** Photos from phones and cameras carry hidden data called EXIF, which often includes where and when the photo was taken, and the phone or camera model. See "Pictures, GIFs and video".
 
-When it builds the site, Zola makes a small square copy of the photo (240 by 240 pixels, shown at 120), so readers download a small file. The original is published too, at `/attachments/me.jpg`, which is why the hook cleans it first.
-
-To check a photo yourself, run `exiftool content/attachments/me.jpg` from inside the blog folder after the commit: no line in its output should start with GPS, Make, Camera Model Name, or Date/Time Original.
+When it builds the site, Zola makes a small square copy of the photo (240 by 240 pixels, shown at 120), so readers download a small file. The original is published too, at `/attachments/me.jpg`, hidden data and all.
 
 The other key, `avatar = "avatar.svg"`, is the placeholder. It names a file in `static/`, which is shown as it is, without being shrunk. Use it for an SVG drawing (a picture made of shapes rather than dots, which most drawing programs can save), because Zola can't shrink those. If both keys are set, `avatar_photo` wins.
 
@@ -654,28 +652,9 @@ Pictures, GIFs and videos all go in one folder, `content/attachments/`, and any 
 ![Hills at sunrise, seen from the ridge](@/attachments/tea-hills.jpg)
 ```
 
-The words in square brackets describe the picture for readers who can't see it, including blind readers using screen readers, so always fill them in. `@/` means "starting from the `content` folder". Zola turns the path into the picture's full address, so it works at any site address and in feed readers, and if the name is wrong, the build stops instead of publishing a missing picture. A picture never shows wider than the text column, or taller than 85% of the window; a big photo is shrunk to fit.
+The words in square brackets describe the picture for readers who can't see it, including blind readers using screen readers, so always fill them in. `@/` means "starting from the `content` folder". Zola turns the path into the picture's full address, so it works at any site address and in feed readers, and if the name is wrong, `./build` stops instead of publishing a missing picture. A picture never shows wider than the text column, or taller than 85% of the window; a big photo is shrunk to fit.
 
-**Hidden data is removed as you commit.** Photos and videos from phones and cameras carry hidden data, often where and when they were taken, and the device's make and model. Everything you commit is published, in your public repository and on the site, so the script installs a commit hook, `.git/hooks/pre-commit`, that removes that data from each picture or video in `content/attachments/` (and, in book mode, `book/attachments/`) that a commit adds or changes. It keeps the tag that says which way up a photo goes, cleans the file on your computer as well as the committed copy, and prints `removed the location and camera data from 1 picture(s) and video(s) being committed`. It works on JPEG, PNG, GIF, WebP, TIFF and HEIC pictures and on MP4, M4V and MOV videos. It needs exiftool; without it, the commit stops before anything is saved:
-
-```
-commit stopped: exiftool removes the location and camera data from pictures and videos before they're published. install it (on Debian, Devuan or Ubuntu: sudo apt install libimage-exiftool-perl), then commit again.
-```
-
-Until you commit, the picture on your computer still has its data, and the preview shows it as it is; nothing leaves your computer before a push. Three things get past the hook:
-
-- **A file added on GitHub's website**, by uploading it there: it never passes through your computer's git.
-- **`git commit --no-verify`**, which skips hooks.
-- **A new copy of the repository.** git doesn't copy hooks with a clone, so on another computer, or after cloning the blog again, run the setup script against the blog once: it installs the hook again.
-
-If `.git/hooks/pre-commit` is a hook of your own, the script leaves it as it is and says so on every run: `.git/hooks/pre-commit is your own, so it's left as it is: pictures you commit keep their location and camera data unless you remove it`. To clean a picture by hand, from inside the blog folder: `exiftool -all= -tagsfromfile @ -orientation content/attachments/me.jpg`. It prints `1 image files updated`, and leaves the original as `me.jpg_original`, which `.gitignore` keeps out of commits; delete it once you've checked the result.
-
-Two kinds of file the hook can't clean, because exiftool can't write them:
-
-- **SVG drawings.** Save the drawing as a plain SVG instead (in Inkscape, File, then Save As, with Plain SVG as the type), which leaves out Inkscape's own notes, such as the file's name and a folder on your computer.
-- **WebM videos.** They're committed as they are. Make the video an MP4 if it came from a phone or camera.
-
-HEIC pictures are cleaned, but most browsers can't show them; export those as JPEG first.
+**Remove hidden data before you commit.** Photos and videos from phones and cameras carry hidden data, often where and when they were taken, and the device's make and model. Everything you commit is published, in your public repository and on the site, and the script doesn't remove that data, so remove it yourself before you commit a picture or video. Until you commit, nothing leaves your computer. A drawing saved from Inkscape carries notes of its own, such as the file's name and a folder on your computer: save it as a plain SVG instead (File, then Save As, with Plain SVG as the type). Most browsers can't show HEIC pictures; export those as JPEG first.
 
 A GIF goes in the same way as a picture. A video needs a line of its own, because Markdown has no way to show one:
 
@@ -689,11 +668,11 @@ That shows the video with its play button and controls. To have a video play by 
 {{<video src="attachments/tea-bus.mp4" loop="yes" />}}
 ```
 
-Here the path starts from the `content` folder without `@/`. If the file isn't there, `./build` stops and names it, and the preview stops with `` `get_url`: could not resolve URL for link `@/attachments/tea-bus.mp4` not found ``. The same clip is usually much smaller as a video file than as a GIF, so for anything longer than a moment, use a video with `loop="yes"`. A looping video still has its controls, which show when the reader points at it or taps it, so anyone distracted by the movement can pause it. A GIF can't be paused in any browser, which is one more reason to use a video for anything that loops for more than a few seconds.
+Here the path starts from the `content` folder without `@/`. If the file isn't there, `./build` stops and names it, and the preview stops with `` `get_url`: could not resolve URL for link `@/attachments/tea-bus.mp4` not found ``: unlike a broken link, a missing video stops the preview too, until the file is there or the line is fixed. The same clip is usually much smaller as a video file than as a GIF, so for anything longer than a moment, use a video with `loop="yes"`. A looping video still has its controls, which show when the reader points at it or taps it, so anyone distracted by the movement can pause it. A GIF can't be paused in any browser, which is one more reason to use a video for anything that loops for more than a few seconds.
 
 **Mind the size of videos.** The blog lives in its GitHub repository, every version of every file. GitHub warns about any file over 50 MiB and refuses one over 100 MiB. It recommends keeping a repository under 1 GB, and won't publish a site over 1 GB. git also keeps every file you've committed in the repository's history, so deleting a video later doesn't give the space back. Short clips are fine. A long video belongs on a video site, and showing it in a page from there means loosening the security policy; see "The security policy".
 
-**What makes the folder work.** `content/attachments/_index.md`, which the script writes for a new blog, tells Zola to publish the folder. Its `redirect_to = "/"` sends anyone who opens `/attachments/` to the home page, and `in_search_index = false` keeps it out of search. The address `/attachments/` still appears in `sitemap.xml`, the list of pages that search engines read, as a redirect: Zola can't leave one folder out of the sitemap. That's harmless. Don't add `render = false` to that file: Zola then publishes nothing in the folder, and every `@/attachments/` link stops the build.
+**What makes the folder work.** `content/attachments/_index.md`, which the script writes for a new blog, tells Zola to publish the folder. Its `redirect_to = "/"` sends anyone who opens `/attachments/` to the home page, and `in_search_index = false` keeps it out of search. The address `/attachments/` still appears in `sitemap.xml`, the list of pages that search engines read, as a redirect: Zola can't leave one folder out of the sitemap. That's harmless. Don't add `render = false` to that file: Zola then publishes nothing in the folder, and every `@/attachments/` link is broken.
 
 If `content/attachments/_index.md` goes missing, each run warns you, and `./build` stops on every `@/attachments/` link and says why. To put it back, save this in the folder as `_index.md`:
 
@@ -739,8 +718,8 @@ The settings are called custom properties, lines like `--accent: #ffb454;`. Colo
 |---|---|---|---|
 | `--bg` | Page background | `#111` | `#fffff8` |
 | `--fg` | Text | `#e8e6da` | `#111` |
-| `--muted` | Quieter text: dates, menu, footer, notes | `#aaa8a0` | `#57564e` |
-| `--link` | Links in your text, once the reader has followed them. Until then a link takes the colour of the text around it; either way it's underlined. Footnote numbers, which have no underline, have this colour whether followed or not. The links the site adds by itself, such as its lists of posts, child pages, tags and search results, a book's outline, the menu, Previous and Next, and the footer, keep their own colours, followed or not | `#94b9dc` | `#295a8e` |
+| `--muted` | Quieter text: dates, menu, breadcrumbs, footer, notes | `#aaa8a0` | `#57564e` |
+| `--link` | Links in your text, once the reader has followed them. Until then a link takes the colour of the text around it; either way it's underlined. Footnote numbers, which have no underline, have this colour whether followed or not. The links the site adds by itself, such as its lists of posts, child pages, tags and search results, a book's outline, the menu, breadcrumbs, Previous and Next, and the footer, keep their own colours, followed or not | `#94b9dc` | `#295a8e` |
 | `--accent` | Code words in sentences, the outline around the search box while you type in it, and the "(draft)" label | `#ffb454` | `#9d4909` |
 | `--surface` | Table header rows | `#242420` | `#f4f2e8` |
 | `--inline-bg`, `--inline-border` | Background and border of code words in sentences | `#2b281f`, `#3a382f` | `#ece3cd`, `#e0d8c2` |
@@ -814,7 +793,7 @@ The words the site shows by itself, such as "All posts" or "min read", are writt
 | Words on the site | Search the script for |
 |---|---|
 | The names of your pages in the menu | Each page's `title`, in its file in `content/` |
-| Tags, RSS (the menu), and Home (the menu's first link with `MASTHEAD="none"`, and the first link above the title of a page in a folder) | `>Tags</a>`, `>RSS</a>`, `>Home</a>`, which finds three lines: the menu's, the one above the title, and the one on the "page not found" page |
+| Tags, RSS (the menu), and Home (the menu's first link with `MASTHEAD="none"`, and the first of the breadcrumbs) | `>Tags</a>`, `>RSS</a>`, `>Home</a>`, which finds three lines: the menu's, the breadcrumbs', and the one on the "page not found" page |
 | The footer's link labels and small print | The `FOOTER_LINKS` and `FOOTER_TEXT` settings |
 | Search (the button), and the empty search box's grey hint | `>Search</button>` and `placeholder="Search"` |
 | nothing matches, search is unavailable | The words themselves |
@@ -935,19 +914,19 @@ The example post, `content/hello-world.md`, shows all of these and more: tables,
 
 ### Links
 
-**To another post**, write `@/` and the file's path inside `content/`: `[the second post](@/second-post.md)`. The link comes out right whatever your site's address, and if the file doesn't exist the build stops, so a typo can't reach the published site: the preview with `Broken relative link`, and `./build` naming the file and line.
+**To another post**, write `@/` and the file's path inside `content/`: `[the second post](@/second-post.md)`. The link comes out right whatever your site's address, and if the file doesn't exist, `./build` stops, naming the file and line, so a typo can't reach the published site. The preview names it in the terminal instead, with Zola's `Broken relative link`, and shows the page with the link dead, so you can go on writing and fix it when you're ready.
 
 **Not like this:** `[the second post](second-post.md)` or `[the second post](./second-post.md)`. Zola doesn't turn a path to a `.md` file into the address of its page, so the link points at a file that isn't published, and readers get a "page not found". `./build` stops on a link like that, and names the `@/` link to write instead. Links to your own pages start with `@/`, Zola's own sign for "find this file and link to its page", and the path after it starts from the `content` folder, wherever the page with the link is. (In book mode it's the other way round: pages are linked by file name, as in mdBook; see "Links between pages".)
 
 **To a folder's page**, name its `_index.md`: `[the projects](@/projects/_index.md)`.
 
-**To a heading.** Every heading gets an id made from its text, so `## Ingredients and tools` gets `#ingredients-and-tools`. Link to it in the same post with `[the ingredients](#ingredients-and-tools)`, or in another post with `[the method](@/recipes/sourdough.md#method)`. The build also stops if a heading named in an `@/` link doesn't exist. If you might reword a heading later, give it a fixed id so links to it keep working:
+**To a heading.** Every heading gets an id made from its text, so `## Ingredients and tools` gets `#ingredients-and-tools`. Link to it in the same post with `[the ingredients](#ingredients-and-tools)`, or in another post with `[the method](@/recipes/sourdough.md#method)`. `./build` also stops if a heading named in an `@/` link doesn't exist; the preview lists it and carries on. If you might reword a heading later, give it a fixed id so links to it keep working:
 
 ```markdown
 ## Ingredients and tools {#ingredients}
 ```
 
-**To other websites**, write ordinary links. They open in a new tab, and Zola adds `rel="noopener nofollow noreferrer external"` to each one. That stops the other site learning which of your pages the reader came from, and tells search engines the link isn't an endorsement. A link written in HTML, `<a href="https://…">`, opens in a new tab too, though Zola adds nothing else to it; write its address in double quotes, which is what the blog looks for.
+**To other websites**, write ordinary links. They open in a new tab, and Zola adds `rel="noopener nofollow noreferrer external"` to each one. That stops the other site learning which of your pages the reader came from, and tells search engines the link isn't an endorsement. A link written in HTML, `<a href="https://…">`, opens in a new tab too, though Zola adds nothing else to it; write its address in double quotes, which is what the blog looks for. A link to one of your own pages stays in the same tab, however it's written.
 
 **An address on its own is a link too.** `https://example.com`, pasted into a sentence as it is, becomes a link that shows the address, the same as `<https://example.com>`, and opens in a new tab like other links to other sites. A full stop, comma or closing bracket straight after it stays outside the link, unless the bracket belongs to the address, as in some Wikipedia addresses. It needs the `https://` or `http://` at the front: for `example.com` alone, write `<https://example.com>`, or give it words, as in `[the dictionary entry](https://example.com)`. An address in code, between backticks or in a code example, stays plain text.
 
@@ -955,7 +934,9 @@ Headings don't have link symbols beside them. To get a link to a section, open t
 
 ### Broken links
 
-`./build` checks the links in your posts before it builds anything, and if any is broken, it stops and lists each one, by file and line. Every run of the script runs `./build` too, and so does the build on GitHub, so a broken link stops all three with the same list. For example, after adding two links written the way another app might write them:
+A broken link never reaches the published site, but it doesn't stop you working either. `./build`, every run of the script, and the build on GitHub refuse a site with a broken link. The preview shows it, with the link dead, and names it in the terminal, so you see every change you make while you fix it.
+
+`./build` checks the links in your posts before it builds anything, and if any is broken, it stops and lists each one, by file and line. The build on GitHub runs the same file, so a broken link stops it with the same list. For example, after adding two links written the way another app might write them:
 
 ```
 content/hello-world.md:120: second-post.md
@@ -968,14 +949,30 @@ stopped: 2 broken links, listed above. fix them, then run ./build again.
 
 Each break takes two lines: where the link is (the file, the line, and the link as you wrote it), then what's wrong, usually with what to write instead. It stops on:
 
-- an `@/` link, or a video's `src`, naming a file that isn't in `content/`. Zola stops on these too, but only at the first, and without its line;
-- an `@/` link, or a video's `src`, naming a file in `content/attachments/` while that folder's `_index.md` is missing or says `render = false`. Zola then publishes nothing in the folder, and stops with `Broken relative link` even though the file is there;
+- an `@/` link, or a video's `src`, naming a file that isn't in `content/`;
+- an `@/` link, or a video's `src`, naming a file in `content/attachments/` while that folder's `_index.md` is missing or says `render = false`. Zola then publishes nothing in the folder, so the link is broken even though the file is there;
 - an `@/` link written in HTML, such as `<a href="@/second-post.md">`: Zola reads `@/` only in Markdown, and leaves this one as it is;
 - a link to a `.md` file without `@/` (see "Links");
 - a picture or other file named from a page's own folder, such as `![tea](tea.jpg)` in `content/hello-world.md`. The page looks for it under its own address, `/hello-world/tea.jpg`, where nothing is published. Only a page that is a folder's `index.md` or `_index.md` has its files published beside it;
 - on a site at an address with a path, such as `John.github.io/notes`, a link starting with `/`, which leads out of the blog (see "Pictures, GIFs and video").
 
-Drafts aren't checked, since they aren't published. A link to a heading (`#...`) is left to Zola, which checks every one as it builds and lists any that's missing. A link written as an address, such as `../second-post/`, isn't checked by anything, so write links to your own pages with `@/`.
+Then Zola builds the site, and checks every link to a heading (`#...`) and every `@/` link again. If one is missing, Zola names it, and `./build` stops with:
+
+```
+stopped: the broken link(s) named above lead nowhere. fix them, then run ./build again. nothing was published.
+```
+
+Drafts aren't checked, since they aren't published. A link written as an address, such as `../second-post/`, isn't checked by anything, so write links to your own pages with `@/`.
+
+**In the preview.** `./serve` doesn't run that first check, and Zola only warns about a broken `@/` link or heading link there: each rebuild prints a `WARN` line naming it, and the page shows with the link leading nowhere. Fix it, save, and the warning goes. Before you push, run `./build`: it's the one that decides.
+
+**When the script is run.** A run of the script runs `./build` before it starts the preview. If that stops, the run says:
+
+```
+the build stopped, as the deploy would: nothing will be published until what's named above is fixed. the preview starts anyway, and shows each change as you make it.
+```
+
+and starts the preview, so you can fix the link and watch it. With `START_PREVIEW=false`, or when the run isn't in a terminal, there's no preview to start, and the run stops there with an error.
 
 ### Code examples
 
@@ -1128,7 +1125,7 @@ To make that Projects page:
 
    Saved as `content/projects/tool-a.md`, it's published at `/projects/tool-a/`. Save `tool-b.md` beside it the same way, with `weight = 20`. Lighter weights come first, as on the home page; see "Ordering posts". `./new` makes only posts, so write a child's file yourself.
 
-3. **Look at it.** With the preview running, open `http://127.0.0.1:1111/projects/`. It shows the title and your text, then a numbered list: Tool A first, Tool B second. Each title opens its page. Above each child's title is Home › Projects, links to the home page and back to this page. At the bottom of each child are Previous and Next links, which go between Tool A and Tool B, within this list, and the All posts link, which goes to the home page. The Projects page itself has none.
+3. **Look at it.** With the preview running, open `http://127.0.0.1:1111/projects/`. It shows the title and your text, then a numbered list: Tool A first, Tool B second. Each title opens its page. Above each child's title is Home › Projects ›, links to the home page and back to this page. At the bottom of each child are Previous and Next links, which go between Tool A and Tool B, within this list, and the All posts link, which goes to the home page. The Projects page itself has none.
 
 The home page lists the parent by itself, with no link to write, numbered among your posts by the `weight` in its `_index.md`: with `weight = 25`, Projects comes between the posts weighing 20 and 30. On an equal weight the folder comes first, and a folder without a weight comes before every post. Child pages aren't in the home page's list; their parent's page lists them. The posts' Previous and Next links skip the folder: they go from post to post. To keep a parent off the home page, put it in the menu instead, by adding `projects` to `MENU_PAGES`: a folder in the menu isn't in the list. See "Adding a page to the menu".
 
@@ -1159,7 +1156,7 @@ In every other way a child is like a post: tags and search work the same, and a 
 
 Two variations:
 
-- **Children of a child.** Make the child a folder with an `_index.md` too, such as `content/projects/suite/_index.md`, and put its own children in that folder. The parent's list numbers it among the parent's own child pages by the `weight` in its `_index.md`, as the home page does, and its children's Previous and Next links stay within its own list. Its children show both folders above their titles, after Home: Home › Projects › Suite.
+- **Children of a child.** Make the child a folder with an `_index.md` too, such as `content/projects/suite/_index.md`, and put its own children in that folder. The parent's list numbers it among the parent's own child pages by the `weight` in its `_index.md`, as the home page does, and its children's Previous and Next links stay within its own list. Its children show both folders above their titles, after Home: Home › Projects › Suite ›.
 - **A folder of posts.** To show a folder's pages in the home page's list as well, as posts, add `transparent = true` to the folder's `_index.md`. They're then numbered among the posts by their weights, their Previous and Next links follow the home page's order, and the folder's own page still lists them. The folder itself isn't in the home page's list then, since its pages are. Nor is a folder inside it; that inner folder's pages get Previous and Next links within its own list only. Like posts, its pages show nothing above their titles, not even Home.
 
 ### Pages that aren't posts
@@ -1236,7 +1233,7 @@ A blog is a list of dated posts. Some sites aren't: a reference, a manual, a set
 
 Both kinds of site order their pages by weight; the difference is who writes the numbers. Zola sorts a list only by something written in each page, a `weight`, a `date` or a title, never by the order of lines in some other file, so an outline can reach it only through a program that turns each of its links into a weight in a page. In book mode that program is `./genbook`, which is why `content/` is made and not yours to edit. A blog has no program in between: Zola reads your posts as you wrote them, so each post's place sits in its own front matter, beside its date and tags. Choose a blog when posts need dates, the feed, tags or drafts. Choose a book when they don't, and you want the whole order in one file, changed by moving a line, with Previous and Next running through every part.
 
-What readers get: a home page with the outline, as you wrote it; each page with its title, its text, a Contents box when it has two or more headings, a list of the pages under it when the outline puts any there, and Previous and Next in the outline's order, with a Home link between them; unlisted pages, which search finds but the outline doesn't show; the search box, over every page but the menu's; and the keyboard shortcuts. Publishing works as for a blog, and so do the design settings, the footer, the preview, and `./build`.
+What readers get: a home page with the outline, as you wrote it; each page with breadcrumbs above its title showing where it sits in the outline, its title, its text, a Contents box when it has two or more headings, a list of the pages under it when the outline puts any there, and Previous and Next in the outline's order, with a Home link between them; unlisted pages, which search finds but the outline doesn't show; the search box, over every page but the menu's; and the keyboard shortcuts. Publishing works as for a blog, and so do the design settings, the footer, the preview, and `./build`.
 
 ### Turning it on
 
@@ -1266,7 +1263,7 @@ book/attachments/     pictures, GIFs and videos; demo.svg to start
 
 Each page is a plain Markdown file. Its first line is its title, written as a heading, `# Hello world`; everything after that is the page. A page without that line takes its title from the outline's link to it, or else from its file name, with dashes as spaces: `tea-hills.md` is "Tea hills". There's no front matter. Headings inside the page use `##` to `######`, as in a post. Pictures, GIFs and videos go in `book/attachments/`; see "Pictures, GIFs and video in a book".
 
-A file's name is its page's address: `book/hello-world.md` is published at `/hello-world/`. A name takes letters, digits, `-` and `_`; use lowercase letters and dashes, as for a post. A name with a space or other sign in it would be a page no link could reach, so the build stops and suggests one:
+A file's name is its page's address: `book/hello-world.md` is published at `/hello-world/`. A name takes letters, digits, `-` and `_`; use lowercase letters and dashes, as for a post. A name with a space or other sign in it would be a page no link could reach, so `./build` stops and suggests one:
 
 ```
 these files in book/ have names that can't be a page's address, which takes letters, digits, - and _:
@@ -1274,9 +1271,11 @@ these files in book/ have names that can't be a page's address, which takes lett
 rename them, and the links to them. nothing has been changed.
 ```
 
+The preview prints the same list, ending `rename them, and the links to them; until then, the preview leaves them out.` instead, and goes on without those pages.
+
 Every `.md` file in `book/` is built, whether anything links to it or not. One the outline links is in the outline, with Previous and Next. One named in `MENU_PAGES` is in the menu. Any other is unlisted: it's published at its own address and search finds it, but nothing lists it, so readers reach it only through your links, as the About page links to the colophon.
 
-`content/` is made from `book/` by `./genbook`, a helper the script writes in book mode, which `./build` and `./serve` run first (on GitHub too: `content/` isn't committed, and the build there makes it again). Never write in `content/` yourself: a file put there by hand stops the build, named, so nothing of yours is deleted. For each page, `./genbook` writes the file Zola needs, with the title and the page's place as its front matter, and the outline as the home page's text. The files it writes carry a marker on their second line, `# genbook: made from book/hello-world.md, whose line 2 is line 8 here; edit that file, not this one`, which is how it tells its own files from yours, and how `./build` names the line in `book/` when a link is broken. It writes only the files that changed, so the preview reloads only for those.
+`content/` is made from `book/` by `./genbook`, a helper the script writes in book mode, which `./build` and `./serve` run first (on GitHub too: `content/` isn't committed, and the build there makes it again). Never write in `content/` yourself: a file put there by hand stops the build, named, so nothing of yours is deleted. For each page, `./genbook` writes the file Zola needs, with the title, the page's place and its breadcrumbs as its front matter, and the outline as the home page's text. The files it writes carry a marker on their second line, `# genbook: made from book/hello-world.md, whose line 2 is line 8 here; edit that file, not this one`, which is how it tells its own files from yours, and how `./build` names the line in `book/` when a link is broken. It writes only the files that changed, so the preview reloads only for those.
 
 ### The outline
 
@@ -1303,7 +1302,7 @@ Every `.md` file in `book/` is built, whether anything links to it or not. One t
 - A `# Title` on the first line is the outline's title and isn't shown, as in mdBook; the site's name is `SITE_TITLE`. Any other `#` heading shows as `##`, because each page's one top heading is the site's name.
 - A link to a page is its file name, `alpha.md` or `./alpha.md`, with an optional `#heading` after it. Its words are what the outline shows, and what Previous and Next show for the page: when they differ from the page's title, as with `[Genesis](./genesis.md)` for a page titled "Genesis: Bibliography", Previous and Next show "Genesis", and the page itself shows its full title.
 - `- [Name]()`, mdBook's way of writing a chapter that isn't written yet, shows as the name alone.
-- A link to a file that isn't in `book/`, or one with a folder in it, such as `../alpha.md`, is broken, and the build stops and lists it with its line: `book/SUMMARY.md, line 7: a link to zeta.md, and there is no book/zeta.md`.
+- A link to a file that isn't in `book/`, or one with a folder in it, such as `../alpha.md`, is broken, and `./build` stops and lists it with its line: `book/SUMMARY.md, line 7: a link to zeta.md, and there is no book/zeta.md`.
 
 **Pages under a page.** Items indented under a page's item, as Alpha's details is under Alpha above, are that page's children: the home page shows them nested under it, and the page lists them at its foot, styled as the outline is, under its own text. Children can have children of their own, to any depth, and they keep their place in Previous and Next. For a long list, put `<!-- fold -->` at the end of the parent's line:
 
@@ -1332,9 +1331,29 @@ The home page then shows Saws alone, and the Saws page lists its children. They 
 
 A heading and a list under the same heading count on together, as above: Settings follows First run as 1.3. Deep outlines reach four numbers quickly, so keep the headings to the levels you need. Each page's title on its own page carries its number too: the Dark page's title reads "1.3.1.1 Dark". Without it, the outline shows the bullets and numbers you wrote.
 
+### Breadcrumbs in a book
+
+Above each page's title is a line that shows where the page sits in the outline: Home, then every heading above the page and every item it's indented under, outermost first, each followed by ›, the last one leading into the title. With `OUTLINE_NUMBERS=true` they carry their numbers. In this outline:
+
+```markdown
+## Theology
+
+- Systematic Theology
+    - Methodology
+        - [Hermeneutics](./hermeneutics.md)
+    - [Doctrine of God](./god.md)
+        - [Attributes](./attributes.md)
+```
+
+With `OUTLINE_NUMBERS=true`, the Hermeneutics page shows Home › 1. Theology › 1.1 Systematic Theology › 1.1.1 Methodology ›, and the Attributes page shows Home › 1. Theology › 1.1 Systematic Theology › 1.1.2 Doctrine of God ›.
+
+Home, and an item that is a page, such as Doctrine of God, are links to that page. A heading, or an item with no page of its own, such as Systematic Theology, is plain words: there's no page to go to. To give one a page, write the page and link it from that item, as Doctrine of God is; it's then a link in the breadcrumbs, and the page lists the pages under it at its foot.
+
+A page at the top of the outline, with no heading above it and not indented under anything, shows no breadcrumbs, and nor do menu pages and unlisted pages. `<!-- fold -->` doesn't change a page's breadcrumbs. `SHOW_BREADCRUMBS=false` leaves them all out.
+
 ### Links between pages
 
-Write a link to another page by its file name, as in mdBook: `[the spec](./spec.md)`, or to a heading in it, `[the method](./spec.md#method)`. `./spec.md` is the form that works everywhere: GitHub's file view follows it, and editors such as VS Code and Kate open the file on Ctrl+click. `spec.md` and Zola's `@/spec.md` work the same. `./genbook` turns each into the site's own link, so it comes out right whatever the site's address. A link that leads nowhere stops the build, and every one in the book is listed, by file and line, before it stops:
+Write a link to another page by its file name, as in mdBook: `[the spec](./spec.md)`, or to a heading in it, `[the method](./spec.md#method)`. `./spec.md` is the form that works everywhere: GitHub's file view follows it, and editors such as VS Code and Kate open the file on Ctrl+click. `spec.md` and Zola's `@/spec.md` work the same. A link to `./SUMMARY.md` leads to the home page, which shows the outline. `./genbook` turns each into the site's own link, so it comes out right whatever the site's address. A link that leads nowhere stops `./build`, and every one in the book is listed, by file and line, before it stops:
 
 ```
 book/second-page.md, line 37: a link to ./nope.md, and there is no book/nope.md
@@ -1344,7 +1363,9 @@ book/second-page.md, line 37: a link to ./attachments/none.jpg, and there is no 
 fix what's listed above, then run this again. nothing has been changed.
 ```
 
-The link check in `./build` (see "Broken links") names the file and line in `book/` too, not a line of the file `./genbook` made. A link in a code example or between backticks is left as it is. Links to other websites are written as in a post, and open in a new tab; see "Links". `[label]: ./file.md` on a line of its own, the other way Markdown writes a link, works too.
+The preview prints the same list each time you save, ending `the preview shows the pages with these links dead; ./build won't publish until they're fixed.` instead, and shows the pages with those links leading nowhere. A link to a page the outline names but that isn't written yet is listed the same way.
+
+The link check in `./build` (see "Broken links") names the file and line in `book/` too, not a line of the file `./genbook` made, and so do Zola's own messages, in `./build` and in the preview. A link in a code example or between backticks is left as it is. Links to other websites are written as in a post, and open in a new tab; see "Links". `[label]: ./file.md` on a line of its own, the other way Markdown writes a link, works too.
 
 ### Pictures, GIFs and video in a book
 
@@ -1354,7 +1375,7 @@ Pictures, GIFs and videos go in `book/attachments/`, and a page links them from 
 ![Hills at sunrise, seen from the ridge](./attachments/tea-hills.jpg)
 ```
 
-A video is written as in a post, `{{<video src="attachments/tea-bus.mp4" />}}`. `./genbook` copies each file to `content/attachments/`, where Zola publishes it, and copies it again only when it changes, so a big video isn't copied on every save. A link to a file that isn't in `book/attachments/` stops the build, as above. The commit hook cleans what you commit in `book/attachments/`, as it does in a blog; see "Pictures, GIFs and video".
+A video is written as in a post, `{{<video src="attachments/tea-bus.mp4" />}}`. `./genbook` copies each file to `content/attachments/`, where Zola publishes it, and copies it again only when it changes, so a big video isn't copied on every save. A link to a file that isn't in `book/attachments/` stops `./build`, as above. Remove pictures' hidden data before you commit them, as in a blog; see "Pictures, GIFs and video".
 
 **The About page's photo.** Put a picture alone on the first line of `book/about.md` after its title, and it becomes the round photo at the top of the page:
 
@@ -1370,23 +1391,27 @@ Zola shrinks it to a small square, as in a blog; an SVG drawing is shown as it i
 
 ### Menu pages
 
-`MENU_PAGES` names files in `book/`: with the default, `"about"`, the About page is `book/about.md`, and `MENU_PAGES="about now"` adds `book/now.md`, which the first run makes as a starter. A menu page is written like any other page. The outline can link to it too; it stays in the menu, out of Previous and Next. A menu page gets no Contents box. The About page's photo is a picture on its first line; see "Pictures, GIFs and video in a book". A name in `MENU_PAGES` with no file stops the build: `MENU_PAGES names now, and there is no book/now.md`.
+`MENU_PAGES` names files in `book/`: with the default, `"about"`, the About page is `book/about.md`, and `MENU_PAGES="about now"` adds `book/now.md`, which the first run makes as a starter. A menu page is written like any other page. The outline can link to it too; it stays in the menu, out of Previous and Next. A menu page gets no Contents box. The About page's photo is a picture on its first line; see "Pictures, GIFs and video in a book". A name in `MENU_PAGES` with no file stops `./build`: `MENU_PAGES names now, and there is no book/now.md`. It stops the preview too, because every page's menu links to it, so no page could be built: `every page's menu links to the menu pages, so none can be shown: put the file back, or take its name out of MENU_PAGES and run the setup script again.`
 
 ### Adding, unlisting, renaming and removing a page
 
 - **Add a page**: save the file in `book/`, and link to it from `book/SUMMARY.md` where it belongs. Left unlinked, it's an unlisted page. `./new` is a blog's helper; in book mode it only says this and stops.
 - **Unlist a page**: take its link out of the outline, and link to it from somewhere else.
-- **Rename a page**: rename the file and change every link to it; the build stops on each one that still names the old file. Its address changes with the file's name.
+- **Rename a page**: rename the file and change every link to it; `./build` stops on each one that still names the old file. Its address changes with the file's name.
 - **Remove a page**: delete the file and every link to it.
 
 ### The preview
 
-`./serve` runs `./genbook`, starts the preview, and then checks `book/` every second: when a file there changes, is added or is deleted, it runs `./genbook` again, and the preview reloads the page by itself, a second or two after you save. If `./genbook` stops, at a broken link say, its message appears in the terminal where `./serve` runs, the preview keeps the last good version, and the next save tries again. Ctrl+C stops both. `./genbook` prints one line each time it's done, `made content/ from book/: 5 pages, 1 unlisted, 1 in the menu`. Only one `./genbook` runs at a time, so a `./build` in another terminal while the preview runs waits for it rather than clashing.
+`./serve` runs `./genbook --preview`, starts the preview, and then checks `book/` every second: when a file there changes, is added or is deleted, it runs `./genbook --preview` again, and the preview reloads the page by itself, a second or two after you save. `--preview` is what keeps the preview going while something is wrong: a broken link, a page the outline names that isn't written yet, or a file whose name can't be an address is listed in the terminal, and the pages are written anyway, the link left dead and the misnamed file left out. `./build` runs `./genbook` without it, and stops on the same list. Ctrl+C stops both. `./genbook` prints one line each time it's done, `made content/ from book/: 5 pages, 1 unlisted, 1 in the menu`. Only one `./genbook` runs at a time, so a `./build` in another terminal while the preview runs waits for it rather than clashing.
+
+Three things stop the preview as well, because carrying on would delete your files or break every page: a file in `content/` that `./genbook` didn't write, a name in `MENU_PAGES` with no file, and a page called `unlisted.md` or `attachments.md`. The preview then keeps the last good version, and the next save tries again. So does a video or About photo naming a file that isn't there, which Zola stops on; see "Pictures, GIFs and video".
+
+**A change to many files at once is slow to show.** Zola's preview rebuilds the whole site once for each file that changes in `content/`, one after another, even when they all change at the same moment. A search-and-replace across `book/`, renaming a heading in the outline (every page under it gets new breadcrumbs), or adding or moving a page (every page after it gets a new place) can change dozens of files, and the terminal then prints `Content changed` for each while the preview catches up. Wait for it to finish, or, before a big change, stop `./serve` with Ctrl+C and start it again after: starting builds the site once.
 
 ### What's different from a blog
 
 - No dates, so no date line, and `SHOW_READING_TIME`, `SHOW_HISTORY_LINK` and `SHOW_SUGGEST_EDIT` do nothing. `GENERATE_FEEDS` and `ENABLE_TAGS` have to be `false`, so there's no feed, no RSS link and no Tags link.
-- `SHOW_BREADCRUMBS` does nothing: a book has no folders of pages. Pages under a page are listed at its foot instead.
+- `SHOW_BREADCRUMBS` follows the outline, not folders: a book has no folders of pages. See "Breadcrumbs in a book".
 - Every page in the outline, and every unlisted page, gets a Contents box when it has two or more headings, or one with sub-headings, while `SHOW_TOC` is on. Menu pages don't.
 - The link between Previous and Next reads Home, not All posts.
 - The outline's links, and a page's list of the pages under it, keep the colour of the text, followed or not, as a blog's list does.
@@ -1480,7 +1505,7 @@ The rest of this guide is for looking things up.
 
 ### Running the script again
 
-Running the script again is how every change to a setting is applied; there's nothing else to learn. It finds the existing blog, rewrites the script-owned files from the current settings, and leaves `content/` (in book mode, `book/`), the rest of `static/` and a `README.md` you've edited alone. Then it builds the site with `./build`, and stops there if a link is broken, before the preview. It doesn't make a new folder, and it asks GitHub for nothing: it uses the Zola in `~/.local/bin` and the releases the workflow pins. Only `update` looks for newer ones; see "Updating and removing Zola". It also puts the commit hook back if it's missing, as it is in a fresh clone. It never commits, on this run or the first: what to commit is yours to choose.
+Running the script again is how every change to a setting is applied; there's nothing else to learn. It finds the existing blog, rewrites the script-owned files from the current settings, and leaves `content/` (in book mode, `book/`), the rest of `static/` and a `README.md` you've edited alone. Then it builds the site with `./build`; if that stops, on a broken link say, it says so and starts the preview anyway (see `START_PREVIEW`). It doesn't make a new folder, and it asks GitHub for nothing: it uses the Zola in `~/.local/bin` and the releases the workflow pins. Only `update` looks for newer ones; see "Updating and removing Zola". It never commits, on this run or the first: what to commit is yours to choose.
 
 Your own files, in `content/` and `static/`, are written once, on the first run, and never touched again. Delete the example posts, replace `avatar.svg`, add fonts: nothing a re-run does will undo it.
 
@@ -1530,9 +1555,47 @@ Your settings live in the script, so a new copy of the script starts with the de
 
 Then run the new script against the blog's folder, with the same `PROJECT_DIR` and `BLOG_NAME`. It rewrites the script-owned files, and stops first if you edited one of them by hand; see "The hand-edit check".
 
-This guide covers upgrading a blog made with v122, v121, v120, v119, v118, v117, v116 or v115. A blog made with v108 to v114 upgrades the same way, and v49's guide lists what those versions changed; a blog made with v28 to v35, or with v96 to v107, upgrades the same way too, since nothing those versions rely on has been removed, but what the versions since then changed is listed in the guides that came with them. The numbers jump from v35 to v96 because they now also count the versions from before the script's numbering was restarted: v96 is the version that came after v35. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
+This guide covers upgrading a blog made with any version from v115 to v129. A blog made with v108 to v114 upgrades the same way, and v49's guide lists what those versions changed; a blog made with v28 to v35, or with v96 to v107, upgrades the same way too, since nothing those versions rely on has been removed, but what the versions since then changed is listed in the guides that came with them. The numbers jump from v35 to v96 because they now also count the versions from before the script's numbering was restarted: v96 is the version that came after v35. For a blog made with an older version, run v28's script against it first, and follow the notes in v28's guide for the version the blog was made with.
 
-What changes from v122:
+What changes from v129:
+
+- **The commit hook is gone.** v120 to v129 installed `.git/hooks/pre-commit`, which cleaned pictures with exiftool as you committed them, and stopped a commit when exiftool wasn't installed. The script no longer writes it, and the first run of v130 deletes it if it's the one the script wrote, saying `removed .git/hooks/pre-commit, the commit hook v120 to v129 installed to clean pictures`. A hook of your own there stays. Remove pictures' hidden data yourself before you commit them; see "Pictures, GIFs and video".
+- **If git's `core.hooksPath` is set**, a folder of hooks every repository shares (`git config --global core.hooksPath` prints it), v120 to v129 wrote the hook there instead, where it runs on every commit in every repository. v130 never reads or writes that folder: open its `pre-commit`, and if its second line is `# zola-blog-setup: strips location and camera data from the pictures and videos`, delete the file.
+- **`./attach`**, if a blog from v119 or older still has it, goes with `removed ./attach, which this script no longer writes`.
+- The run rewrites `.gitignore` (one comment) and `.zola-blog-setup.manifest`, so commit them.
+
+And from v128, if the site was made with that:
+
+- **Book mode: a breadcrumb that isn't a page is plain words again.** v128 made a heading or an item with no page a link to its line in the outline; only a page is a link now. See "Breadcrumbs in a book".
+- The run rewrites `templates/base.html` and `.zola-blog-setup.manifest`, and in a book `genbook`, so commit them.
+
+And from v127, if the site was made with that:
+
+- **The breadcrumbs have more room**: each › sits at the end of its crumb, so a line that wraps starts with a crumb, and there's more space between lines and above the title.
+- **Book mode: a `* * *` line in the outline stays a dividing line**; v126 and v127 made it a list item.
+- **Book mode: `./genbook` is faster** on a big outline, and its temporary folder, now `.genbook-` and some letters, no longer makes the preview rebuild the whole site an extra time. `.gitignore` gains `/.genbook-*`.
+- The run rewrites `templates/base.html` and `.zola-blog-setup.manifest`, and in a book `.gitignore` and `genbook`, so commit them.
+
+And from v126, if the site was made with that: the last breadcrumb ends in ›, leading into the title, in a blog too.
+
+And from v125, if the site was made with that: **book mode: the breadcrumbs follow the whole outline**, every heading and item a page sits under, not only the pages; a page under `## Part one` in a book without numbers now shows Home › Part one ›.
+
+And from v124, if the site was made with that:
+
+- **The preview no longer stops on a broken link.** It shows the page with the link dead and names the link in the terminal; `./build`, a run of the script and the build on GitHub still refuse it. In a book, `./serve` runs `./genbook --preview`, which lists broken links, pages the outline names that aren't written yet, and misnamed files, and writes the pages anyway. See "Broken links" and "The preview".
+- **A run of the script starts the preview even when its build stops**, saying so, as long as there's a preview to start.
+- **Zola's warnings show**, in `./serve` and `./build`: before, Zola printed none about broken links. `./build` now stops on Zola's broken-heading-link warning too, with `stopped: the broken link(s) named above lead nowhere`.
+- **Book mode: Zola's messages name the file in `book/`**, not the one `./genbook` made in `content/`.
+- The run rewrites `zola.toml` (it gains a `[link_checker]` part), `serve`, `build`, in a book `genbook`, and `.zola-blog-setup.manifest`, so commit them.
+
+And from v123, if the site was made with that:
+
+- **Book mode: breadcrumbs**, which a book didn't have.
+- **Book mode: a link to `./SUMMARY.md` leads to the home page**; before, it stopped the build.
+- **Links to your own pages stay in the same tab.** v123 opened every link written in HTML in a new tab, and Zola writes an `@/` link as a full address, so links to your own pages opened in a new tab too.
+- The run rewrites `templates/base.html`, `components.html`, `index.html`, `page.html` and `section.html`, in a book `genbook`, and `.zola-blog-setup.manifest`, so commit them.
+
+And from v122, if the site was made with that:
 
 - **The script makes no commits at all**, on a new blog either: the first run prints `nothing is committed: check what's in the folder, then commit it yourself`, and you make the first commit, as in "Your first blog", step 6. A blog that's already committed is unaffected.
 - **Every link to another site opens in a new tab**, a link written in HTML in a post (`<a href="https://…">`) included: Zola does it only for links written in Markdown. An email link doesn't.
@@ -1554,7 +1617,7 @@ And from v120, if the site was made with that:
 And from v119, if the site was made with that:
 
 - **Keyboard shortcuts**: ← and → follow Previous and Next, and ↑, ↓ and Enter move through and open search results, with tooltips on the links that name them. See "Keyboard shortcuts".
-- **`./attach` is gone.** The commit hook removes pictures' hidden data as you commit them instead, however they came into the folder, so install exiftool; see "Pictures, GIFs and video". The run says `removed ./attach: pictures and videos are cleaned as they're committed now`, and installs the hook.
+- **`./attach` is gone.**
 - **The type is set on an evener scale**: headings 1.8, 1.5 and 1.32rem, the blog's name 1.35em, and line spacing 1.45. See "Colours, sizes and typefaces".
 - **Book mode: the link between Previous and Next reads Home**, not Contents. `./genbook` writes only the files that changed, and only one runs at a time.
 
@@ -1633,7 +1696,7 @@ your blogs are as they were, and GitHub still builds each one with the zola its 
 the next run of this script downloads zola again. git, curl and python3 stay: this script didn't install them.
 ```
 
-With no Zola there, the first line is `there's no zola in /home/you/.local/bin`. git, curl and python3 came from your system, and other programs use them, so `remove` leaves them; so does it leave exiftool. To remove those too, `sudo apt remove` them yourself, if nothing else needs them.
+With no Zola there, the first line is `there's no zola in /home/you/.local/bin`. git, curl and python3 came from your system, and other programs use them, so `remove` leaves them. To remove those too, `sudo apt remove` them yourself, if nothing else needs them.
 
 **How the lookups reach GitHub.** GitHub answers 60 requests an hour from one address, and an `update` makes four (one without `GIT_REPO_URL`), so behind an address many people share (an office, a VPN, a Tor exit) the limit can run out: try again within the hour. No token is sent or needed, since everything the script asks is public. None of the script's own requests reads a config file, and none waits for ever: curl gives up after its time limits, and `git ls-remote`, which asks github.com which commit an action's tag names, gives up when a transfer stalls for a minute. curl runs with `-q`, so `~/.curlrc` doesn't apply, and `git ls-remote` runs without git's system, global and repository config, so no setting there can turn its security checks off or send it elsewhere. Both still take the environment's proxy and certificate settings: behind a proxy, set `https_proxy`; behind one that inspects encrypted traffic, add its certificate to the system's certificate store, or name it in `CURL_CA_BUNDLE` for curl and `GIT_SSL_CAINFO` for git. A proxy that lets only listed hosts through needs `api.github.com`, `github.com` and `release-assets.githubusercontent.com`, where GitHub sends release downloads; curl reports a refusal there as `The requested URL returned error: 403`, the line GitHub's limit gives too.
 
@@ -1732,6 +1795,8 @@ On a free account the repository is public, and so is everything in it: every fi
 
 **`still the examples the script came with, and GIT_REPO_URL will publish them: ...`.** A reminder, not an error: the run finished. The settings it names, or the About page, still have the values the script came with. Change them before you push; see "Before you publish".
 
+**`the build stopped, as the deploy would: nothing will be published until what's named above is fixed. the preview starts anyway, and shows each change as you make it.`** Not a failure of the run: `./build` stopped, on a broken link say, and the lines above name why. The run starts the preview so you can fix it and watch the page; run `./build` once it's fixed, before you push. See "Broken links".
+
 **`missing: python3. on Debian, Devuan or Ubuntu: sudo apt install python3`**, or another program. Install what it names with the command it gives, then run the script again. Nothing was changed. curl and python3 are needed for every run, and git once `GIT_REPO_URL` is set. The script runs each one to check it, so `missing: git` can appear while `/usr/bin/git` is there, as on Whonix, where that file is a wrapper whether git is installed or not; see "Whonix".
 
 **`this run is root's: run this as yourself, without sudo`.** The script was run as root, with `sudo` or `su`, or in a container whose user is root. Nothing it does needs root, and the files it made would be root's, so your next run couldn't change them. Run it as yourself. Nothing was changed.
@@ -1740,7 +1805,7 @@ On a free account the repository is public, and so is everything in it: every fi
 
 **`Permission denied`, naming a file or folder in the blog, or in `~/.local/bin`.** It isn't yours to change, usually because a run with `sudo` made it. Make the blog's folder yours again with `sudo chown -R "$(id -un)" ~/Desktop/myblog`, with your own blog folder in its place, or `sudo chown -R "$(id -un)" ~/.local` if that's what's named. Both print nothing. Then run the script again, which finishes the job.
 
-**`not a git repo; remote not updated`, `git not installed - skipping repo init (blog still works)`, or `git init failed - run manually later`.** The blog folder has no git repository of its own, usually because git wasn't installed when the blog was made. Install git if it isn't, then make the repository: from inside the blog folder, run `git init -b main`, which prints `Initialized empty Git repository in` and the folder's path. Then, once git knows your name and email (see "Your first blog", step 1), run `git add -A` and `TZ=UTC git commit -m "First commit"`, and run the script again. With `GIT_REPO_URL` set, it prints `added remote 'origin':` and the repository's address, and it installs the commit hook.
+**`not a git repo; remote not updated`, `git not installed - skipping repo init (blog still works)`, or `git init failed - run manually later`.** The blog folder has no git repository of its own, usually because git wasn't installed when the blog was made. Install git if it isn't, then make the repository: from inside the blog folder, run `git init -b main`, which prints `Initialized empty Git repository in` and the folder's path. Then, once git knows your name and email (see "Your first blog", step 1), run `git add -A` and `TZ=UTC git commit -m "First commit"`, and run the script again. With `GIT_REPO_URL` set, it prints `added remote 'origin':` and the repository's address.
 
 **`'...' exists but holds no zola.toml; move it aside or point BLOG_NAME somewhere else. nothing has been changed.`** A folder with that name is already there, and it isn't a blog made by this script, so the script won't write into it. Rename that folder, or choose another `BLOG_NAME`.
 
@@ -1755,8 +1820,6 @@ On a free account the repository is public, and so is everything in it: every fi
 **`templates/atom.xml was edited by hand, or not written by this script, so it's still here`.** The feed is built from it rather than from Zola's own template. Delete it to use Zola's, which the script's templates are written for.
 
 **`FAVICON_TEXT draws no favicon`.** `SITE_TITLE` has no letter A to Z or digit for `"auto"` to draw, or `FAVICON_TEXT` is `""`. Set it to up to three characters, or add `static/favicon.svg` yourself; see "Using your own favicon".
-
-**`.git/hooks/pre-commit is your own, so it's left as it is`.** You have a commit hook of your own, so the script doesn't install its own. Pictures you commit keep their hidden data unless you remove it; see "Pictures, GIFs and video".
 
 **`the zola in /home/you/.local/bin is 0.22.1, and this script's templates need a 0.23 release from 0.23.3 on: taking the newest`**, or other numbers. Not an error: the Zola there is one the templates aren't written for, so the run looks up the newest 0.23 release and puts it in its place, for every blog on this computer.
 
@@ -1802,33 +1865,35 @@ export PATH="$HOME/.local/bin:$PATH"
 
 #### Committing
 
-**`commit stopped: exiftool removes the location and camera data from pictures and videos before they're published.`** The commit has pictures or videos in it, and exiftool isn't installed. Install it, as the message says, and commit again; nothing was committed.
-
-**`commit stopped: exiftool couldn't clean one of: …`.** exiftool couldn't write one of the files named, usually because it's damaged, or isn't the kind of file its name says. Nothing was committed. Open the file to check it, save it again from an image editor, or take it out of the commit with `git restore --staged` and its path.
+**`commit stopped: exiftool removes the location and camera data from pictures and videos before they're published.`** A commit hook from v120 to v129 is still there. Run v130 against the blog, which deletes the one in `.git/hooks/`; if git's `core.hooksPath` is set, delete the one there yourself, as "Upgrading to a new version of the script" says. Nothing was committed.
 
 **`Author identity unknown`, from `git commit`.** git has no name and email, and with `user.useConfigOnly` set it won't make them up. Set them (see "Your first blog", step 1, and on Whonix, "Whonix"), then commit again. Nothing was committed.
 
 #### Previewing and building
 
-**`stopped: 2 broken links, listed above`, or another number.** `./build`, or a run of the script, found links that lead nowhere. Each is listed with its file and line, and what's wrong, usually with the link to write instead; see "Broken links". Fix them and run it again.
+**`stopped: 2 broken links, listed above`, or another number.** `./build` found links that lead nowhere. Each is listed with its file and line, and what's wrong, usually with the link to write instead; see "Broken links". Fix them and run it again.
+
+**`stopped: the broken link(s) named above lead nowhere. fix them, then run ./build again. nothing was published.`** Zola, building the site, found an `@/` link or a link to a heading that leads nowhere, and named it in a `WARN` line above. Fix the link and run `./build` again.
 
 **`./build` fails with "the page(s) named above produced no HTML".** A page at the top of `content/`, or a child page whose parent sorts by weight, has no `weight`, so Zola left it out while still listing its address in the sitemap. Give it a weight, or add `hidden = true` if it shouldn't be listed, as a page in the menu shouldn't; see "Pages that aren't posts".
 
 **``Page `now.md` not found`` or ``Section `projects/_index.md` not found``.** A page named in `MENU_PAGES` isn't there: the name is misspelt, or the page was moved, renamed or deleted after the script last ran. Run the script again, which finds where the page is now; if the page is gone, or the name is wrong, fix `MENU_PAGES` first.
 
-**`` Broken relative link `@/...` ``, or `Found 1 broken internal anchor link(s)`.** An `@/` link names a file or heading that doesn't exist. `./build` lists every missing file with its line; see "Broken links". Fix the link; the check is there to stop broken links reaching your site. Deleting `second-post.md` but keeping `hello-world.md`, which links to it, causes this too. For a picture, `@/attachments/...`, check that the file is in `content/attachments/` with exactly that name (capital letters count), and that `content/attachments/_index.md` is there and doesn't say `render = false`.
+**`` Broken relative link `@/...` ``, or `Found 1 broken internal anchor link(s)`.** An `@/` link names a file or heading that doesn't exist. In the preview this is a warning: the page shows with the link dead, and the warning goes once the link is fixed. `./build` stops on it, and lists every missing file with its line; see "Broken links". Deleting `second-post.md` but keeping `hello-world.md`, which links to it, causes this too. For a picture, `@/attachments/...`, check that the file is in `content/attachments/` with exactly that name (capital letters count), and that `content/attachments/_index.md` is there and doesn't say `render = false`.
 
 **``Variable `...` is not defined``, or ``Closing comment tag `#}` not found``, in a post.** The post contains `{{`, `{%` or `{#`, which Zola reads as template code. Wrap that part in `{% raw %}` and `{% endraw %}`; see "Code examples".
 
 **`` `resize_image`: Cannot find file: me.jpg ``.** The photo's path counts from the `content` folder, not from the page's own folder. Write `attachments/me.jpg`, not `me.jpg`.
 
-**`` `get_url`: could not resolve URL for link `@/attachments/...` not found ``.** A video line names a file that isn't in `content/attachments/`, or spells it differently. The path in `src` starts from the `content` folder, without `@/`: `src="attachments/tea-bus.mp4"`.
+**`` `get_url`: could not resolve URL for link `@/attachments/...` not found ``.** A video line names a file that isn't in `content/attachments/`, or spells it differently. The path in `src` starts from the `content` folder, without `@/`: `src="attachments/tea-bus.mp4"`. This one stops the preview too, until it's fixed.
 
 **A link to one of your own pages leads to "page not found".** It's written as a path to a `.md` file, such as `[child A](./child-a.md)`. Zola doesn't turn that into the page's address, so the link points at a file that isn't on the site. Write it with `@/` and the path from the `content` folder: `[child A](@/test/child-a.md)`. See "Links". `./build` stops on a link like that, naming its line; one written as an address, such as `../child-a/`, isn't checked.
 
 **`` unknown field `date` ``, about an `_index.md`.** A section's front matter, in an `_index.md`, doesn't take a `date`. Delete that line. Its children are the pages that have dates; see "Child pages".
 
 **A parent page doesn't list its children.** Its `_index.md` says `hidden = true`, which the children take on: delete that line. Or the file is `index.md`, without the underscore, which makes it an ordinary page: rename it `_index.md`. If the parent's own address is "page not found" while its children's pages work, the folder has no `_index.md` at all. See "Child pages".
+
+**After a change to many files at once, the preview takes a long time to catch up**, and the terminal prints `Content changed` for one file after another. Zola's preview rebuilds the whole site once for each file that changed, even when they all changed together, as after a search-and-replace across your writing. Wait for it to finish, or stop the preview with Ctrl+C before a big change and start it again after: starting builds the site once. In a book, renaming a heading in the outline, or adding or moving a page, also changes many files; see "The preview".
 
 **In the preview, the fonts, pictures or favicon are missing, and the browser's console says `Refused to load`.** The preview is open at an address other than the one `zola serve` printed, such as your computer's network address when it printed `127.0.0.1`. The security policy then counts the preview's own files as coming from elsewhere. Open the address it printed. To preview on another device, start the preview from inside the blog folder with `zola serve --drafts -i 0.0.0.0 -u` and your computer's network address, such as `zola serve --drafts -i 0.0.0.0 -u 192.168.1.5`, and open the address it prints, `http://192.168.1.5:1111`, on every device, this computer included. While it runs, anyone on the same network can open it too, drafts included, so leave out `--drafts` unless you trust the network, and stop it with Ctrl+C when you're done.
 
@@ -1876,7 +1941,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **A picture from another site doesn't show, in the preview or on the published site.** The security policy only lets pictures come from your own site; see "The security policy". The preview blocks them too, so you find out before publishing. Download the picture into `content/attachments/`, and link to it with `@/attachments/`.
 
-**A photo shows on its side.** The photo has no tag saying which way up it goes, or a program removed it before the photo reached the blog; the commit hook keeps it. Rotate the picture itself in an image editor and save it.
+**A photo shows on its side.** The photo has no tag saying which way up it goes, or a program removed it with the rest of the photo's hidden data. Rotate the picture itself in an image editor and save it.
 
 #### Getting it online
 
@@ -1921,15 +1986,15 @@ git remote set-url origin git@github.com:yourname/notes.git
 
 #### Book mode
 
-Every stop below ends `nothing has been changed.`: `./genbook` writes nothing into `content/` until everything has been read.
+When `./build` runs `./genbook`, every stop below ends `nothing has been changed.`: `./genbook` writes nothing into `content/` until everything has been read. In the preview, `./genbook --preview` prints the same list for broken links, missing pages and misnamed files, and writes the pages anyway; the stops that halt the preview too say so below.
 
 **`there's no book/SUMMARY.md, the outline the home page shows`.** `BOOK_MODE` is `true` and the outline is missing: the first run writes one, so it was moved or deleted. Put it back; "The outline" says what goes in it.
 
-**`book/SUMMARY.md, line 12: a link to gone.md, and there is no book/gone.md`**, or the same for a page, such as `book/alpha.md, line 15: a link to ./zeta.md, and there is no book/zeta.md`, ending `fix what's listed above, then run this again.` A link names a file that isn't in `book/`, by a misspelling or because the file was renamed or deleted. Fix the link, or make the file. One run lists every broken link in the outline and the pages. **`a link to ../zeta.md: the pages of this book are files in book/, linked as (./name.md)`** is the same for a link with a folder in it. See "Links between pages".
+**`book/SUMMARY.md, line 12: a link to gone.md, and there is no book/gone.md`**, or the same for a page, such as `book/alpha.md, line 15: a link to ./zeta.md, and there is no book/zeta.md`, ending `fix what's listed above, then run this again.` A link names a file that isn't in `book/`, by a misspelling or because the file was renamed or deleted. Fix the link, or make the file. One run lists every broken link in the outline and the pages. **`a link to ../zeta.md: the pages of this book are files in book/, linked as (./name.md)`** is the same for a link with a folder in it. See "Links between pages". In the preview the list ends `the preview shows the pages with these links dead; ./build won't publish until they're fixed.`, and the preview carries on.
 
-**`MENU_PAGES names now, and there is no book/now.md`.** Make the page, or take the name out of `MENU_PAGES`.
+**`MENU_PAGES names now, and there is no book/now.md`.** Make the page, or take the name out of `MENU_PAGES`. In the preview this one stops it too, with `every page's menu links to the menu pages, so none can be shown`, because every page's menu links to it.
 
-**`these files in book/ have names that can't be a page's address`**, then a list, each with a name to rename it to. A page's file name takes letters, digits, `-` and `_`, and nothing else. Rename each, and change the links to it.
+**`these files in book/ have names that can't be a page's address`**, then a list, each with a name to rename it to. A page's file name takes letters, digits, `-` and `_`, and nothing else. Rename each, and change the links to it. The preview leaves those pages out until you do.
 
 **`these files in content/attachments/ have the name of a different file in book/attachments/`**, then a list. A book from before v116 kept its pictures in `content/attachments/`, and `./genbook` moves them to `book/attachments/`, but these have the name of a different file already there. Keep one of each: delete it, or rename it and the links to it.
 
@@ -1937,9 +2002,9 @@ Every stop below ends `nothing has been changed.`: `./genbook` writes nothing in
 
 **`note: git still tracks files in content/`.** A book made before v116 committed `content/`, which `./genbook` now makes on every build. Run the command the note gives, `git rm -r -q --cached content`, once from inside the blog folder, then commit: it stops git tracking those files, and leaves them where they are.
 
-**`book/unlisted.md can't be a page: content/unlisted/ is a folder of the site`**, or the same for `attachments.md`. Rename the file, and the links to it.
+**`book/unlisted.md can't be a page: content/unlisted/ is a folder of the site`**, or the same for `attachments.md`. Rename the file, and the links to it. This stops the preview too.
 
-**`content/ is made from book/ by ./genbook, and these files in it weren't:`**, then a list. Something in `content/` other than `content/attachments/` wasn't written by `./genbook`: a page saved there by hand, a picture, or the posts of a site that was a blog before (see "A blog can't become a book"). A page goes in `book/`, and a picture, GIF or video in `book/attachments/`. Move each, then run it again.
+**`content/ is made from book/ by ./genbook, and these files in it weren't:`**, then a list. Something in `content/` other than `content/attachments/` wasn't written by `./genbook`: a page saved there by hand, a picture, or the posts of a site that was a blog before (see "A blog can't become a book"). A page goes in `book/`, and a picture, GIF or video in `book/attachments/`. Move each, then run it again. This stops the preview too, so nothing of yours is deleted.
 
 **`BOOK_MODE is true, but … was made as a blog: it has no book/`.** `BLOG_NAME` points at a blog, and a blog can't become a book (see "A blog can't become a book"). For a book, set `BLOG_NAME` to a new folder; to update the blog, set `BOOK_MODE=false`. Nothing was changed.
 
@@ -1949,7 +2014,9 @@ Every stop below ends `nothing has been changed.`: `./genbook` writes nothing in
 
 **A heading of the outline is missing from the home page.** It's the outline's first line, a `# Title`, which is the outline's title and isn't shown, as in mdBook. Put `# Summary` above it.
 
-**The preview doesn't show an edit.** `./serve` reruns `./genbook` within a second or two of each save in `book/`; if the terminal running it shows a stop, fix what it names and save again. An edit in `book/` while `./serve` isn't running shows once you start it.
+**A breadcrumb isn't a link.** It's a heading, or an outline item with no page of its own: there's nowhere for it to go. See "Breadcrumbs in a book".
+
+**The preview doesn't show an edit.** `./serve` reruns `./genbook --preview` within a second or two of each save in `book/`. If the terminal shows one of the stops that halt the preview (a `MENU_PAGES` name with no file, a file in `content/` that `./genbook` didn't write, a page called `unlisted.md` or `attachments.md`, or a missing video or photo), fix what it names and save again. After a change to many files at once, the preview is still catching up; see "After a change to many files at once" above. An edit in `book/` while `./serve` isn't running shows once you start it.
 
 **`./build` on GitHub fails, and the message is one of the above.** GitHub's build runs `./genbook` too, on the `book/` you pushed, so the stop is the same one `./build` gives on your computer. Run `./build` before you push.
 
@@ -1977,12 +2044,12 @@ Inside the blog folder:
 
 | Command | What it does |
 |---|---|
-| `./serve` | The preview, at `http://127.0.0.1:1111`, updating as you save, with drafts marked "(draft)". Ctrl+C stops it. |
+| `./serve` | The preview, at `http://127.0.0.1:1111`, updating as you save, with drafts marked "(draft)". A broken link is named in the terminal and left dead on the page. Ctrl+C stops it. |
 | `./build` | Checks the links in your posts, then builds the finished site into `public/`, without drafts. GitHub runs the same file. Stops with a message if a link is broken, naming its file and line, or if anything else would stop GitHub's build. |
 | `./new name-of-post` | Starts `content/name-of-post.md`, a draft at the end of the list, with its front matter filled in and a title made from the name. |
-| `./genbook` | Book mode only: makes `content/` from `book/`. `./build` runs it first, and `./serve` runs it again on each change in `book/`. See "Book mode". |
+| `./genbook` | Book mode only: makes `content/` from `book/`, stopping on a broken link. `./build` runs it first; `./serve` runs it as `./genbook --preview`, which lists broken links and writes the pages anyway, at the start and on each change in `book/`. See "Book mode". |
 | `git status` | Shows what has changed since your last commit. |
-| `git add -A` then `git commit -m "..."` | Saves a snapshot of every change, cleaning any pictures and videos in it on the way. |
+| `git add -A` then `git commit -m "..."` | Saves a snapshot of every change. |
 | `git push` | Sends your commits to GitHub, which then publishes the site. |
 
 On the site: `/` search, ← and → previous and next, `h` home; see "Keyboard shortcuts".
@@ -1999,7 +2066,7 @@ To publish somewhere other than GitHub Pages, the finished site is just the `pub
 
 On a Whonix Workstation the script runs as it does anywhere else, with these differences:
 
-- **Run it as `user`, in the normal session.** Not in SYSMAINT, and not with `sudo`: the script refuses root, and a blog made as `sysmaint` would sit in `sysmaint`'s home. On Whonix, programs are installed in the SYSMAINT session, so git, curl, python3 and exiftool go in there; the Whonix setup guide has the steps. Run the script once as `user` first: its `missing:` line names everything to install, so one trip to SYSMAINT is enough. The `sudo apt install` in that line, and in the commit hook's message about exiftool, is for SYSMAINT.
+- **Run it as `user`, in the normal session.** Not in SYSMAINT, and not with `sudo`: the script refuses root, and a blog made as `sysmaint` would sit in `sysmaint`'s home. On Whonix, programs are installed in the SYSMAINT session, so git, curl and python3 go in there; the Whonix setup guide has the steps. Run the script once as `user` first: its `missing:` line names everything to install, so one trip to SYSMAINT is enough. The `sudo apt install` in that line is for SYSMAINT.
 - **`/usr/bin/git` is there whether git is installed or not.** It's Whonix's wrapper, which sends git through Tor. The script checks git by running it, `git --version`. To check yourself, `ls /usr/bin/git.anondist-orig` prints that path when git is installed, and `No such file or directory` when it isn't.
 - **Copy the script out of the shared folder, and keep the blog out of it.** `cp /mnt/shared/zola-blog-setup.sh ~/Downloads/` prints nothing; run that copy, as `bash ~/Downloads/zola-blog-setup.sh`. Leave `PROJECT_DIR` in your home folder: the host can write to `/mnt/shared`, and a folder there isn't yours alone.
 - **Set your name and email for the blog alone, after the first run.** Skip step 1 of "Your first blog": a `--global` name goes on every repository on the Workstation. After the first run, from inside the blog folder, run `git config user.name "Your Name"`, `git config user.email "Your Email"` and `git config user.useConfigOnly true`, without `--global`; none prints anything. Then make the first commit, as in step 6. `git config user.name` printing nothing and exiting with an error only means it isn't set. Only commits need a name and email: the script's lookups, cloning and pulling don't.

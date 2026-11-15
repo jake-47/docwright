@@ -6,7 +6,7 @@ The script below scaffolds a Zola blog, installs and version-pins the Zola binar
 
 ````bash
 #!/usr/bin/env bash
-# zola-blog-setup, v123
+# zola-blog-setup, v130
 #
 # Makes a Zola 0.23 blog for GitHub Pages at PROJECT_DIR/BLOG_NAME, and keeps it
 # in step with the settings below: running it again is the update. The script's
@@ -115,7 +115,7 @@ readonly ENABLE_TAGS=true
 readonly ENABLE_SEARCH=true       # the only script on the pages
 
 readonly SHOW_TOC=true
-readonly SHOW_BREADCRUMBS=true    # Home and a page's folders, over its title
+readonly SHOW_BREADCRUMBS=true    # Home and a page's folders (a book: the outline's headings and items it sits under), over its title
 readonly SHOW_READING_TIME=true   # "N min read" on the date line
 readonly DATE_FORMAT="%Y-%m-%d"   # "%-d %B %Y" gives 21 September 2026
 readonly SHOW_HISTORY_LINK=false  # needs GIT_REPO_URL
@@ -271,7 +271,7 @@ update_blog() {
     write_owned_files
     warn_placeholders
     update_git_remote
-    [ ! -e .git ] || ! have_git || install_hook
+    remove_old_hook
     note_tracked_content
     say ""
     say "updated."
@@ -737,7 +737,7 @@ resolve_dates() {
     TWO_DAYS_AGO=$(date -d '2 days ago' +%Y-%m-%d)
 }
 
-# The repository and its hook, and nothing committed: what a commit holds, and
+# The repository, and nothing committed: what a commit holds, and
 # whose name and time it carries, is the author's to check (guide: "Your first
 # blog", step 6).
 init_git_repo() {
@@ -752,7 +752,6 @@ init_git_repo() {
         return 0
     fi
     say "initialised git repo on branch: main"
-    install_hook
     say "nothing is committed: check what's in the folder, then commit it yourself (guide: \"Your first blog\", step 6)"
     update_git_remote
 }
@@ -778,10 +777,28 @@ update_git_remote() {
     fi
 }
 
-# The check the deploy runs: a broken link stops the run too.
+# Gone in v130: the picture-cleaning commit hook v120 to v129 installed. Only
+# the blog's own .git/hooks/pre-commit, by that path: git rev-parse --git-path
+# names the core.hooksPath folder when one is set, which every repository
+# shares, and which this script never reads or writes. Removed only when its
+# second line is the one the setup script wrote, with no symlink on the way.
+remove_old_hook() {
+    local f=.git/hooks/pre-commit
+    [ -d .git ] && [ ! -L .git ] && [ ! -L .git/hooks ] && [ -f "$f" ] && [ ! -L "$f" ] || return 0
+    [ "$(sed -n 2p "$f")" = "# zola-blog-setup: strips location and camera data from the pictures and videos" ] || return 0
+    rm -f "$f"
+    say "removed .git/hooks/pre-commit, the commit hook v120 to v129 installed to clean pictures"
+}
+
+# The check the deploy runs. When it stops, on a broken link say, the preview
+# still starts, as ./serve would, to show the fix as it's made; with no
+# preview to start, the run stops too.
 build_site() {
     say ""
-    bash "$BLOG_DIR/build" || exit 1
+    bash "$BLOG_DIR/build" && return 0
+    [ "$START_PREVIEW" = true ] && [ -t 1 ] || exit 1
+    warn ""
+    warn "the build stopped, as the deploy would: nothing will be published until what's named above is fixed. the preview starts anyway, and shows each change as you make it."
 }
 
 # exec replaces this process, so the EXIT trap never fires: clean up first. Skipped
@@ -907,9 +924,9 @@ write_owned_files() {
     if [ "$BOOK_MODE" != true ] && [ -f genbook ] && remove_if_ours genbook; then
         say "removed genbook (BOOK_MODE is false)"
     fi
-    # Gone in v120: the commit hook cleans pictures instead.
+    # Gone in v120.
     if [ -f attach ] && remove_if_ours attach; then
-        say "removed ./attach: pictures and videos are cleaned as they're committed now"
+        say "removed ./attach, which this script no longer writes"
     fi
     if [ "$ENABLE_SEARCH" != true ] && [ -f static/search.js ] && remove_if_ours static/search.js; then
         say "removed static/search.js (ENABLE_SEARCH is false)"
@@ -1012,8 +1029,8 @@ render_gitignore() {
 .*.sw[a-p]
 .#*
 \#*#
-# exiftool's backup of a photo it has cleaned: the original, with the location
-# and camera data still in it
+# A picture tool's backup of a photo it has cleaned, name_original: the photo
+# as it was, location and camera data included
 *_original
 EOF
     [ "$BOOK_MODE" = true ] || return 0
@@ -1021,21 +1038,30 @@ EOF
 # Book mode: ./genbook makes content/ from book/, here and on GitHub
 /content/
 /.genbook.*
+/.genbook-*
 EOF
 }
 
-# In book mode, genbook first and on each change in book/: zola serve watches content/.
+# The preview shows every change, broken links and all: zola.toml makes Zola
+# warn about a broken link instead of stopping, and genbook --preview lists
+# its problems and writes the pages anyway. ./build stops on both. RUST_LOG:
+# Zola shows only its own messages by default, and the link warnings come
+# from its other parts. In book mode, genbook first and on each change in
+# book/: zola serve watches content/.
 render_serve() {
     cat << 'EOF'
 #!/usr/bin/env bash
-# the preview, at http://127.0.0.1:1111: drafts are shown, marked "(draft)"
+# the preview, at http://127.0.0.1:1111: drafts are shown, marked "(draft)".
+# A broken link is listed here and left dead on the page; ./build won't
+# publish until it's fixed.
 cd "$(dirname "$0")" || exit 1
+export RUST_LOG=warn,zola=info
 EOF
     if [ "$BOOK_MODE" = true ]; then
         cat << 'EOF'
 # content/ from book/ first, then again on each change in book/, checked every
 # second; zola serve reloads the page on the change in content/.
-bash ./genbook || exit 1
+bash ./genbook --preview || exit 1
 stamp() { find book -printf '%p %T@ %s\n' 2>/dev/null | LC_ALL=C sort | cksum; }
 (
     last=$(stamp)
@@ -1043,11 +1069,12 @@ stamp() { find book -printf '%p %T@ %s\n' 2>/dev/null | LC_ALL=C sort | cksum; }
         now=$(stamp)
         [ "$now" = "$last" ] && continue
         last=$now
-        bash ./genbook || true
+        bash ./genbook --preview || true
     done
 ) &
 trap 'kill $! 2>/dev/null' EXIT
-zola serve --open --drafts
+# Zola names the file in content/ it built; genbook made each from book/.
+zola serve --open --drafts 2>&1 | sed -u "s|$PWD/content/unlisted/|book/|g; s|$PWD/content/_index\.md|book/SUMMARY.md|g; s|$PWD/content/|book/|g"
 EOF
         return 0
     fi
@@ -1103,45 +1130,6 @@ draft = true
 POST
 echo "made content/$name.md, a draft at weight $weight: ./serve shows it, and deleting its draft line publishes it."
 EOF
-}
-
-# .git/hooks/pre-commit: pictures and videos lose their location and camera data
-# as they're committed, the step that publishes them, however they came into
-# the folder. -tagsfromfile @ -orientation keeps the tag a photo needs to stand
-# upright. SVG and WebM can't be written by exiftool, and aren't touched.
-render_precommit() {
-    cat << 'EOF'
-#!/usr/bin/env bash
-# zola-blog-setup: strips location and camera data from the pictures and videos
-# being committed. Written by the setup script while this line is here.
-set -euo pipefail
-files=()
-while IFS= read -r -d '' f; do
-    case "${f,,}" in *.jpg|*.jpeg|*.png|*.gif|*.webp|*.tif|*.tiff|*.heic|*.mp4|*.m4v|*.mov) files+=("$f") ;; esac
-done < <(git diff --cached --name-only --diff-filter=AM -z -- content/attachments book/attachments)
-[ "${#files[@]}" -gt 0 ] || exit 0
-if ! command -v exiftool >/dev/null 2>&1; then
-    echo "commit stopped: exiftool removes the location and camera data from pictures and videos before they're published. install it (on Debian, Devuan or Ubuntu: sudo apt install libimage-exiftool-perl), then commit again." >&2
-    exit 1
-fi
-exiftool -q -q -m -overwrite_original -all= -tagsfromfile @ -orientation -- "${files[@]}" \
-    || { echo "commit stopped: exiftool couldn't clean one of: ${files[*]}" >&2; exit 1; }
-git add -- "${files[@]}"
-echo "removed the location and camera data from ${#files[@]} picture(s) and video(s) being committed"
-EOF
-}
-
-# The hook, unless one of the user's own is there.
-install_hook() {
-    local hook
-    hook=$(git rev-parse --git-path hooks/pre-commit 2>/dev/null) || return 0
-    if [ -e "$hook" ] && ! grep -q '^# zola-blog-setup: strips' "$hook"; then
-        warn "$hook is your own, so it's left as it is: pictures you commit keep their location and camera data unless you remove it (guide: \"Pictures, GIFs and video\")."
-        return 0
-    fi
-    mkdir -p "${hook%/*}"
-    render_precommit > "$hook"
-    chmod +x "$hook"
 }
 
 # In book mode, genbook first, here as on GitHub: content/ isn't committed.
@@ -1310,13 +1298,25 @@ if [ -n "$broken" ]; then
     exit 1
 fi
 
-# Zola drops a page missing its section's sort field, warns, exits 0, and still
-# lists its URL in sitemap.xml: turn that warning into a failure.
-out=$(zola build 2>&1) || { printf '%s\n' "$out" >&2; exit 1; }
+# Two warnings become failures. zola.toml makes a broken @/ link or #anchor a
+# warning, so the preview shows the change; RUST_LOG shows those warnings,
+# which come from Zola's other parts. And Zola drops a page missing its
+# section's sort field, warns, exits 0, and still lists its URL in sitemap.xml.
+out=$(RUST_LOG=warn,zola=info zola build 2>&1) || rc=$?
+EOF
+    [ "$BOOK_MODE" != true ] || cat << 'EOF'
+# Zola names the file in content/ it built; genbook made each from book/.
+out=$(printf '%s\n' "$out" | sed "s|$PWD/content/unlisted/|book/|g; s|$PWD/content/_index\.md|book/SUMMARY.md|g; s|$PWD/content/|book/|g")
+EOF
+    cat << 'EOF'
+[ "${rc:-0}" = 0 ] || { printf '%s\n' "$out" >&2; exit "$rc"; }
 printf '%s\n' "$out"
 # Matched in the shell: piped to grep -q, a long log could die of the broken
 # pipe when grep quits at the match, and pipefail would make that a miss.
 case $out in
+    *'Broken relative link'*|*'broken internal anchor link'*)
+        printf '\n%s\n' "stopped: the broken link(s) named above lead nowhere. fix them, then run ./build again. nothing was published." >&2
+        exit 1 ;;
     *'page(s) ignored'*)
         {
             printf '\n%s\n' "the page(s) named above produced no HTML, but sitemap.xml still lists"
@@ -1338,8 +1338,8 @@ render_genbook() {
     cat << EOF
 #!/usr/bin/env bash
 # make content/ from book/: the outline, book/SUMMARY.md, and every page in
-# book/. ./build and ./serve run this first, and ./serve again on each change
-# in book/. Guide: "Book mode".
+# book/. ./build runs this first; ./serve runs it as ./genbook --preview,
+# first and again on each change in book/. Guide: "Book mode".
 set -euo pipefail
 cd "\$(dirname "\$0")"
 
@@ -1348,6 +1348,18 @@ menu="${MENU_PAGES}"
 numbers="${OUTLINE_NUMBERS}"
 EOF
     cat << 'EOF'
+
+# --preview: a broken link, a missing page or a file name that can't be an
+# address is listed, and the pages are written anyway, the link left dead, so
+# the preview shows every change; without it, as ./build runs it, nothing is
+# written until they're fixed. What would touch your files, or break every
+# page, stops either way.
+preview=""
+case "${1:-}" in
+    "") ;;
+    --preview) preview=1 ;;
+    *) printf '%s\n' "usage: ./genbook [--preview]" >&2; exit 2 ;;
+esac
 
 # The line after +++ in every file this script writes: its mark.
 marker='# genbook:'
@@ -1362,7 +1374,9 @@ ours() { case "$(sed -n 2p "$1" 2>/dev/null)" in "$marker"*) return 0 ;; esac; r
 # otherwise delete each other's files.
 exec 9> .genbook.lock
 flock 9
-tmp=$(mktemp -d .genbook.XXXXXX) || stop "could not make a temporary folder in $PWD"
+# No dot after .genbook: zola serve then takes it for a temporary file and lets
+# it be, where .genbook.XXXXXX made it rebuild the whole site once more.
+tmp=$(mktemp -d .genbook-XXXXXX) || stop "could not make a temporary folder in $PWD"
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/content/unlisted" "$tmp/kids"
 
@@ -1406,6 +1420,8 @@ links_awk='
             broken("a link to " p ", and there is no book/" lead)
             return p frag
         }
+        # The outline is the home page.
+        if (lead == "SUMMARY.md") return "@/_index.md" frag
         if (lead ~ /^[A-Za-z0-9_-]+\.md$/) {
             stem = substr(lead, 1, length(lead) - 3)
             if (mapfile == "") { if (!(stem in order)) { order[stem] = ++norder; print stem "\t" NR > pages } return "@/" stem ".md" frag }
@@ -1504,21 +1520,63 @@ LC_ALL=C awk -v outline="$tmp/outline" -v pages="$tmp/pages" -v kids="$tmp/kids"
             nk--
         }
     }
-    # A page item: its outline name and, with numbers, its number, the first
-    # time the outline links it, to $tmp/names: page, name, number.
+    # What an outline line says, for a breadcrumb: its link text for a link,
+    # less the marks Markdown reads.
+    function crumbtext(t,   st, ln, res) {
+        sub(/[ \t]*<!--[ \t]*fold[ \t]*-->[ \t]*$/, "", t)
+        sub(/[ \t]*\{#[^}]*\}[ \t]*$/, "", t); sub(/[ \t]+#+[ \t]*$/, "", t)
+        gsub(/<[^>]*>/, "", t)
+        res = ""
+        while (match(t, /\[[^]]*\]\([^)]*\)/)) {
+            st = RSTART; ln = RLENGTH
+            res = res substr(t, 1, st - 1) substr(t, st + 1, index(substr(t, st), "](") - 2)
+            t = substr(t, st + ln)
+        }
+        t = res t
+        gsub(/[*`\\]/, "", t); gsub(/\t/, " ", t)
+        sub(/^[ \t]+/, "", t); sub(/[ \t]+$/, "", t)
+        return t
+    }
+    # Where a line sits in the outline, for the breadcrumbs: the headings above
+    # it, and the list items it is indented under. A heading ends the open
+    # items; so does a line at the left edge. A page item is a link to its
+    # page; a heading, or an item with no page, is words.
+    function track(s,   lv, c, i, t) {
+        if (fence || s ~ /^[ \t]*$/ || s ~ /^[ \t]*([`][`][`]|~~~)/) return
+        # A line of three or more - * or _, spaces allowed, divides; it is no item.
+        t = s; gsub(/[ \t]/, "", t)
+        if (t ~ /^(---+|\*\*\*+|___+)$/) { ls = 0; return }
+        if (s ~ /^#+[ \t]/) {
+            match(s, /^#+/); lv = RLENGTH
+            while (hs > 0 && hl2[hs] >= lv) hs--
+            hl2[++hs] = lv; hb[hs] = crumbtext(substr(s, lv + 2)); ls = 0
+        } else if (match(s, /^[ \t]*([-*+]|[0-9]+[.)])[ \t]+/)) {
+            c = ind(s)
+            while (ls > 0 && li2[ls] >= c) ls--
+            for (i = 1; i <= hs; i++) cr = cr (cr == "" ? "" : "\036") "\035" hb[i]
+            for (i = 1; i <= ls; i++) cr = cr (cr == "" ? "" : "\036") lp[i] "\035" lb[i]
+            ls++; li2[ls] = c; lb[ls] = crumbtext(substr(s, RLENGTH + 1)); lp[ls] = pend
+        } else if (ind(s) == 0) ls = 0
+    }
+    # A page item, the first time the outline links it, to $tmp/names: page,
+    # outline name, number (with numbers), and everything it sits under,
+    # outermost first, for the breadcrumbs: each the name of its page, if it
+    # is one, then \035 and its words, the entries apart by \036.
+    # Split by \037: any of the middle ones can be empty, and read would merge tabs.
     function emit(s,   n) {
+        cr = ""; track(s)
         if (fold < 0) { print s > outline; last = s }
         grab(s)
         if (pend != "" && !(pend in named)) {
             named[pend] = 1; n = ""
             if (numbers == "true" && match(s, /^[ \t]*[-*+] [0-9][0-9.\\]*/)) { n = substr(s, RSTART, RLENGTH); sub(/^[ \t]*[-*+] /, "", n); gsub(/\\/, "", n); sub(/\.$/, "", n) }
             gsub(/\t/, " ", pname); sub(/^[ \t]+/, "", pname); sub(/[ \t]+$/, "", pname)
-            printf "%s\t%s\t%s\n", pend, pname, n > names
+            printf "%s\037%s\037%s\037%s\n", pend, pname, n, cr > names
         }
         if (pend != "") { nk++; ki[nk] = pind; kp[nk] = pend; ks[nk] = -1; kt[nk] = ""; kb[nk] = ""; pend = "" }
         if (pfold) { if (fold < 0) fold = pind; pfold = 0 }
     }
-    BEGIN { mapfile = ""; printf "" > pages; printf "" > outline; printf "" > names; hn = 0; ln_ = 0; nk = 0; fold = -1 }
+    BEGIN { mapfile = ""; printf "" > pages; printf "" > outline; printf "" > names; hn = 0; ln_ = 0; nk = 0; fold = -1; hs = 0; ls = 0 }
     NR == 1 { sub(/^\357\273\277/, "") }
     { sub(/\r$/, "") }
     /^[ \t]*([`][`][`]|~~~)/ { if (!fence) { shut(ind($0)); if (fold >= 0 && ind($0) <= fold) fold = -1 }; fence = !fence; emit($0); seen = 1; next }
@@ -1575,9 +1633,12 @@ while IFS=$'\t' read -r stem line; do
     case " $menu " in *" $stem "*) continue ;; esac
     listed+=("$stem")
 done < "$tmp/pages"
-for stem in ${menus[@]+"${menus[@]}"}; do [ -f "book/$stem.md" ] || missing+=("MENU_PAGES names $stem, and there is no book/$stem.md"); done
+# Every page's menu links to the menu pages: without one, no page builds.
+menugone=""
+for stem in ${menus[@]+"${menus[@]}"}; do [ -f "book/$stem.md" ] || { missing+=("MENU_PAGES names $stem, and there is no book/$stem.md"); menugone=1; }; done
 if [ "${#missing[@]}" -gt 0 ]; then
     printf '%s\n' "${missing[@]}" >&2
+    [ -z "$preview" ] || [ -z "$menugone" ] || stop "every page's menu links to the menu pages, so none can be shown: put the file back, or take its name out of MENU_PAGES and run the setup script again."
     bad=1
 fi
 # A file's name is its page's address: one with a space or other sign in it
@@ -1596,7 +1657,9 @@ for f in book/*.md; do
 done
 if [ "${#badname[@]}" -gt 0 ]; then
     printf '%s\n' "these files in book/ have names that can't be a page's address, which takes letters, digits, - and _:" "${badname[@]}" >&2
-    stop "rename them, and the links to them. nothing has been changed."
+    [ -n "$preview" ] || stop "rename them, and the links to them. nothing has been changed."
+    printf '%s\n' "rename them, and the links to them; until then, the preview leaves them out." >&2
+    bad=1
 fi
 for stem in ${listed[@]+"${listed[@]}"} ${unlisted[@]+"${unlisted[@]}"}; do
     case "$stem" in unlisted|attachments) stop "book/$stem.md can't be a page: content/$stem/ is a folder of the site. rename it. nothing has been changed." ;; esac
@@ -1651,10 +1714,10 @@ page_body() {
     fence { print > out; next }
     { print fixline($0) > out }
     END {
-        if (nbroken) exit 1
         print skipped + 0
         print title
         print pic
+        if (nbroken) exit 1
     }' "$1"
 }
 
@@ -1671,7 +1734,7 @@ mark() {
 
 toml() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
 
-# Each page with its front matter: title and weight (listed), title and path
+# Each page with its front matter: title, weight and crumbs (listed), title and path
 # (unlisted: its address is /name/, like the rest), or title and hidden (menu),
 # with the About page's photo; then its text, and the items the outline has
 # under it. Every page is read before a stop, so one run lists every broken
@@ -1679,17 +1742,19 @@ toml() { local s=$1; s=${s//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
 : > "$tmp/written"
 weight=0
 page() {   # page STEM KIND FILE
-    local out skipped title pic="" key=avatar_photo nav="" num="" fm=()
+    local out skipped title pic="" key=avatar_photo nav="" num="" crs="" e stem label p fm=() ents=()
     [ "$1:$2" != about:menu ] || pic=1
-    if ! out=$(page_body "book/$1.md" "$tmp/body" "$pic"); then bad=1; return 0; fi
+    # A broken link: noted, and the page is written with it as it was typed.
+    out=$(page_body "book/$1.md" "$tmp/body" "$pic") || bad=1
     # $(...) drops the last newline, and an empty photo with it: read then fails.
     { read -r skipped; IFS= read -r title || title=""; IFS= read -r pic || pic=""; } <<< "$out"
     # Zola can't resize an SVG drawing: shown as it is, by its address.
     case "$pic" in *.svg) key=avatar ;; esac
     # The outline's name for the page, for Previous and Next: often shorter;
-    # and its number. The title: the page's first line, else that name, else
-    # the file name, dashes as spaces: hand-saw.md is "Hand saw".
-    IFS=$'\t' read -r _ nav num < <(awk -F '\t' -v s="$1" '$1 == s { print; exit }' "$tmp/names") || true
+    # its number; and what it's under, for the breadcrumbs. The title: the page's first line,
+    # else that name, else the file name, dashes as spaces: hand-saw.md is
+    # "Hand saw".
+    IFS=$'\037' read -r _ nav num crs < <(awk -F $'\037' -v s="$1" '$1 == s { print; exit }' "$tmp/names") || true
     if [ -z "$title" ]; then
         title=${nav:-$(printf '%s' "$1" | sed 's/[-_][-_]*/ /g')}
         title=${title^}
@@ -1701,6 +1766,19 @@ page() {   # page STEM KIND FILE
                     fm=("title = \"$(toml "$title")\"" "weight = $weight" "[extra]" "toc = true")
                     [ -z "$nav" ] || [ "$nav" = "$title" ] || fm+=("nav = \"$(toml "$nav")\"")
                     [ -z "$num" ] || fm+=("number = \"$num\"")
+                    if [ -n "$crs" ]; then
+                        p=""
+                        IFS=$'\036' read -r -a ents <<< "$crs"
+                        for e in "${ents[@]}"; do
+                            stem=${e%%$'\035'*} label=${e#*$'\035'}
+                            # As toml does, without a subshell for each: a deep outline has many.
+                            label=${label//\\/\\\\} label=${label//\"/\\\"}
+                            # Only a page is a link; a page that isn't there (the preview goes on without it) is words.
+                            if [ -n "$stem" ] && [ -f "book/$stem.md" ]; then p+="{ label = \"$label\", link = \"@/$stem.md\" }, "
+                            else p+="{ label = \"$label\" }, "; fi
+                        done
+                        fm+=("crumbs = [${p%, }]")
+                    fi
                     # The page's text starts after +++, the marker, these, and +++.
                     mark "$1.md" "$((skipped + 1))" "$((${#fm[@]} + 4))"
                     printf '%s\n' "${fm[@]}" '+++' ;;
@@ -1724,7 +1802,10 @@ for stem in ${listed[@]+"${listed[@]}"}; do page "$stem" listed "$stem.md"; done
 for stem in ${unlisted[@]+"${unlisted[@]}"}; do page "$stem" unlisted "unlisted/$stem.md"; done
 # A menu page without its file is listed above already.
 for stem in ${menus[@]+"${menus[@]}"}; do [ ! -f "book/$stem.md" ] || page "$stem" menu "$stem.md"; done
-[ "$bad" = 0 ] || stop "fix what's listed above, then run this again. nothing has been changed."
+if [ "$bad" != 0 ]; then
+    [ -n "$preview" ] || stop "fix what's listed above, then run this again. nothing has been changed."
+    printf '%s\n' "the preview shows the pages with these links dead; ./build won't publish until they're fixed." >&2
+fi
 
 # The home page: the outline. sort_by = "weight" orders the pages for Previous
 # and Next; the list itself is the text below.
@@ -1905,6 +1986,11 @@ bottom_footnotes = true
 [markdown.highlighting]
 light_theme = "${lightt}"
 dark_theme = "${darkt}"
+
+[link_checker]
+# A broken @/ link or #anchor is a warning, left dead on the page, so the
+# preview still shows the change; ./build stops on the warning.
+internal_level = "warn"
 
 [extra]
 masthead = "${masthead_v}"
@@ -2570,11 +2656,14 @@ render_base_html() {
 
     /* The -0.55rem keeps a page's title level with the title on a page without
        breadcrumbs. */
-    .crumbs ol { display: flex; flex-wrap: wrap; list-style: none; margin: -0.55rem 0 0; padding: 0; color: var(--muted); font-size: 0.9em; }
-    .crumbs li + li::before { content: "›"; content: "›" / ""; margin: 0 0.5em; }
+    .crumbs ol { display: flex; flex-wrap: wrap; row-gap: 0.3em; list-style: none; margin: -0.55rem 0 0; padding: 0; color: var(--muted); font-size: 0.9em; }
+    /* Each crumb ends in ›, the last one too, leading into the title; so a
+       wrapped line starts with a crumb, not with a ›. */
+    .crumbs li::after { content: "›"; content: "›" / ""; margin: 0 0.6em; }
+    .crumbs li:last-child::after { margin-right: 0; }
     .crumbs a, .crumbs a:visited { color: var(--muted); text-decoration: none; }
     .crumbs a:hover { text-decoration: underline; }
-    main .crumbs + h1 { margin-top: 0.2em; }
+    main .crumbs + h1 { margin-top: 0.6em; }
 
     .subtitle { color: var(--muted); font-style: italic; line-height: 1.35; margin: 0.2rem 0 2rem 0; }
     h1 + .subtitle { margin-top: 0; }
@@ -2755,14 +2844,25 @@ render_base_html() {
     </header>
 
     <main>
-        {#- Zola leaves a transparent folder out of a page's ancestors. None in a book:
-            its only folder, unlisted/, is a redirect home. -#}
+        {#- After Home: in a blog, the folders a page is in (Zola leaves a
+            transparent one out of its ancestors); in a book, everything the
+            outline has it under, which genbook writes as crumbs: a page with
+            its @/ link, a heading or an item with no page as words. -#}
+        {%- if config.extra.book %}
+        {%- set crumbs = page?.extra?.crumbs or [] %}
+        {%- else %}
         {%- set trail = page?.ancestors or section?.ancestors or [] %}
-        {%- if config.extra.show_breadcrumbs and not config.extra.book and trail | length > 1 %}
+        {%- set crumbs = [get_section(path=p) for p in trail[1:]] %}
+        {%- endif %}
+        {%- if config.extra.show_breadcrumbs and crumbs %}
         <nav class="crumbs" aria-label="Breadcrumb"><ol>
             <li><a href="{{ get_url(path='/', trailing_slash=true) }}">Home</a></li>
-            {%- for path in trail[1:] %}{% set crumb = get_section(path=path) %}
+            {%- for crumb in crumbs %}
+            {%- if config.extra.book %}
+            <li>{% if crumb.link %}<a href="{{ get_url(path=crumb.link) }}">{{ crumb.label }}</a>{% else %}{{ crumb.label }}{% endif %}</li>
+            {%- else %}
             <li><a href="{{ crumb.permalink }}">{{ crumb.title }}</a></li>
+            {%- endif %}
             {%- endfor %}
         </ol></nav>
         {%- endif %}
@@ -2863,8 +2963,10 @@ render_components() {
 {#- Bare addresses as links: tags, links and code are matched whole and passed
     through. A full stop, comma or bracket after an address stays outside it.
     Then every link to another site opens in a new tab, one written in HTML too
-    (Zola does it for Markdown's only): its target taken off, then put back. -#}
-{% component linkify(html) %}{{ html | regex_replace(pattern=`(?s)(<a\\b[^>]*>.*?</a>|<pre\\b.*?</pre>|<code\\b.*?</code>|<script\\b.*?</script>|<style\\b.*?</style>|<[^>]*>)|(https?://(?:[^\\s<>"()&]|&amp;|\\([^\\s<>"()]*\\))*(?:[^\\s<>"().,;:!?'*_~&]|&amp;|\\([^\\s<>"()]*\\)))`, rep=`${1}<!--L-->${2}<!--/L-->`) | replace(from="<!--L--><!--/L-->", to="") | regex_replace(pattern=`<!--L-->(.*?)<!--/L-->`, rep=`<a rel="noopener nofollow noreferrer external" href="$1" target="_blank">$1</a>`) | regex_replace(pattern=`(<a\\b[^>]*?)\\s+target="[^"]*"`, rep=`${1}`) | regex_replace(pattern=`<a\\b([^>]*\\shref="https?://[^"]*"[^>]*)>`, rep=`<a${1} target="_blank">`) | safe }}{% endcomponent linkify %}
+    (Zola does it for Markdown's only): its target taken off, then put back,
+    with this site's own addresses (base, config.base_url) hidden meanwhile:
+    Zola writes an @/ link as a full address. -#}
+{% component linkify(html, base) %}{%- set own = `href="` ~ base ~ "/" %}{{ html | regex_replace(pattern=`(?s)(<a\\b[^>]*>.*?</a>|<pre\\b.*?</pre>|<code\\b.*?</code>|<script\\b.*?</script>|<style\\b.*?</style>|<[^>]*>)|(https?://(?:[^\\s<>"()&]|&amp;|\\([^\\s<>"()]*\\))*(?:[^\\s<>"().,;:!?'*_~&]|&amp;|\\([^\\s<>"()]*\\)))`, rep=`${1}<!--L-->${2}<!--/L-->`) | replace(from="<!--L--><!--/L-->", to="") | regex_replace(pattern=`<!--L-->(.*?)<!--/L-->`, rep=`<a rel="noopener nofollow noreferrer external" href="$1" target="_blank">$1</a>`) | regex_replace(pattern=`(<a\\b[^>]*?)\\s+target="[^"]*"`, rep=`${1}`) | replace(from=own, to=`href="zola-own:/`) | regex_replace(pattern=`<a\\b([^>]*\\shref="https?://[^"]*"[^>]*)>`, rep=`<a${1} target="_blank">`) | replace(from=`href="zola-own:/`, to=own) | safe }}{% endcomponent linkify %}
 
 {#- A front matter value Zola doesn't give templates (weight, sort_by). The
     two patterns are Zola's own (front_matter/split.rs), so it ends where Zola's does. -#}
@@ -2908,9 +3010,9 @@ render_index_html() {
 <h1 class="visually-hidden">{{ config.title }}</h1>
 
 {%- if config.extra.book %}
-<div class="outline{% if config.extra.outline_numbers %} numbered{% endif %}">{{<linkify html={section.content} />}}</div>
+<div class="outline{% if config.extra.outline_numbers %} numbered{% endif %}">{{<linkify html={section.content} base={config.base_url} />}}</div>
 {%- else %}
-{{<linkify html={section.content} />}}
+{{<linkify html={section.content} base={config.base_url} />}}
 
 {{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}
 {%- endif %}
@@ -2953,7 +3055,7 @@ render_page_html() {
 {{<toc items={page.toc} />}}
 {% endif %}
 
-{{<linkify html={page.content} />}}
+{{<linkify html={page.content} base={config.base_url} />}}
 
 {% if config.extra.enable_tags and page.taxonomies.tags %}
 <div class="post-tags">Tags: {% for tag in page.taxonomies.tags %}<a href="{{ get_taxonomy_url(kind='tags', term=tag) }}">{{ tag }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</div>
@@ -2987,7 +3089,7 @@ render_section_html() {
 {% if config.extra.show_toc and section.extra?.toc and section.toc and (section.toc | length > 1 or section.toc[0].children) %}
 {{<toc items={section.toc} />}}
 {% endif %}
-{% if section.content %}{{<linkify html={section.content} />}}{% endif %}
+{% if section.content %}{{<linkify html={section.content} base={config.base_url} />}}{% endif %}
 {% if section.pages or section.subsections %}{{<post_list pages={section.pages} extra={config.extra} folders={section.subsections} section={section.relative_path} />}}{% endif %}
 {% endblock %}
 EOF

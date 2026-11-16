@@ -3,7 +3,7 @@
 # Bootstrap-mdbook script
 
 The script scaffolds an mdBook book, installs and version-pins the mdBook binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview.
-For more details, see [Publish a book or a knowledge base](./publish-book.md).
+For more details, see [Publish a book or a knowledge base](./publish-mdbook-book.md).
 
 
 ````bash

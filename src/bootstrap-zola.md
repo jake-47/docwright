@@ -2,7 +2,7 @@
 
 # Bootstrap-zola script
 
-The script below scaffolds a Zola blog, installs and version-pins the Zola binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. For details, see [Publish a blog](./publish-blog.md).
+The script below scaffolds a Zola blog, installs and version-pins the Zola binary, writes a first-party GitHub Pages deploy workflow, and opens a live preview. For details, see [Publish a blog](./publish-zola-blog.md).
 
 ````bash
 #!/usr/bin/env bash

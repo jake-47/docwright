@@ -452,7 +452,7 @@ The build script skips the `[trivial]` row when computing the date, so "Last upd
 
 The lightweight alternative is to skip per-page history machinery and put corrections inline. A bracketed `[Edit YYYY-MM-DD: ...]` aside placed where a now-wrong claim sits catches the reader at the sentence the correction applies to, no clicking required. For posts you rarely revise, inline notes are sufficient on their own; the host-linked approach earns its place only when revisions are frequent enough that readers want to inspect them systematically.
 
-[Publish a blog](./publish-blog.md) builds the host-linked version into its Zola script: the `SHOW_HISTORY_LINK` setting adds a "View history" link to each post.
+[Publish a blog](./publish-zola-blog.md) builds the host-linked version into its Zola script: the `SHOW_HISTORY_LINK` setting adds a "View history" link to each post.
 
 ## Configuring Git well on day one
 

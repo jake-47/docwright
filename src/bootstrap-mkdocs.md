@@ -2,7 +2,7 @@
 
 # Bootstrap-mkdocs script
 
-The script creates a MkDocs documentation project that builds one set of Markdown sources once per audience: **internal**, **partner**, **beta** and **public**. Every page says which audiences get it, as in `audiences: [public]`, and you can mark parts of a page with `<!-- audience: internal -->...<!-- /audience -->`; each build keeps or removes them. For more details, see [Publish a documentation site](./publish-docs.md).
+The script creates a MkDocs documentation project that builds one set of Markdown sources once per audience: **internal**, **partner**, **beta** and **public**. Every page says which audiences get it, as in `audiences: [public]`, and you can mark parts of a page with `<!-- audience: internal -->...<!-- /audience -->`; each build keeps or removes them. For more details, see [Publish a documentation site](./publish-mkdocs-docs.md).
 
 ````bash
 #!/usr/bin/env bash

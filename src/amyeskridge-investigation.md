@@ -6,7 +6,7 @@ Fourteen other dead or missing US scientists (plus two family members of one), w
 Probability that the cluster is driven by a coordinated campaign of some form: very high.*
 
 *If these scientists had quietly published all their research, and made it all public, would they still be alive today?
-If you want to create a knowledge base like this one and post your research online, and avoid getting suicided, see the next post or [the post on Publishing a book](./publish-book.md).*
+If you want to create a knowledge base like this one and post your research online, and avoid getting suicided, see the next post or [the post on Publishing a book](./publish-mdbook-book.md).*
 
 ## Amy Eskridge
 

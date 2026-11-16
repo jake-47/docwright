@@ -1,4 +1,4 @@
-# Minimal Zola Blog on GitHub Pages
+# Publish a minimal Zola Blog on GitHub Pages
 
 The [zola-blog-setup.sh](./bootstrap-zola.md) script makes a small, fast blog on your computer and sets it up so GitHub publishes it for free. You write each post as a plain text file. A program called Zola turns those files into web pages, and GitHub puts the pages online each time you send in your changes.
 
@@ -18,35 +18,6 @@ The preview on your own computer adds a script of its own, which reloads the pag
 It costs nothing, unless you want your own domain name (roughly 10 to 20 US dollars a year; see "Custom domain"). GitHub's address, hosting and HTTPS are free at the size a personal blog runs at.
 
 The script runs on Linux, on an x86_64 computer (on Windows, in WSL). It uses Zola 0.23. The first run puts the newest 0.23 release that has been out a week into `~/.local/bin`, checked first against the fingerprint GitHub recorded for the file, and pins the same release in the blog's workflow, so GitHub builds the site with the Zola your computer previews it with. After that, runs use that Zola and ask GitHub for nothing, until you run the script with `update` (see "Updating and removing Zola"). Every blog on your computer runs that one Zola. Releases before 0.23.3 leave your pictures out of the site, so none of those is taken. When a newer series of Zola comes out, `update` keeps to 0.23 and says so, because the blog's templates are written for 0.23, and a later series may not build them, or may build them differently.
-
-## Words used in this guide
-
-- **Zola**: the program that turns your text files into web pages. The script installs it.
-- **Static site**: a website made of finished files. No program runs on the server, so there's little that can go wrong or be attacked, and it's cheap to host.
-- **GitHub**: the website that stores your blog's files. A **repository** (repo) is one project's folder there.
-- **GitHub Pages**: GitHub's free web hosting. **GitHub Actions** is GitHub's build service, and a **workflow** is the file that tells it what to do. Yours is `.github/workflows/deploy.yml`.
-- **git**: the program on your computer that keeps track of changes and sends them to GitHub. A **commit** is a saved snapshot of your changes. To **push** is to send your commits to GitHub.
-- **Terminal**: the window where you type commands.
-- **Markdown**: the simple text format you write posts in. `**bold**` becomes **bold**, and a line starting `## ` becomes a heading.
-- **Front matter**: the block of settings at the top of each post, between two lines of `+++`.
-- **Attachments**: the folder `content/attachments/`, where pictures, GIFs and videos go, for any post or page (in book mode, `book/attachments/`).
-- **Draft**: a post with `draft = true` in its front matter. The preview shows it; the published site doesn't.
-- **Post**: a page in the list on the home page. A **hidden page**, such as the About page, is published but kept out of every list; see "Pages that aren't posts". A **section** is a folder with an `_index.md` file in it. It's listed like a post, and its page lists the pages inside it, its **child pages**; see "Child pages".
-- **Book mode**: the `BOOK_MODE` setting. Instead of posts, the site is built from an **outline**, `book/SUMMARY.md`, and the plain Markdown files in `book/`; a helper, `./genbook`, makes `content/` from them. See "Book mode".
-- **Preview**: a private copy of the site on your computer, at `http://127.0.0.1:1111`, that updates each time you save a file. Only you can see it.
-- **Build**: making the finished site files, which go into a folder called `public/`.
-- **Breadcrumbs**: the line of links above a page's title, starting with Home, that shows where the page sits; see `SHOW_BREADCRUMBS`.
-- **The configuration block**: the list of settings at the top of the script.
-- **Re-run**: running the script again after changing a setting. That's how every change to a setting is applied.
-- **Script-owned files**: files the script writes again on every run, so changes you make to them directly don't last. Everything in `content/` and most of `static/` is yours instead, and the script never touches it after the first run. So is `README.md`, once you edit it. See "How changes work".
-- **`render_` functions**: the parts of the script that write each generated file. `render_base_html`, for example, writes `templates/base.html`. "How changes work" says how to find one.
-- **Feed** (RSS or Atom): a list of your posts, in a format that feed reader apps and email services check for new posts.
-- **Tags**: labels you give posts. Each tag gets a page listing the posts that carry it.
-- **Masthead**: the strip at the top of every page, with the blog's name on the left and the menu on the right.
-- **Favicon**: the small icon in the browser tab.
-- **Base URL**: the address the published site lives at, such as `https://John.github.io/notes`. The script works it out from your repository's address.
-- **Checksum** (sha256, also called a digest): a fingerprint of a file. Change one byte of the file and the fingerprint changes.
-- **Security policy** (CSP, Content-Security-Policy): a list of rules in each page that tells the reader's browser what the page may load and run.
 
 ## Your first blog
 

@@ -8,12 +8,12 @@ For more details, see [Publish a book or a knowledge base](./publish-mdbook-book
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v69
+# bootstrap-mdbook.sh, v70
 #
 # Makes an mdBook book at PROJECT_DIR/BOOK_NAME, or updates one, the way mdBook's
 # own docs say to by hand, then opens a preview: part 1 is the steps, in order;
 # part 2 is every file they write. A re-run rewrites the files it owns and leaves
-# src/ and README.md alone. Linux x86_64. How to use it: mdb-guide.md.
+# src/, README.md and redirects.toml alone. Linux x86_64. How to use it: mdb-guide.md.
 #
 #   bash bootstrap-mdbook.sh                 make or update the book, check it, preview it
 #   bash bootstrap-mdbook.sh update          the same, taking the newest releases first
@@ -180,7 +180,9 @@ start_book() {
 # 6 to 10: the files mdBook reads, ./build, and the workflow.
 write_files() {
     local mark
-    # 6. book.toml.
+    # 6. book.toml; redirects.toml's lines, if there is one, become its redirect table.
+    [ ! -f redirects.toml ] || ! grep -q '^[[:space:]]*\[' redirects.toml \
+        || die "redirects.toml takes only lines like \"/old.html\" = \"new.html\", under no [ ] header: the script puts them under [output.html.redirect] in book.toml. Delete the header line, then run this again"
     render_book_toml > book.toml
     # 7. The theme files mdBook takes in place of its own.
     mkdir -p theme/fonts src/fonts
@@ -679,6 +681,9 @@ numbering-style = "consecutive"
 [preprocessor.numbering.code]
 enable = false
 EOF
+    # redirects.toml is the author's, never written here: at each old address mdBook writes a
+    # page that sends the reader on. A key that is still a chapter fails the build.
+    [ ! -f redirects.toml ] || { printf '\n[output.html.redirect]\n'; cat redirects.toml; }
 }
 
 # theme/head.hbs, before mdBook's script reads a saved theme: books on one github.io share it.

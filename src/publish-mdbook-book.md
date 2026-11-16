@@ -388,6 +388,25 @@ Title, author and description (`BOOK_DESCRIPTION`) are in `book.toml` `[book]`.
 
 **Pictures and media in raw HTML, in a chapter in a folder** (`src/guide/setup.md`, say), show on that chapter's page but not in `print.html`, the page the print button opens, where every chapter is laid out together. mdBook 0.5 builds `print.html` at the book's root and corrects a chapter's relative addresses there only on `<a>` and `<img>`, in `href` and `src`; anything else keeps the address that worked from the chapter's folder: a `<picture>`'s or an `<img>`'s `srcset`, a `<video>` or `<audio>` (its `src`, `poster` and `<source>`s), an `<iframe>`, or a `url()` in a `style` attribute. For a picture that should print, use a Markdown image or a plain `<img src>`. Chapters at the top of `src/` have no such problem, and printing a single page (<kbd>Ctrl</kbd>+<kbd>p</kbd> on it) prints its media whatever its folder.
 
+### Renaming a chapter
+
+When you rename a chapter's file:
+
+1. Rename the file in `src/` and update `SUMMARY.md`.
+2. Find-and-replace the old filename across `src/` — every link to the old name is now broken.
+3. Re-run the script, then commit.
+
+That's the whole fix. Step 2 is the one that matters: without it, every internal link to the old name is a broken link, and `./build` will stop on it.
+
+**If the page was already published** and external links point to the old URL — bookmarks, search engines, other sites — add a redirect so those links still work. Put a line in `redirects.toml` (at the book's root, next to `book.toml`):
+
+```toml
+"/old-name.html" = "new-name.html"
+```
+Left side is the old address; right side is the new filename. The file takes only these lines, with no `[header]`. mdBook generates a redirect page at the old URL that sends the reader to the new one. A page that was never published, or one with no outside links worth preserving, needs no redirect.
+
+`redirects.toml` is yours — the script never writes or deletes it. Each run copies its lines into `book.toml` under `[output.html.redirect]`. Without the file, `book.toml` has no redirect table. A key that matches a chapter still in `SUMMARY.md` fails the build.
+
 ### Unlisted chapters
 
 mdBook has no unlisted state of its own. It builds exactly what `SUMMARY.md` lists: a chapter that isn't in the file isn't rendered at all — the `.md` isn't even copied into `book/`, since mdBook copies every *other* file in `src/` verbatim but never markdown — and a chapter that *is* in the file gets a sidebar row, a place in the prev/next chain, and a section of `print.html`. So if you only want a page to exist in the repo and not on the site, leave it out of `SUMMARY.md`; mdBook ignores it silently, no warning and no output file.

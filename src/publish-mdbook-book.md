@@ -21,7 +21,7 @@ There are three ways to build a site like this one. They differ only in how the 
 
    Replace `REPLACE_WITH_REPO_URL` with the repository URL. Don't skip `rm -rf .git`, which prints nothing: it deletes the clone's history. Kept, the reference repo's commits would go into your repo with your first push, each with its author's name, email and time zone, and with `OFFLINE` on (the default) the book's versions would count them. With the history gone, the script makes a fresh repository, and you make the first commit of your own (see "The first commit").
 
-   A clone also carries *that* repo's URL baked into `book.toml` (`site-url`, `edit-url-template`), `README.md`, `custom.js` (`MDB_REPO`) and `offline.py` (`HOME`). Point them at *your own* empty repo: delete the clone's `README.md` and run the script with your `GIT_REPO_URL` set. It adds `origin` there, regenerates `book.toml`, `custom.js` and `offline.py`, and writes a new `README.md` because there is none. It does that in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match. Fonts, tagging, and Pages are then the same as the path below.
+   A clone also carries *that* repo's URL baked into `book.toml` (`site-url`, `edit-url-template`), `README.md`, `custom.js` (`MDB_REPO`) and `offline.py` (`HOME`). Point them at *your own* empty repo: delete the clone's `README.md` and `redirects.toml`, and run the script with your `GIT_REPO_URL` set. The clone's `redirects.toml` sends that repo's old addresses to pages your book doesn't have, and the link check stops on every one. It adds `origin` there, regenerates `book.toml`, `custom.js` and `offline.py`, and writes a new `README.md` because there is none. It does that in `PROJECT_DIR/BOOK_NAME`, so that path must be the clone; run the clone command above in `~/Desktop` and the defaults already match. Fonts, tagging, and Pages are then the same as the path below.
 
 2. **Run the script.** The rest of this guide, from "Run it" on. Edit the toggles, run it once with no arguments, and it installs mdBook, writes every file, and opens a preview. Re-running applies changed toggles; `update` takes new releases.
 3. **By hand.** mdBook's own docs, step by step, with nothing run for you: "By hand" has the steps, each with its page of mdBook's docs, its command and what it prints. The files' text is part 2 of the script, which you read and copy, or print one file at a time.
@@ -53,7 +53,7 @@ Audit it first. Part 1 of the script is its steps, in order, each following mdBo
 
 Into the project folder (`PROJECT_DIR/BOOK_NAME`):
 
-- `book.toml` — mdBook config, seeded from the toggles. **Script-owned.**
+- `book.toml` — mdBook config, seeded from the toggles, and from `redirects.toml` if there is one (see "Renaming a chapter"). **Script-owned.**
 - `src/SUMMARY.md`, `src/about.md`, `src/chapter_1.md`, `src/demo.svg` — starter content (the SVG is the demo chapter's picture), written after `mdbook init` only if `src/SUMMARY.md` doesn't already exist. **Yours** thereafter.
 - `custom.css`, `custom.js` — the theme and behaviours. **Script-owned.**
 - `version.js` — the deploy stamp the sidebar footer and the `Last updated` lines read: four placeholders the deploy workflow fills in. **Script-owned.**
@@ -92,6 +92,8 @@ Edit these at the top of the script.
 - `FAVICON_TEXT` — what `theme/favicon.svg` draws when there is no `src/logo.svg` to copy. `"auto"` (default) takes the first alphanumeric character of `BOOK_TITLE`, a letter as a capital (`M` for `mybook`); any other string is drawn as typed, first three characters, case preserved; `""` draws nothing and leaves mdBook's own bundled icon alone. `src/logo.svg` always wins. See "The favicon."
 - `OFFLINE` — `"full"` (default) adds a button beside print offering both: saving the book in the reader's browser, updated when they ask, and a copy to download, to keep on any computer, online or air-gapped. `"download"` offers the download only; `"none"` adds nothing a reader sees. See "Read offline."
 
+**Upgrading from v69:** follow the note for v68 too if you're coming from it. Re-run; there's nothing to commit unless you've added a `redirects.toml` (see "Renaming a chapter"). A run now copies that file's lines into `book.toml`. `book.toml` counts toward the version, so a commit that adds a redirect offers readers with a saved copy one update.
+
 **Upgrading from v68:** follow the note for v67 too if you're coming from it. Re-run, then commit `custom.js`. The script makes no commits at all now, on a new book either: see "The first commit". Every link to another site opens in a new tab, the menu bar's pencil and the sidebar footer's commit link included, where before only links in a chapter's text did; an email link, which before opened a blank tab as well, now opens the mail program alone. The commit is a new version, so readers with a saved copy are offered one update.
 
 **Upgrading from v67:** follow the note for v66 too if you're coming from it. Re-run, then commit `.gitignore`: the run adds `*~`, `.*.sw[a-p]`, `.#*` and `\#*#` to it, editors' swap, lock and backup files. `git status --short` should list `.gitignore` and nothing else. Nothing a reader sees changes, and `.gitignore` isn't among the files a version counts, so readers with a saved copy aren't offered an update. Three things the run does differently: a first download of mdBook or lychee, on a new book or with `update`, is checked against the SHA-256 GitHub recorded for the file before anything is kept (see "Releases and updates"); `curl`, `git` and `python3` are checked by running them, so on Whonix, where `/usr/bin/git` is a wrapper that's there whether git is or not, a missing git stops the run at once, with every missing tool named; and a change to `origin` is said.
@@ -106,9 +108,9 @@ Edit these at the top of the script.
 
 ## Re-running vs. hand edits
 
-A re-run keeps the releases the workflow pins (`update` takes newer ones; see "Releases and updates"), downloads a release into `bin/` only when its tarball isn't there yet, checks each tarball against the SHA-256 the workflow pins, re-pins the workflow, and rewrites every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent), and so is `README.md` (written only when there's none). The script never commits, on a first run or a re-run: what goes into a commit is yours to check (see "The first commit"). `theme/head.hbs` and `theme/fonts/fonts.css` are written from the current settings each run, so a change of `THEME` or `OFFLINE` never leaves a stale one behind: a `head.hbs` clearing every saved theme in a `"picker"` book would stop the button remembering any choice. A run as root, with `sudo` or otherwise, stops before it does anything, since nothing here needs root: run it as the book's owner.
+A re-run keeps the releases the workflow pins (`update` takes newer ones; see "Releases and updates"), downloads a release into `bin/` only when its tarball isn't there yet, checks each tarball against the SHA-256 the workflow pins, re-pins the workflow, and rewrites every **script-owned** file above from the toggles, then runs `./build` before the preview and stops there on a broken link. Your `src/` is preserved (the starter content is only written when `src/SUMMARY.md` is absent), and so are `README.md` (written only when there's none) and `redirects.toml` (never written). The script never commits, on a first run or a re-run: what goes into a commit is yours to check (see "The first commit"). `theme/head.hbs` and `theme/fonts/fonts.css` are written from the current settings each run, so a change of `THEME` or `OFFLINE` never leaves a stale one behind: a `head.hbs` clearing every saved theme in a `"picker"` book would stop the button remembering any choice. A run as root, with `sudo` or otherwise, stops before it does anything, since nothing here needs root: run it as the book's owner.
 
-So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `version.js`, `build`, `offline.py` or the workflow do not survive a re-run.** Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run.
+So: edit `src/` and `README.md` freely and re-run whenever you like. But **hand edits to `book.toml`, `custom.css`, `custom.js`, `version.js`, `build`, `offline.py` or the workflow do not survive a re-run.** For redirects, use `redirects.toml` (see "Renaming a chapter"). Inside `theme/` the script touches exactly three files — `theme/head.hbs`, `theme/fonts/fonts.css` and `theme/favicon.svg` — and hand edits to those three go the same way; anything *else* you put in `theme/` (a `favicon.png`, an `index.hbs`, a `css/chrome.css` override) is left alone, run after run. To change a script-owned file, either change the toggle that drives it and re-run, or edit it and then don't re-run.
 
 ## By hand
 
@@ -393,19 +395,32 @@ Title, author and description (`BOOK_DESCRIPTION`) are in `book.toml` `[book]`.
 When you rename a chapter's file:
 
 1. Rename the file in `src/` and update `SUMMARY.md`.
-2. Find-and-replace the old filename across `src/` — every link to the old name is now broken.
-3. Re-run the script, then commit.
+2. Find-and-replace the old filename across `src/`: every link to the old name is now broken.
+3. Run `./build`. It should end `links: every internal link and anchor resolves`; a link step 2 missed is listed under the built page it's on. Then commit the renamed file, `SUMMARY.md` and the pages you edited.
 
-That's the whole fix. Step 2 is the one that matters: without it, every internal link to the old name is a broken link, and `./build` will stop on it.
+Step 2 is the one that matters: without it, every internal link to the old name is a broken link, and `./build` stops on it.
 
-**If the page was already published** and external links point to the old URL — bookmarks, search engines, other sites — add a redirect so those links still work. Put a line in `redirects.toml` (at the book's root, next to `book.toml`):
+**If the page was already published** and other sites, bookmarks or search engines link to the old address, add a redirect so those links still work. Put a line in `redirects.toml`, at the book's root next to `book.toml`:
 
 ```toml
 "/old-name.html" = "new-name.html"
 ```
-Left side is the old address; right side is the new filename. The file takes only these lines, with no `[header]`. mdBook generates a redirect page at the old URL that sends the reader to the new one. A page that was never published, or one with no outside links worth preserving, needs no redirect.
 
-`redirects.toml` is yours — the script never writes or deletes it. Each run copies its lines into `book.toml` under `[output.html.redirect]`. Without the file, `book.toml` has no redirect table. A key that matches a chapter still in `SUMMARY.md` fails the build.
+The left side is the old address. The right side is the new page's address from the old one's folder; for a chapter at the top of `src/`, just its filename. The file takes only these lines, with no `[header]`. mdBook writes a page at the old address that sends the reader to the new one.
+
+Get the sides the wrong way round, with the new name on the left, and `./build` stops before the link check:
+
+```text
+ERROR Rendering failed
+	Caused by: redirect found for existing chapter at `/new-name.html`
+Either delete the redirect or remove the chapter.
+```
+
+Delete neither: put the old name on the left. A right side that names no page stops the link check instead, with `File not found` under the redirect page.
+
+With a redirect, re-run the script, which copies `redirects.toml`'s lines into `book.toml` under `[output.html.redirect]`, then `./build`, then commit `redirects.toml` and `book.toml` with the rest. Commit both: the deploy builds the `book.toml` you pushed and never runs the script, so a `redirects.toml` pushed alone publishes no redirect.
+
+`redirects.toml` is yours: the script never writes or deletes it. Without the file, `book.toml` has no redirect table. A page that was never published, or one with no outside links worth keeping, needs no redirect.
 
 ### Unlisted chapters
 

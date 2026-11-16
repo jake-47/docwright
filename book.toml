@@ -17,6 +17,6 @@ edit-url-template = "https://github.com/jake-47/docwright/edit/main/{path}"
 runnable = false
 
 [output.html.redirect]
-"/publish-mdbook-book.html" = "publish-mdbook-book.html"
-"/publish-zola-blog.html" = "publish-zola-blog.html"
-"/publish-mkdocs-docs.html" = "publish-mkdocs-docs.html"
+"/publish-book.html" = "publish-mdbook-book.html"
+"/publish-blog.html" = "publish-zola-blog.html"
+"/publish-docs.html" = "publish-mkdocs-docs.html"

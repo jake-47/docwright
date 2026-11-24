@@ -337,7 +337,7 @@ var mdbReady = function (fn) {
   }, true);
 })();
 
-// OFFLINE: the last button on the right, after print: save in the browser ("full"; sw.js serves it), or download.
+// OFFLINE: the last button on the right, after print: save in the browser ("full"; sw.js serves it), or the downloads.
 // Icons: from Font Awesome Free, the set mdBook draws its own from, with its
 // notice: Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com
 // License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL
@@ -705,13 +705,14 @@ var mdbReady = function (fn) {
     var same = Array.prototype.find.call(panel.querySelectorAll("[data-k]"), function (n) { return n.getAttribute("data-k") === focus; });
     (same || first()).focus();
   };
-  // Focus on opening: Save or Update, else the panel (or a lone download); never Remove.
+  // Focus on opening: Save or Update, else the panel (or a lone link: a copy's address); never Remove.
   var first = function () {
     var ok = ':not([data-k="Remove saved copy"]):not(:disabled)';
     return panel.querySelector("button.mdb-offline-big" + ok) ||
-      (panel.querySelector(".mdb-offline-sep") ? null : panel.querySelector("[data-k]" + ok)) || panel;
+      (panel.querySelector(".mdb-offline-sep") || panel.querySelectorAll("a.mdb-offline-big").length > 1 ? null :
+        panel.querySelector("[data-k]" + ok)) || panel;
   };
-  // The panel's content, into box: saving first, the download under it.
+  // The panel's content, into box: saving first, the downloads under it.
   var draw = function (box) {
     var L = st.latest, S = st.saved, u = update(), panel = box;
     panel.appendChild(el("p", "mdb-offline-title", "Read offline"));
@@ -767,7 +768,8 @@ var mdbReady = function (fn) {
     var c = L && L.copies;
     if (!c || !st.online || st.busy) return;
     var d = el("div", saving ? "mdb-offline-dl mdb-offline-sep" : "mdb-offline-dl");
-    download(d, c.laptop, "Download a copy", "A copy to keep on any computer, online or air-gapped. Unpack it and open index.html in the folder it makes.");
+    download(d, c.laptop, "Download for a computer", "A copy to keep on any computer, online or air-gapped. Unpack it and open index.html in the folder it makes.");
+    download(d, c.phone, "Download for a phone", "A copy to keep on a phone, online or air-gapped, read in the free Kiwix app: install Kiwix while online, send this file to the phone, then open it from Kiwix.");
     if (d.firstChild) panel.appendChild(d);
   };
 

@@ -8,7 +8,7 @@ For more details, see [Publish a book or a knowledge base](./publish-mdbook-book
 
 ````bash
 #!/bin/bash
-# bootstrap-mdbook.sh, v70
+# bootstrap-mdbook.sh, v71
 #
 # Makes an mdBook book at PROJECT_DIR/BOOK_NAME, or updates one, the way mdBook's
 # own docs say to by hand, then opens a preview: part 1 is the steps, in order;
@@ -46,9 +46,10 @@ SIDEBAR_MASTHEAD="text"                   # "text", "none", or "image" (src/logo
 FAVICON_TEXT="auto"                       # "auto" (the title's first letter), up to 3
                                           # characters, or ""; src/logo.svg wins
 OFFLINE="full"                            # "full" (default): saving the book in the
-                                          # reader's browser, and a copy to download
-                                          # for any computer, online or air-gapped;
-                                          # "download": the copy only; "none": neither
+                                          # reader's browser, and copies to download
+                                          # for a computer and for a phone (in the
+                                          # Kiwix app), online or air-gapped;
+                                          # "download": the copies only; "none": neither
 # The footer's version label comes from git, stamped by the workflow: the tag on
 # the built commit, or the nearest one plus a count (v1.2+5). Tag a release with
 #   git tag -a v0.2.0 -m 'v0.2.0' && git push origin v0.2.0
@@ -1020,13 +1021,13 @@ EOF
 .mdb-offline-panel .mdb-offline-actions{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.2rem;}
 .mdb-offline-panel .mdb-offline-act{padding:.5rem 1.2rem;font:inherit;color:var(--fg);background:var(--theme-hover);border:1px solid var(--theme-popup-border);border-radius:4px;cursor:pointer;}
 .mdb-offline-panel .mdb-offline-act:disabled{opacity:.5;cursor:default;}
-/* Save, Update and the download: a big button each, what it's for under it. */
+/* Save, Update and the downloads: a big button each, what it's for under it. */
 .mdb-offline-panel .mdb-offline-big{display:block;box-sizing:border-box;width:100%;margin-top:1.4rem;padding:1rem 1.2rem;border:1px solid var(--theme-popup-border);border-radius:6px;background:var(--inline-bg);color:var(--fg);font:inherit;font-size:1.6rem;font-weight:bold;line-height:1.3;text-align:center;text-decoration:none;cursor:pointer;}
 .mdb-offline-panel .mdb-offline-big:is(:hover,:focus-visible):not(:disabled){border-color:var(--sidebar-active);}
 .mdb-offline-panel .mdb-offline-big:disabled{opacity:.5;cursor:default;}
 .mdb-offline-panel .mdb-offline-what{margin-top:.6rem;}
 .mdb-offline-panel .mdb-offline-what + .mdb-offline-note{margin-top:.2rem;}
-/* The download under saving, a rule between them. */
+/* The downloads under saving, a rule between them. */
 .mdb-offline-panel .mdb-offline-sep{margin-top:1.6rem;border-top:1px solid var(--theme-popup-border);}
 /* A saved copy behind the site: the line above the page's text, outside <main>. */
 .mdb-stale{box-sizing:border-box;max-width:var(--content-max-width);margin:var(--mdb-top-gap) auto 0;padding:.8rem 1.2rem;border-inline-start:3px solid var(--sidebar-active);background:var(--quote-bg);font-size:1.6rem;line-height:1.45;}
@@ -1391,7 +1392,7 @@ EOF
     if [ "$OFFLINE" != none ]; then
         cat <<'EOF'
 
-// OFFLINE: the last button on the right, after print: save in the browser ("full"; sw.js serves it), or download.
+// OFFLINE: the last button on the right, after print: save in the browser ("full"; sw.js serves it), or the downloads.
 // Icons: from Font Awesome Free, the set mdBook draws its own from, with its
 // notice: Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com
 // License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL
@@ -1759,13 +1760,14 @@ EOF
     var same = Array.prototype.find.call(panel.querySelectorAll("[data-k]"), function (n) { return n.getAttribute("data-k") === focus; });
     (same || first()).focus();
   };
-  // Focus on opening: Save or Update, else the panel (or a lone download); never Remove.
+  // Focus on opening: Save or Update, else the panel (or a lone link: a copy's address); never Remove.
   var first = function () {
     var ok = ':not([data-k="Remove saved copy"]):not(:disabled)';
     return panel.querySelector("button.mdb-offline-big" + ok) ||
-      (panel.querySelector(".mdb-offline-sep") ? null : panel.querySelector("[data-k]" + ok)) || panel;
+      (panel.querySelector(".mdb-offline-sep") || panel.querySelectorAll("a.mdb-offline-big").length > 1 ? null :
+        panel.querySelector("[data-k]" + ok)) || panel;
   };
-  // The panel's content, into box: saving first, the download under it.
+  // The panel's content, into box: saving first, the downloads under it.
   var draw = function (box) {
     var L = st.latest, S = st.saved, u = update(), panel = box;
     panel.appendChild(el("p", "mdb-offline-title", "Read offline"));
@@ -1821,7 +1823,8 @@ EOF
     var c = L && L.copies;
     if (!c || !st.online || st.busy) return;
     var d = el("div", saving ? "mdb-offline-dl mdb-offline-sep" : "mdb-offline-dl");
-    download(d, c.laptop, "Download a copy", "A copy to keep on any computer, online or air-gapped. Unpack it and open index.html in the folder it makes.");
+    download(d, c.laptop, "Download for a computer", "A copy to keep on any computer, online or air-gapped. Unpack it and open index.html in the folder it makes.");
+    download(d, c.phone, "Download for a phone", "A copy to keep on a phone, online or air-gapped, read in the free Kiwix app: install Kiwix while online, send this file to the phone, then open it from Kiwix.");
     if (d.firstChild) panel.appendChild(d);
   };
 
@@ -2003,7 +2006,7 @@ echo "links: every internal link and anchor resolves"
 EOF
 }
 
-# offline.py: its five settings from the script's, then the program, verbatim.
+# offline.py: its six settings from the script's, then the program, verbatim.
 render_offline() {
     cat <<EOF
 #!/usr/bin/env python3
@@ -2011,30 +2014,34 @@ render_offline() {
 MODE = "$(esc_dq "$OFFLINE")"
 NAME = "$(esc_dq "$BOOK_NAME")"
 TITLE = "$(esc_dq "$BOOK_TITLE")"
+AUTHOR = "$(esc_dq "$BOOK_AUTHOR")"
 DESCRIPTION = "$(esc_dq "$BOOK_DESCRIPTION")"
 HOME = "$(esc_dq "$PAGES_URL")"
 EOF
     cat <<'OFFLINEPY'
 
-# OFFLINE's build step (./build runs it): sw.js always; unless "none", the download and version.json.
+# OFFLINE's build step (./build runs it): sw.js always; unless "none", the downloads and version.json.
 
 import base64
 import datetime
 import hashlib
+import html
 import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import zipfile
+import zlib
 from urllib.parse import unquote
 
 # A commit that changes any of these is a version.
 SOURCES = ["book.toml", "src", "theme", "custom.css", "custom.js", "version.js",
            "offline.py", "build", ".github/workflows/deploy.yml"]
-# The download and its checksum, inside the built book.
+# The downloads and their checksums, inside the built book.
 FOLDER = "offline"
 # The deploy stamp: version.js, or its fingerprinted name when mdBook hashes files.
 STAMP = re.compile(r"version(-[0-9a-f]{8})?\.js")
@@ -2242,9 +2249,185 @@ def write_zip(where, files, dest, top):
                 z.writestr(info, f.read(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
     os.replace(tmp, dest)
 
+# The phone copy: an archive in openZIM's format, for the Kiwix app, written here with the
+# standard library: major version 6, minor 1 (every file in namespace C), no full-text index.
+ZIM_MIME = {".html": "text/html", ".htm": "text/html", ".css": "text/css", ".js": "application/javascript",
+            ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif",
+            ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf",
+            ".otf": "font/otf", ".txt": "text/plain", ".xml": "application/xml", ".pdf": "application/pdf",
+            ".webmanifest": "application/manifest+json", ".mp4": "video/mp4", ".webm": "video/webm",
+            ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".m4a": "audio/mp4"}
+# Compressed with xz in their clusters; the rest (pictures, fonts, media) are stored as they are.
+ZIM_PACK = {"application/javascript", "application/json", "image/svg+xml", "application/xml",
+            "application/manifest+json", "application/octet-stream+zimlisting"}
+ZIM_LISTING = "listing/titleOrdered/v1"
+# Kiwix takes ISO 639-3; mdBook's <html lang> gives ISO 639-1.
+LANG3 = {"ar": "ara", "bn": "ben", "cs": "ces", "da": "dan", "de": "deu", "el": "ell", "en": "eng",
+         "es": "spa", "fa": "fas", "fi": "fin", "fr": "fra", "he": "heb", "hi": "hin", "hu": "hun",
+         "id": "ind", "it": "ita", "ja": "jpn", "kn": "kan", "ko": "kor", "ml": "mal", "mr": "mar",
+         "nl": "nld", "no": "nor", "pl": "pol", "pt": "por", "ro": "ron", "ru": "rus", "sv": "swe",
+         "ta": "tam", "te": "tel", "th": "tha", "tr": "tur", "uk": "ukr", "ur": "urd", "vi": "vie",
+         "zh": "zho"}
 
-def copies(book, files, version, built, commit):
-    """The download in offline/, with a .sha256 file."""
+
+def png_tile(n, ground, edge):
+    """A square PNG of n pixels: ground, with a one-pixel edge: the phone copy's icon in Kiwix."""
+    rows = b"".join(b"\0" + b"".join(bytes(edge if x in (0, n - 1) or y in (0, n - 1) else ground)
+                                     for x in range(n)) for y in range(n))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", n, n, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
+
+
+def page_title(data):
+    """A page's <title>, less mdBook's \" - TITLE\": what Kiwix lists it by."""
+    m = re.search(rb"<title>(.*?)</title>", data, re.S)
+    if not m:
+        return ""
+    t = html.unescape(m.group(1).decode("utf-8", "replace")).strip()
+    end = " - " + TITLE
+    return t[:-len(end)].strip() if t.endswith(end) and len(t) > len(end) else t
+
+
+def zim_cluster(blobs, pack):
+    """One cluster: its blobs' offsets, then the blobs, xz-compressed (4) or as they are (1)."""
+    offsets, at = [], 4 * (len(blobs) + 1)
+    for b in blobs:
+        offsets.append(at)
+        at += len(b)
+    offsets.append(at)
+    raw = struct.pack("<%dI" % len(offsets), *offsets) + b"".join(blobs)
+    if not pack:
+        return b"\x01" + raw
+    # Here, not at the top: a Python built without xz then fails only at the phone copy.
+    import lzma
+    return b"\x04" + lzma.compress(raw, preset=9)
+
+
+def write_zim(where, files, dest, built, first):
+    """The phone copy: the same files give the same bytes. Each file is read as its cluster is
+    made, and the clusters go to disk as they're made, so the book is never held in memory."""
+    # Each entry: [namespace, path, title, mime type (None for a redirect), file or bytes,
+    # redirect target, in Kiwix's suggestions].
+    items = []
+    for rel in files:
+        # 404.html's <base href> points at the site; index.html is the first chapter again.
+        if rel == "404.html":
+            continue
+        if rel == "index.html" and first:
+            items.append(["C", rel, "", None, None, ("C", first), False])
+            continue
+        path = os.path.join(where, rel)
+        ext = os.path.splitext(rel)[1].lower()
+        title, front = "", False
+        if ext in (".html", ".htm"):
+            with open(path, "rb") as f:
+                head = f.read(8192)
+            title = page_title(head)
+            # Suggested as a reader types: the pages, less print, toc, unlisted and redirect pages.
+            front = (rel not in ("print.html", "toc.html") and not re.search(r"(^|/)unlisted/", rel)
+                     and not re.search(rb"<meta[^>]+http-equiv=[\"']?refresh", head[:2048], re.I))
+        items.append(["C", rel, title, ZIM_MIME.get(ext, "application/octet-stream"), path, None, front])
+    items.append(["W", "mainPage", "", None, None, ("C", first or "index.html"), False])
+    # How many files of each type: Kiwix's library won't take an archive without it.
+    kinds = {}
+    for e in items:
+        if e[0] == "C" and e[3]:
+            kinds[e[3]] = kinds.get(e[3], 0) + 1
+    who = AUTHOR or TITLE
+    meta = [("Name", NAME), ("Title", TITLE[:30]), ("Language", LANG3.get(language(where).split("-")[0].lower(), "eng")),
+            ("Creator", who), ("Publisher", who), ("Date", built[:10]), ("Description", (DESCRIPTION or TITLE)[:80]),
+            ("Source", HOME), ("Counter", ";".join("%s=%d" % k for k in sorted(kinds.items())))]
+    for key, value in meta:
+        if value:
+            items.append(["M", key, "", "text/plain", value.encode("utf-8"), None, False])
+    items.append(["M", "Illustration_48x48@1", "", "image/png", png_tile(48, (0x11, 0x11, 0x11), (0x42, 0x42, 0x3c)), None, False])
+    items.append(["X", ZIM_LISTING, "", "application/octet-stream+zimlisting", b"", None, False])
+    items.sort(key=lambda e: (e[0], e[1].encode("utf-8")))
+    index = {(e[0], e[1]): i for i, e in enumerate(items)}
+    fronts = sorted((i for i, e in enumerate(items) if e[6]), key=lambda i: ((items[i][2] or items[i][1]).encode("utf-8"), i))
+    items[index[("X", ZIM_LISTING)]][4] = struct.pack("<%dI" % len(fronts), *fronts)
+
+    def data(e):
+        if isinstance(e[4], bytes):
+            return e[4]
+        with open(e[4], "rb") as f:
+            return f.read()
+
+    # The clusters, to a file beside dest: their sizes and order are all the rest needs.
+    part = dest + ".clusters"
+    sizes, place, waiting, held, ident = [], {}, {True: [], False: []}, {True: 0, False: 0}, hashlib.sha256()
+    with open(part, "wb") as out:
+        def flush(pack):
+            if waiting[pack]:
+                for blob, i in enumerate(waiting[pack]):
+                    place[i] = (len(sizes), blob)
+                cluster = zim_cluster([data(items[i]) for i in waiting[pack]], pack)
+                out.write(cluster)
+                ident.update(cluster)
+                sizes.append(len(cluster))
+                waiting[pack], held[pack] = [], 0
+        for i, e in enumerate(items):
+            if e[3] is None:
+                continue
+            pack = e[3].startswith("text/") or e[3] in ZIM_PACK
+            waiting[pack].append(i)
+            held[pack] += os.path.getsize(e[4]) if isinstance(e[4], str) else len(e[4])
+            if held[pack] >= 1 << 20:
+                flush(pack)
+        flush(True)
+        flush(False)
+
+    mimes = sorted({e[3] for e in items if e[3]})
+    dirents = []
+    for i, e in enumerate(items):
+        tail = e[1].encode("utf-8") + b"\0" + (e[2].encode("utf-8") if e[2] != e[1] else b"") + b"\0"
+        if e[3] is None:
+            dirents.append(struct.pack("<HBcII", 0xffff, 0, e[0].encode(), 0, index[e[5]]) + tail)
+        else:
+            dirents.append(struct.pack("<HBcIII", mimes.index(e[3]), 0, e[0].encode(), 0, *place[i]) + tail)
+    mime_list = b"".join(m.encode("ascii") + b"\0" for m in mimes) + b"\0"
+    n, c = len(items), len(sizes)
+    path_at = 80 + len(mime_list)
+    title_at = path_at + 8 * n
+    at = title_at + 4 * n
+    path_ptrs = []
+    for d in dirents:
+        path_ptrs.append(at)
+        at += len(d)
+    cluster_ptrs_at = at
+    at += 8 * c
+    cluster_ptrs = []
+    for size in sizes:
+        cluster_ptrs.append(at)
+        at += size
+    titles = sorted(range(n), key=lambda i: (items[i][0], (items[i][2] or items[i][1]).encode("utf-8"), i))
+    lists = (mime_list + struct.pack("<%dQ" % n, *path_ptrs) + struct.pack("<%dI" % n, *titles) + b"".join(dirents)
+             + struct.pack("<%dQ" % c, *cluster_ptrs))
+    # Its ID from what it holds: the same book, the same ID.
+    ident.update(lists)
+    header = struct.pack("<IHH16sIIQQQQIIQ", 72173914, 6, 1, ident.digest()[:16], n, c, path_at, title_at,
+                         cluster_ptrs_at, 80, index[("W", "mainPage")], 0xffffffff, at)
+    tmp, check = dest + ".part", hashlib.md5()
+    try:
+        with open(tmp, "wb") as out, open(part, "rb") as clusters:
+            block = header + lists
+            while block:
+                out.write(block)
+                check.update(block)
+                block = clusters.read(1 << 20)
+            out.write(check.digest())
+        os.replace(tmp, dest)
+    finally:
+        os.remove(part)
+
+
+
+def copies(book, files, version, built, commit, first):
+    """The downloads in offline/: the computer's and the phone's, each with a .sha256 file."""
     stem = "%s-v%d" % (NAME, version)
     work = tempfile.mkdtemp(prefix=".offline-", dir=book)
     try:
@@ -2255,13 +2438,20 @@ def copies(book, files, version, built, commit):
         embed_assets(laptop, files)
         write(os.path.join(laptop, "README.txt"), readme(stem, version, built))
         write_zip(laptop, sorted(set(files + ["README.txt"])), os.path.join(book, FOLDER, stem + ".zip"), stem)
+        phone = os.path.join(work, "phone")
+        stage(book, files, phone)
+        mark_copy(phone, files, {"kind": "phone", "version": version, "built": built, "home": HOME}, commit)
+        folder_links(phone, files)
+        write_zim(phone, files, os.path.join(book, FOLDER, stem + ".zim"), built, first)
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    name = stem + ".zip"
-    path = os.path.join(book, FOLDER, name)
-    digest = sha256(path)
-    write(path + ".sha256", "%s  %s\n" % (digest, name))
-    return {"laptop": {"file": FOLDER + "/" + name, "size": os.path.getsize(path), "sha256": digest}}
+    out = {}
+    for kind, name in (("laptop", stem + ".zip"), ("phone", stem + ".zim")):
+        path = os.path.join(book, FOLDER, name)
+        digest = sha256(path)
+        write(path + ".sha256", "%s  %s\n" % (digest, name))
+        out[kind] = {"file": FOLDER + "/" + name, "size": os.path.getsize(path), "sha256": digest}
+    return out
 
 
 def size(n):
@@ -2302,16 +2492,17 @@ def main(argv):
         write(os.path.join(book, "manifest.webmanifest"),
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     stem = "%s-v%d" % (NAME, version)
-    skip = {"sw.js", "version.json"} | {"%s/%s%s" % (FOLDER, stem, ext) for ext in (".zip", ".zip.sha256")}
+    skip = {"sw.js", "version.json"} | {"%s/%s%s" % (FOLDER, stem, ext) for ext in (".zip", ".zip.sha256", ".zim", ".zim.sha256")}
     files = files_of(book, skip)
-    info = {"version": version, "built": built, "copies": copies(book, files, version, built, commit)}
+    first = first_chapter(book, files)
+    info = {"version": version, "built": built, "copies": copies(book, files, version, built, commit, first)}
     if MODE == "full":
         # [size, SHA-256], then 2 for index.html copying the first chapter.
         listed = {}
         for rel in files:
             path = os.path.join(book, rel)
             listed[rel] = [os.path.getsize(path), sha256(path)]
-        if first_chapter(book, files):
+        if first:
             listed["index.html"].append(2)
         # The stamp changes with every commit; the book doesn't.
         info["fingerprint"] = hashlib.sha256("".join(
@@ -2321,8 +2512,8 @@ def main(argv):
     write(os.path.join(book, "version.json"),
           json.dumps(info, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
     c = info["copies"]
-    print("offline: v%d; air-gapped laptop's copy %s%s"
-          % (version, size(c["laptop"]["size"]),
+    print("offline: v%d; air-gapped laptop's copy %s, phone's copy %s%s"
+          % (version, size(c["laptop"]["size"]), size(c["phone"]["size"]),
              "; %d files to save, %s" % (len(files), size(sum(v[0] for v in info["files"].values())))
              if MODE == "full" else ""))
     return 0

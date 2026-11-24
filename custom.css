@@ -217,13 +217,13 @@ pre > .mdb-gutter + code.hljs{flex:1 1 auto;min-width:0;padding-left:1em;}
 .mdb-offline-panel .mdb-offline-actions{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:1.2rem;}
 .mdb-offline-panel .mdb-offline-act{padding:.5rem 1.2rem;font:inherit;color:var(--fg);background:var(--theme-hover);border:1px solid var(--theme-popup-border);border-radius:4px;cursor:pointer;}
 .mdb-offline-panel .mdb-offline-act:disabled{opacity:.5;cursor:default;}
-/* Save, Update and the download: a big button each, what it's for under it. */
+/* Save, Update and the downloads: a big button each, what it's for under it. */
 .mdb-offline-panel .mdb-offline-big{display:block;box-sizing:border-box;width:100%;margin-top:1.4rem;padding:1rem 1.2rem;border:1px solid var(--theme-popup-border);border-radius:6px;background:var(--inline-bg);color:var(--fg);font:inherit;font-size:1.6rem;font-weight:bold;line-height:1.3;text-align:center;text-decoration:none;cursor:pointer;}
 .mdb-offline-panel .mdb-offline-big:is(:hover,:focus-visible):not(:disabled){border-color:var(--sidebar-active);}
 .mdb-offline-panel .mdb-offline-big:disabled{opacity:.5;cursor:default;}
 .mdb-offline-panel .mdb-offline-what{margin-top:.6rem;}
 .mdb-offline-panel .mdb-offline-what + .mdb-offline-note{margin-top:.2rem;}
-/* The download under saving, a rule between them. */
+/* The downloads under saving, a rule between them. */
 .mdb-offline-panel .mdb-offline-sep{margin-top:1.6rem;border-top:1px solid var(--theme-popup-border);}
 /* A saved copy behind the site: the line above the page's text, outside <main>. */
 .mdb-stale{box-sizing:border-box;max-width:var(--content-max-width);margin:var(--mdb-top-gap) auto 0;padding:.8rem 1.2rem;border-inline-start:3px solid var(--sidebar-active);background:var(--quote-bg);font-size:1.6rem;line-height:1.45;}

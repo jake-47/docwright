@@ -1,295 +1,699 @@
 # Stopwatch pomodoro tracker
 
-Track the time you work. Use another app or the `sw` stopwatch+pomodoro script below. If you can’t measure it, you can’t improve it.
+`sw` times your work, logs each session, and builds a readable work log from the sessions.
+On the XFCE panel it gives each of the day's tasks a button.
 
-## The one idea
+![alt text](attachments/image-3.png)
 
-`sw` is an instrument of self-honesty, and everything below follows from that.
+Commands below use the name `sw`; if your link has another name, such as `psw`, type that instead.
+A command prints nothing when it works, unless the text says what it prints.
+Times and totals in the samples are examples; yours will differ.
 
-It measures one thing with total accuracy: the wall-clock span between the keypress that starts a session and the keypress that stops it.
-Not the time you were at the keyboard, not the time you were "productive," just clock time from start to stop.
-That makes it good for exactly one job, seeing where your hours actually go, and useless for any job that needs the number to mean something to someone other than you.
-The three warnings at the end are not separate rules; they are one rule, that a log built on self-honesty survives only when no one with power over you reads it, you do not turn it into a stick to beat yourself with, and you are not hiding from what it shows.
+# Install sw
 
-## What it does
-
-Three modes, one log.
-
-- A **stopwatch** that counts up from zero until you stop it (`sw`, the default).
-- A **pomodoro** that counts a fixed focus block down, then runs a break (`sw pomo`).
-- A **work log** that every finished session writes to, which the reporting commands read back.
-
-Each finished session is one row: the date, the clock time you stopped, the duration, and an optional tag.
-The reports are just arithmetic over those rows.
-
-## Driving it
-
-Start the stopwatch, optionally tagged:
+Do this once.
+Save the script under a plain name, such as `~/Documents/sw.py`.
+Link it as `sw`, as the run scripts by name guide describes.
+Check it:
 
 ```bash
-sw                 # untagged
-sw deep work       # tagged: deep-work
+sw version
 ```
 
-Press **Enter** to stop and log the session.
-Press **Ctrl+C** to throw it away and log nothing.
+It prints `sw, v` followed by the version number, such as `sw, v49`.
 
-Run a pomodoro:
+For the panel buttons, install the Generic Monitor plugin:
+
+```bash
+sudo apt install xfce4-genmon-plugin
+```
+
+It ends either by installing the plugin, or with `xfce4-genmon-plugin is already the newest version`.
+If you skip this, `sw today` tells you, in the terminal and in a desktop notification, and shows this same command.
+
+# Get started
+
+## Set the day's tasks
+
+Type one word per task, in the order you want them on the panel:
+
+```bash
+sw today work theology email
+```
+
+It prints the list, numbered by button:
+
+```
+1  work
+2  theology
+3  email
+```
+
+The first time, it also prints a line like:
+
+```
+added slots 1-3 buttons to the panel (panel settings backed up to ~/.cache/sw-panel-backup-20261124-085500.xml)
+```
+
+The panel disappears for a moment and comes back with three new buttons, `work`, `theology` and `email`.
+That is normal: `sw` has to stop the panel to add buttons.
+
+## Start and stop a task
+
+Click a button to start its task.
+It turns bold and counts up today's time for that task: `▶ work 0:00`.
+Click it again to stop and log the session.
+It goes back to plain and shows today's time, such as `work 1:00`.
+
+Clicking another task's button stops and logs the running one first; only one task runs at a time.
+Hover over a button for when it started and what a click will do.
+Clicks redraw every button at once; otherwise buttons redraw every 50 seconds, so the running clock can lag by up to a minute.
+
+## Check your totals
+
+```bash
+sw status
+```
+
+With nothing running, it prints:
+
+```
+nothing running
+Today's total: 1h 45m; 2 sessions of 25m or more
+
+This week       Nov 23–29   4h 45m · 12% of 40h
+November 2026   4h 45m of 48h target (10%), worked 2 of 2 working days
+2026            4h 45m of 232h target (2%), worked 2 of 2 working days
+```
+
+The first two lines are today; "2 sessions of 25m or more" counts the sessions at least one pomodoro long.
+The last three lines are explained in "How the targets work".
+These figures match the sample work log in the next section.
+
+# Read the work log
+
+The work log is `~/Documents/mv/wlog.md`; open it in any editor.
+This is the whole file after two days of use, read at 11:20 on Tuesday:
+
+- Monday: work 09:00–10:00, email 10:15–10:45, work 11:00–12:30.
+- Tuesday: work 09:00–10:00, theology 10:15–11:00.
+
+~~~
+# config (edit a value; delete a line to use its default)
+```
+Daily target:          8h
+Working days per week: 5
+Remind after:          3h
+Pomodoro work:         25m
+Pomodoro break:        5m
+```
+
+# log
+
+<!-- Everything below is rebuilt from the raw log on every change: edits here are lost. Write notes above the # log line. -->
+
+```
+Updated Tue 2026-11-24 11:20
+
+Latest day    Tue Nov 24
+  1h 45m · 22% of 8h · longest 1h 00m
+  work 57%, theology 43%
+
+Day before    Mon Nov 23
+  3h 00m · 38% of 8h · longest 1h 30m
+  work 83%, email 17%
+
+Latest week   Nov 23–29
+  4h 45m · 12% of 40h · longest 1h 30m
+  work 74%, theology 16%, email 11%
+
+Week before   Nov 16–22
+  0h 00m
+
+November 2026   4h 45m of 48h target (10%), worked 2 of 2 working days
+2026            4h 45m of 232h target (2%), worked 2 of 2 working days
+
+Best session   1h 30m   Mon 2026-11-23
+Best day       3h 00m   Mon 2026-11-23
+Best week      4h 45m   Nov 23–29 2026
+Best month     4h 45m   November 2026
+Best year      4h 45m   2026
+```
+
+## 2026
+
+```
+To date: 4h 45m of 232h target (2%), worked 2 of 2 working days
+
+Month    Hours   Days   Per day   Longest   Top tag
+Nov     4h 45m      2    2h 23m    1h 30m   work 74%
+2026    4h 45m      2    2h 23m    1h 30m   work 74%
+
+Tag         Hours     %
+work       3h 30m   74%
+theology   0h 45m   16%
+email      0h 30m   11%
+```
+
+### November
+
+```
+4h 45m · 2h 23m per day worked · longest 1h 30m
+2 days worked of 2 working days
+To date: 4h 45m of 48h target (10%), worked 2 of 2 working days
+Tags: work 74%, theology 16%, email 11%
+
+Nov 23–29   4h 45m   2 days   12% of 40h
+```
+
+- Tue 2026-11-24 — 1h 45m, 2 sessions · 09:00–11:00 · breaks 0h 15m
+  - 09:00–10:00   1h 00m   work       then 0h 15m break
+  - 10:15–11:00   0h 45m   theology
+- Mon 2026-11-23 — 3h 00m, 3 sessions · 09:00–12:30 · breaks 0h 30m
+  - 09:00–10:00   1h 00m   work       then 0h 15m break
+  - 10:15–10:45   0h 30m   email      then 0h 15m break
+  - 11:00–12:30   1h 30m   work
+~~~
+
+What each part is:
+
+- **Everything above `# log` is yours.** The settings live there, and you can add notes there. `sw` never changes it.
+- **Everything below `# log` is rebuilt** every time a session is logged. Anything you type there is lost, so don't.
+- **The dashboard** is the first box. It shows the last two days you worked and their weeks, then the month and year so far, then your best ever session, day, week, month and year.
+- **"Week before" shows `0h 00m`** here because tracking began on Monday Nov 23. Weeks before your first logged day have no target.
+- **Each year** gets a table with a row per month and the year's total, then every tag with its share of the year.
+- **Each month** opens with its total and its days worked, then its top three tags, then a line per week.
+- **Each day** lists its sessions in the order they started. A break shows at the end of the session before it, such as `then 0h 15m break`.
+
+Once your log covers two years, a table of every year appears just below the dashboard.
+A week that runs into the next month, such as Nov 30 – Dec 6, is listed under the month its Monday falls in.
+With more than three tags, the rest show as `other`, such as `work 50%, email 20%, calls 15%, other 15%`.
+
+# How the targets work
+
+A target is your daily target times the number of working days.
+With the default 8 hours and 5 working days, a full week's target is 5 × 8h = 40h.
+
+November 2026 has 21 working days, so a full November's target is 21 × 8h = 168h.
+But days before your first logged day don't count.
+In the sample, tracking began on Monday Nov 23.
+From then to the end of November there are 6 working days, so November's target is 6 × 8h = 48h.
+4h 45m of 48h is 10%.
+
+"Worked 2 of 2 working days" counts the working days so far that had any work: Monday and Tuesday both did.
+Work on a Saturday or Sunday still counts toward your hours.
+The month line then adds `plus 1 other day`, such as `5 days worked of 5 working days, plus 1 other day`.
+
+The targets only change the percentages.
+The hours you worked read the same whatever target you set.
+
+# How sw counts
+
+## One timer, no pause
+
+There is one timer, however you start it: a panel button, a keyboard shortcut or a terminal.
+Starting a task stops the one that was running and logs it first, so no minute counts twice.
+There is no pause.
+Stopping logs the session; starting the same task again begins a new session.
+That is why the work log can show your breaks.
+
+## Very short sessions aren't logged
+
+A session under one minute is almost always a mis-click, so `sw` drops it.
+`sw stop` then prints `work ran under a minute, not logged`.
+
+## Sleep doesn't count
+
+When you close the lid, the machine usually goes to sleep.
+`sw` leaves that sleep out.
+Say you start `work` at 12:00, close the lid at 12:30, open it at 14:00, and stop at 14:30.
+You worked one hour, and the machine slept 1h 30m.
+`sw stop` prints:
+
+```
+logged: 2026-11-24 13:30–14:30 1h 00m work
+1h 30m asleep left out; sw add 90m work puts it back
+```
+
+The logged session shows as 13:30–14:30: one hour, ending when you stopped.
+If you were working away from the screen while it slept, reading on paper say, run the `sw add` it gives you.
+
+The button, `sw status` and the stopwatch's clock all leave the sleep out too.
+While a session runs, `sw status` says how much it has left out: `running: work, since 12:00 (0h 30m so far, not counting 1h 30m asleep)`.
+`sw` needs no checking in the background for this: Linux keeps count of how long the machine has slept, and `sw` reads that count when a session starts and when it stops.
+
+A pomodoro counts down by the clock, so a block that ends while the machine sleeps has ended when you open the lid.
+It still logs exactly its set length.
+
+## Time away with the machine awake still counts
+
+If the screen only blanks, or the lid closes without the machine sleeping, `sw` sees no sleep.
+It also can't see the lunch you walked off to without stopping the timer.
+So the one habit it needs is: stop it when you stop.
+
+## A forgotten timer gets a reminder
+
+Once a session has run 3 hours with the machine awake, its button shows `⚠` instead of `▶`, such as `⚠ work 3:04`.
+You also get one desktop notification:
+
+```
+work has been running for 3h 00m, since 09:00. Still working? If not, stop it and fix the time in the raw log.
+```
+
+If you had stopped working, stop the timer, then shorten that session in the raw log; see "Edit the raw log".
+Change the 3 hours with the `Remind after` setting.
+
+## A crash or restart
+
+Everything already logged is on disk and safe.
+Closing the terminal or logging out leaves a running timer running; `sw status` and `sw stop` reach it from any terminal.
+
+If the machine shuts down while a timer runs, `sw` can't know how long you really worked.
+So the next time `sw` checks the timer, on any start, stop or status, or a panel redraw, it drops that session without logging it, and tells you:
+
+```
+work was running when the machine went down (started Tue 09:00); sw stopped it without logging it. Record the time you worked with: sw add DURATION work
+```
+
+Then log the time you actually worked with `sw add`, such as `sw add 2h work`.
+
+# Everyday tasks
+
+## Change the day's tasks
+
+To add or remove a task without typing the whole list again:
+
+```bash
+sw today add errands
+sw today remove theology
+```
+
+`add` puts the task at the end, on the next button.
+`remove` takes it off, and the tasks after it move up one button.
+Both print the new list, as `sw today` does; after the two commands above:
+
+```
+1  work
+2  email
+3  errands
+```
+
+The spare button goes blank; `sw` never removes a button.
+Name several tasks to change them at once, such as `sw today add errands calls`.
+You can have up to 9 tasks.
+
+A typo stops the command and changes nothing:
+
+- Adding a task already there prints `today: errands is already on the list; nothing changed`.
+- Removing one that isn't there prints `today: errands isn't on the list; nothing changed`.
+
+Removing the task that's running leaves it running, and `sw` says `errands is still running and now has no button; sw stop stops it`.
+
+`sw today` alone prints the list.
+`sw today -c` blanks every button and prints `no tasks set; the panel slots are empty`.
+
+A task literally named `add` or `remove` can't start a full list, since `sw` reads it as the command.
+Add it with `sw today add add`.
+
+## Time a session in a terminal
+
+```bash
+sw deep work
+```
+
+It prints:
+
+```
+⏱  stopwatch started 09:30. Enter stops & logs, Ctrl+C cancels.
+   Closing this window leaves the timer running.
+```
+
+Then a clock counts up: `⏱  elapsed: 12:04`.
+Words join with `-`, so this session is tagged `deep-work`.
+`sw` alone starts an untagged session.
+
+- **Enter** stops and logs it, printing `⏹ stopped`, `Session: 0h 50m` and `Today's total: 3h 10m`.
+- **Ctrl+C** throws it away, printing `⏹ cancelled, nothing logged`.
+
+If another task was running, `sw` first logs it and prints a `logged:` line for it.
+If this same task was already running, started from the panel say, it prints `⏱  deep-work has been running since 09:10. Enter stops & logs, Ctrl+C leaves it running.`
+Then Ctrl+C only closes the view: `⏹ left the live view; deep-work keeps running (sw stop stops it)`.
+
+## Run a pomodoro
 
 ```bash
 sw pomo deep work
 ```
 
-It shows a live countdown, logs the block when it completes, then starts a break.
-Enter during the work phase stops early and logs the partial session; Enter during the break skips the break.
-Ctrl+C during the break only ends the break, because the block before it is already logged.
+It prints:
 
-Record or fix sessions by hand:
-
-```bash
-sw add 1h30m deep work   # log a session that ended now
-sw amend 45m             # rewrite the last session's duration
-sw sub 10m               # reduce the last session (bare `sw sub` removes it)
+```
+🍅 pomodoro started! focus for 25 minutes.
+   Started 09:30, ends 09:55. Enter stops early & logs, Ctrl+C cancels.
 ```
 
-Run `sw help` for the rest: `sum`, `last`, `regen`, the clears, and `sound`.
+Then it counts 25 minutes down: `⏱  time remaining: 24:59`.
+At zero you hear a chime and see `✅ session complete!`, the session and today's total.
+A 5-minute break counts down next; at its end a second chime plays, a notification says `back to work`, and it prints `⏰ break over!`.
 
-## Why a closed lid still counts
+- **Enter** during the work stops early and logs what you did, printing `⏹ stopped early`.
+- **Enter** during the break skips it: `⏭ break skipped`.
+- **Ctrl+C** during the work throws the block away.
+- **Closing the window** during the work logs what you did so far.
 
-Because `sw` measures wall-clock, it keeps counting while the machine is suspended, the lid is shut, or the screen has blanked.
-Close the lid for ten minutes mid-session and those ten minutes land in the log.
+For a shorter command, add `alias swp='sw pomo'` to `~/.bashrc`.
+To hear the two chimes now, run `paplay /usr/share/sounds/freedesktop/stereo/suspend-error.oga` and `paplay /usr/share/sounds/freedesktop/stereo/complete.oga`.
 
-This is deliberate, and usually right.
-A blank screen is not proof you stopped working: you might be reading on paper, thinking, or on a call, and that is real work the keyboard never saw.
-But it cuts both ways, and that is the whole discipline the tool asks of you.
-The same property that correctly counts your offline thinking also counts the lunch you walked away from without stopping the timer.
-`sw` cannot tell the two apart, so the one habit it requires is simple: stop it when you actually stop.
+## Take a break on its own
 
-For pomodoros specifically, a suspend counts toward the focus block, and a completed pomodoro logs its set length, so a nap mid-session does not inflate the logged focus.
+```bash
+sw break 10
+```
 
-## What a crash costs
+It prints `10m break. Press Enter to skip.` and `   Break ends 10:40`, then counts down: `☕  break remaining: 09:59`.
+It ends as a pomodoro's break does.
+`sw break` alone uses the `Pomodoro break` length, 5 minutes unless you change it.
+A break logs nothing, and doesn't stop a running timer.
 
-The boundary is clean, so you can trust the history.
+## Start or stop without a terminal view
 
-Everything already logged is on disk and safe no matter how the machine dies.
-A clean logout, a closed terminal, or a `kill` commits the session you are in the middle of before exiting.
-**Ctrl+C** discards the in-progress session on purpose.
-Only a hard power loss or a forced kill (`SIGKILL`) loses anything, and the most it can ever take is the single session you were running, never the log behind it.
-If a finished session can't be saved, say because the disk is full, `sw` tells you why and prints the `sw add` command that puts it back.
+```bash
+sw start work
+sw stop
+```
 
-## Use it as a calibration, not a regime
+`sw start work` prints `started work at 09:30`.
+`sw stop` prints the session it logged, then today's total:
 
-The point of `sw` is not a number that goes up.
-People are bad at estimating where their hours go, so the tool earns its keep by correcting that estimate.
-Run it honestly for a week or two, find out where the time actually went, adjust, and then you can put it down.
-Treating it as a permanent scoreboard is how a measurement turns into the two failure modes below.
+```
+logged: 2026-11-24 09:30–10:20 0h 50m work
+Today's total: 3h 10m
+```
 
-## Who it is not for
+With nothing running, `sw stop` prints `nothing running`.
+`sw toggle work` stops `work` if it's running, and starts it otherwise.
+That makes a good keyboard shortcut: in Settings > Keyboard > Application Shortcuts, add the full path, such as `/home/you/.local/bin/sw toggle work`.
+A session started this way has no cancel; to drop it unlogged, run `rm ~/.stopwatch_running`.
 
-### Not for employers, and not for any audience with power over you
+## Log time you didn't time
 
-The moment the log flows to someone who can reward or punish you by it, it stops being a measurement.
-This is Goodhart's law: when a measure becomes a target, it stops measuring anything.
-Mandated self-tracking produces padding, presenteeism, and clock theater, and the number drifts away from the work it was meant to reflect.
-`sw` only works pointed at yourself, because only then do you have a reason to be honest with it.
+Say it's 11:20 on Tuesday in the sample, and you spent 30 minutes on email without timing it:
 
-### Not as a whip, for the flow worker or the obsessive
+```bash
+sw add 30m email
+```
 
-For deep, absorbed work, the stopwatch is the wrong instrument.
-Starting and stopping it breaks the absorption, and you forget it anyway, so it under-measures the work you most care about; keep it for fragmented and administrative time, not deep sessions.
-And if you are already prone to optimising yourself, watch the opposite failure: you will not forget the stopwatch, you will micromanage it until it becomes a compulsion and a way to punish yourself.
-That is Goodhart's law again, aimed inward, the same failure as the employer case turned on yourself.
-The number is an approximate proxy for attention, not a score; treat it as one.
+`sw` puts the time into today's breaks, so it never overlaps a logged session or the running timer.
+It fills the latest break first, up to now, then the break before that, and so on back through the day.
 
-### Not for what you are afraid to see
+Tuesday has two breaks: 10:00–10:15, and 11:00 up to now, 11:20.
+The 20-minute break after 11:00 takes 20 minutes, and the 15-minute break takes the other 10, at its end:
 
-The tool runs on honesty, so it fails the instant part of you dreads the result.
-If you are scared of what the log will show, you will skip sessions, round the duration down, or quietly stop tracking, and the log becomes a source of shame instead of information.
-The audience you fear here can be an employer or your own inner critic, and the failure is the same either way.
-Track what you actually want to understand, not what you are bracing to be judged for.
+```
+added: 2026-11-24 10:05–10:15 0h 10m email
+added: 2026-11-24 11:00–11:20 0h 20m email
+Today's total: 2h 15m
+```
 
-## A couple of edges worth knowing
+Two lines are normal: each piece is its own session in the work log.
+If the breaks are too short, what's left goes just before the day's first session.
+Breaks under 2 minutes are skipped.
 
-- A session is logged against the day you **stop** it, so a timer left running across midnight lands wholly on the new day. If you split your days at midnight and the boundary matters, stop the session before midnight and start a fresh one after.
-- A session shorter than a minute isn't logged, because it's almost always an accidental start. `sw add` and `sw amend` refuse anything under a minute for the same reason.
-- `wlog.md` shows each session as a start–end range, worked back from the time you stopped it and rounded to the minute. A pomodoro that finishes while the machine is asleep is stamped when it wakes, so its range ends at wake-up rather than when the block actually finished.
-- `sw` needs a real terminal for its timers; with no readable `/dev/tty` it refuses to start.
-- You can fix the raw log by hand: one session per line, with the date, the time you stopped, the seconds, and a one-word tag. `sw regen` names any line it can't read, and that line stays out of the totals until you fix it.
+Write lengths as `90m`, `1h`, `1h30m`, `5400s`, or plain minutes such as `45`.
+To put a session at a time of your choosing, or to change or remove one, edit the raw log.
 
-## Installing
+# Settings and files
 
-Deploy through your `install_scripts`, mapping the source file to the command name `sw`.
-The script then lives at `~/.local/bin/sw`.
-It is a Python 3 script that uses only the standard library, so there is nothing else to install.
-Settings (daily target, working days per week, pomodoro work and break minutes) and the readable log live in `wlog.md`; the settings at its top are what you edit to change configuration, not the script.
-The raw log, `~/.stopwatch_log`, is the source of truth; `sw regen` rebuilds `wlog.md` from it.
+## Change the settings
+
+Five settings sit above the `# log` line of the work log:
+
+```
+Daily target:          8h
+Working days per week: 5
+Remind after:          3h
+Pomodoro work:         25m
+Pomodoro break:        5m
+```
+
+`Working days per week: 5` means Monday to Friday; `6` adds Saturday.
+`Remind after: 0h` turns the reminder off.
+Edit a value and save; the next `sw` run uses it.
+Delete a line to use its default.
+A line `sw` can't read stops every command with a message naming it, so don't write notes after a value.
+
+## Edit the raw log
+
+The raw log is `~/.stopwatch_log`.
+Each line is one session:
+
+```
+2026-11-24	10:00	3600	work
+```
+
+That is the date, the time the session ended, its length in seconds, and its tag, separated by tabs or spaces.
+3600 seconds is one hour, so this session ran 09:00–10:00.
+To shorten it to 45 minutes, change `3600` to `2700`; to remove it, delete the line.
+Save, and the work log follows on the next `sw` run, or within a minute from the panel.
+A line `sw` can't read is named in a warning and left out of the totals until you fix it.
+
+## Move the logs
+
+The two paths are the first settings at the top of the script, in the file itself, not the link:
+
+```
+RAW_LOG_PATH = "~/.stopwatch_log"
+WORK_LOG_PATH = "~/Documents/mv/wlog.md"
+```
+
+Change them and save; `sw` creates the new files, empty, on its next run.
+To keep your history, paste the old raw log into the new one and save; the work log follows.
+Saving a new version of the script puts these paths back to the defaults, so set them again after each update.
+
+## Update sw
+
+Open the script itself, not the link, replace everything in it with the new version, and save.
+You can do this with a timer running: the timer lives in a file of its own.
+One catch when updating from v48 or older: a timer already running then can't leave out sleep, since the old version didn't note the sleep count when it started.
+Timers you start after the update can.
+Then run `sw version`, which prints the new version number.
+
+## The files sw uses
+
+- `~/.stopwatch_log`: the raw log, the record of every session.
+- `~/Documents/mv/wlog.md`: the work log, rebuilt from the raw log.
+- `~/.stopwatch_running`: the running timer, if any.
+- `~/.stopwatch_tasks`: the day's tasks.
+- `~/.stopwatch_reminded`: the last session you were reminded about.
+- `~/.cache/sw-panel-backup-*.xml`: a copy of the panel settings from each time `sw today` changed the panel; the newest 5 are kept.
+
+All of them are readable by you only.
+If the work log is a link, into a synced folder say, `sw` writes through the link and leaves it in place.
+
+# Fix a problem
+
+| What you see | Meaning and fix |
+| --- | --- |
+| A button shows `(genmon)` | A Generic Monitor with no command. Run `sw today` with your tasks; it takes it over as a button. |
+| A running button shows `⚠` | The session has run longer than `Remind after`. Stop it if you've stopped working, then fix its time in the raw log. |
+| A stopped button shows `⚠` | Hover over it for the reason. Usually a settings line `sw` can't read, or a button set up by hand. |
+| `… wasn't rebuilt (…)` | The work log couldn't be written, for the reason in brackets. The raw log is safe; fix the cause and the next `sw` run rebuilds it. |
+| A button is blank | Its slot has no task today. Add one with `sw today add`. |
+| A button shows another task, or another task's time | Its settings are out of step. Run `sw today` with your tasks; it renumbers the buttons and prints `renumbered 1 button`. |
+| The panel is gone after `sw today` | Start it again with `xfce4-panel &`, then run `sw today` with your tasks. |
+| `panel not changed: … Generic Monitor plugin …` | Install the plugin as in "Install sw", then run `sw today` again. |
+| `invalid duration: …` after `sw add` | `sw add` logs time. To put a task on the panel, use `sw today add`. |
+| The work log is missing months | The raw log in use isn't the one with your history, often after an update reset the paths. Check the paths at the top of the script. |
+| Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove the copy and link the current script instead. |
+
+# When not to use it
+
+The log stays honest only while no one with power over you reads it.
+Once a boss can reward or punish you by it, you'll pad it, and the number stops meaning anything.
+Don't use it as a whip on yourself either: it measures time, not attention.
+For deep, absorbed work, starting and stopping a timer breaks the spell, so keep `sw` for scattered and admin time.
+Run it honestly for a week or two, learn where your hours go, and then you can put it down.
 
 ## The script
 
 ````python3
-#!/usr/bin/python3
-# sw, v30
+#!/usr/bin/python3 -S
+# sw, v49
 #
-# Stopwatch, pomodoro, and work log.
+# Stopwatch, pomodoro, and work log, with optional XFCE panel buttons.
 #
 # Subcommands (run `sw help` for details):
-#   sw [tag]                   run the stopwatch (default)
-#   sw pomo [tag]              pomodoro timer
-#   sw break [mins]            standalone break timer
-#   sw sum                     today's total + work-length session count
-#   sw last                    print the last logged session
-#   sw add DURATION [tag]      record a session ending now
-#   sw amend DURATION          rewrite the last entry's duration
-#   sw sub [DURATION]          reduce the last entry, or remove it (no arg)
-#   sw clear [-y]              wipe the raw log
-#   sw clear-before DATE [-y]  delete entries before DATE
-#   sw regen                   rebuild wlog.md from the raw log
-#   sw sound                   test the alert sounds
+#   sw [tag]               stopwatch (default)
+#   sw pomo [tag]          pomodoro, then a break
+#   sw break [mins]        break timer on its own
+#   sw start|toggle [tag]  start, or start/stop, without the live view
+#   sw stop                stop and log the session
+#   sw status              what's running, and today's total
+#   sw today [add|remove] [TASK...]
+#                          set, add to or take from the day's tasks; makes the panel buttons
+#   sw panel SLOT          one panel button (XFCE Generic Monitor)
+#   sw add DURATION [tag]  record a session in today's breaks
 #   sw help / version
 #
 # Python 3, standard library only.
+#
+# Map of this file, in order (each section starts with a `# ---- name ----` line):
+#   settings          paths, chimes and the panel refresh period you may change
+#   output            say/warn/notify/die; warnings from a panel click become a notification
+#   formatting        minute rounding and the h/m and clock formats every report uses
+#   argument parsing  durations and tags
+#   config            the settings above `# log` in the work log
+#   the raw log       the record: one session a line; the one parser every report uses
+#   how a session reads  start-end ranges and tag names, shared by terminal and work log
+#   writes            atomic replace and append; the lock; locked_change, which every
+#                     change to the raw log goes through
+#   the running timer the state file, change_timer (start/stop/log), crash handling,
+#                     sleep, the forgotten-timer reminder, and today's figures for the buttons
+#   aggregates        totals, tags, working days, targets and records
+#   block renderers   everything below `# log`: dashboard, years, months, weeks, days
+#   live timer        the terminal views: stopwatch, pomodoro, break, and their signals
+#   modes / commands  start, stop, toggle, status, today, add
+#   the panel itself  finding, adding, numbering and redrawing the XFCE buttons
+#   dispatch          paths, keeping the work log in step, and main()
+#
+# Invariants worth knowing before changing anything:
+#   - Only change_timer, discard and cmd_add change the raw log or the timer, and
+#     only inside locked_change, under one lock, with signals held.
+#   - Every figure sums each session's minutes rounded once (round_mins), so the
+#     terminal, the buttons and the work log always agree.
+#   - A running session's time is its awake time (Running.awake): every view of
+#     it, and the row it is logged as, leave out the time the machine slept.
+#   - The work log is rebuilt from the raw log, never edited in place; everything
+#     above its `# log` line belongs to the user and is kept.
+
+# ---- settings: the ones you're most likely to change ----
+# Saving a new version over this file puts them back to these values, so
+# note any you change. The daily target, working days and pomodoro lengths
+# are set at the top of the work log instead.
+
+RAW_LOG_PATH = "~/.stopwatch_log"          # the record: one line per session
+WORK_LOG_PATH = "~/Documents/mv/wlog.md"   # the readable view, rebuilt from the record
+SOUND_SESSION_END = "/usr/share/sounds/freedesktop/stereo/suspend-error.oga"  # a pomodoro ends
+SOUND_BREAK_END = "/usr/share/sounds/freedesktop/stereo/complete.oga"   # a break ends
+PANEL_REFRESH_SECS = 50                    # how often buttons redraw on their own; clicks redraw at once
 
 import datetime
 import fcntl
-import locale
+import importlib
+import io
 import os
 import re
 import select
-import shutil
 import signal
-import subprocess
 import sys
-import tempfile
 import termios
 import time
 
-# ---- defaults (used only when wlog.md lacks the corresponding config key) ----
 
-DEFAULT_DAILY_TARGET = 8
-DEFAULT_WORKING_DAYS = 5
-DEFAULT_WORK_MINS = 25
-DEFAULT_BREAK_MINS = 5
+class _Lazy:
+    """A module imported on first use. Each panel button runs sw every tick,
+    and most runs never need these, so they don't pay for them."""
 
-# Freedesktop stereo sounds. Override via env, or by editing these paths.
-DEFAULT_SOUND_SESSION_END = "/usr/share/sounds/freedesktop/stereo/message.oga"
-DEFAULT_SOUND_BREAK_END = "/usr/share/sounds/freedesktop/stereo/complete.oga"
+    def __init__(self, name):
+        self._name, self._mod = name, None
+
+    def __getattr__(self, attr):
+        if self._mod is None:
+            self._mod = importlib.import_module(self._name)
+        return getattr(self._mod, attr)
+
+
+locale, shlex, shutil, subprocess, tempfile = (_Lazy(m) for m in
+                                               ("locale", "shlex", "shutil", "subprocess", "tempfile"))
+
+
+def _esc(text):
+    """Text made safe for Pango markup and notifications."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _quote(word):
+    """WORD quoted for a shell command line, as shlex.quote does."""
+    if word and re.fullmatch(r"[A-Za-z0-9_@%+=:,./-]+", word):
+        return word
+    return "'" + word.replace("'", "'\\''") + "'"
+
+# Marks the running task's button. A stopped task's button has no mark.
+PANEL_RUNNING_MARK = "▶"
+
+# Gaps between sessions this short are rounding (each session's start is worked
+# back from its rounded length), not breaks, so the work log leaves them out.
+MIN_BREAK_MINS = 2
+
+# Panel slots: `sw panel 1` to `sw panel 9`.
+MAX_SLOTS = 9
 
 
 class Config:
-    daily_target = DEFAULT_DAILY_TARGET
-    working_days = DEFAULT_WORKING_DAYS
-    work_mins = DEFAULT_WORK_MINS
-    break_mins = DEFAULT_BREAK_MINS
+    """The settings above `# log` in wlog.md; these are the defaults."""
+    work_mins = 25
+    break_mins = 5
+    daily_target = 8   # hours a working day aims for
+    working_days = 5   # Monday through this weekday are working days
+    remind_hours = 3   # a session running this long gets a reminder; 0 turns it off
 
 
 CFG = Config()
 
-# Set by _init_paths() from the environment.
-RAW_LOG = MD_LOG = LOCK_DIR = LOCK_FILE = ""
-SOUND_SESSION_END = SOUND_BREAK_END = ""
+# Set by _init_paths().
+RAW_LOG = MD_LOG = STATE_FILE = TASKS_FILE = REMIND_FILE = LOCK_DIR = LOCK_FILE = ""
 LOCK_DIR_IS_FALLBACK = False
 
-HELP_TEXT = r"""sw — stopwatch + pomodoro + work log
+HELP_TEXT = r"""sw — stopwatch, pomodoro and work log, with XFCE panel buttons
 
-Usage
-  sw [tag]                       stopwatch (default); live elapsed timer,
-                                 Enter stops & logs, Ctrl+C cancels
-  sw pomo [tag]                  pomodoro timer (live countdown, then a break)
-  sw break [MINUTES]             standalone break timer (default = break mins)
-  sw sum                         today's total + work-length session count
-  sw last                        print the last logged session
-  sw add DURATION [tag]          record a session of DURATION ending now
-  sw amend DURATION              rewrite the last entry's duration
-  sw sub [DURATION]              reduce the last entry by DURATION, or remove it
-  sw clear [-y]                  wipe the raw log (dry-run without -y)
-  sw clear-before DATE [-y]      delete entries before DATE (dry-run without -y)
-  sw regen                       rebuild wlog.md from the raw log
-  sw sound                       play both sounds for volume/preview check
-  sw help                        print this help
-  sw version                     print identity string
+Timing
+  sw [tag]                 stopwatch, shown live: Enter stops & logs, Ctrl+C
+                           cancels (or, for a task already running, just
+                           closes the view); closing the window keeps it running
+  sw pomo [tag]            pomodoro: countdown, chime, then a break
+  sw break [MINUTES]       a break timer on its own; logs nothing
+  sw start [tag]           start without the live view
+  sw stop                  stop and log whatever is running
+  sw toggle [tag]          stop tag if it's running, else start it
+  sw status                what's running, today's total and sessions
+  sw add DURATION [tag]    record a session you didn't time, e.g. sw add 1h30m work.
+                           It fills today's breaks, the latest first, splitting
+                           across breaks if it must; what's left goes before
+                           the day's first session
 
-  --help, -h, --version are accepted as aliases.
+  There is one timer, whatever starts it. Starting a task stops and logs the
+  one before; there's no pause, so starting a task again begins a new session.
+  Sessions under a minute aren't logged. Time the machine spends asleep (a
+  closed lid, a suspend) is left out, and sw says how much, with the sw add
+  that puts it back. A timer left running when the machine goes down is
+  stopped without logging; sw says so, and you sw add the time.
 
-Stopping and logging
-  The stopwatch and the pomodoro share one live timer and log to the same
-  place, so the day's total accrues whichever you run. Enter stops and logs
-  (for the pomodoro work timer, the partial session); a pomodoro also logs on
-  its own when the countdown completes. Ctrl+C cancels with nothing logged.
-  A logout, a terminal close, or `kill` (SIGHUP/SIGTERM) commits the running
-  session before exiting rather than dropping it; only Ctrl+C discards.
-  Ctrl+C during a pomodoro's break only ends the break: the pomodoro before
-  it is already logged. If a finished session can't be saved, sw says why
-  and prints the `sw add` command that restores it.
-  A session under a minute isn't logged: it's almost always an accidental
-  start. For the same reason `sw add` and `sw amend` refuse durations under
-  1m, `sw sub` won't leave an entry under 1m, and rows under a minute already
-  in the raw log are left out of every total.
+Panel buttons (XFCE)
+  sw today work theology   set the day's tasks: one button each, in order
+  sw today add email       add tasks to the end of the list
+  sw today remove theology take tasks off the list; the ones after move up
+  sw today                 list them; sw today -c empties the buttons
+  sw makes and numbers the buttons itself, adding more when the list grows;
+  a shorter list leaves the spare ones blank. If a button shows the wrong
+  task, run sw today with your tasks again: it renumbers them. Click a button
+  to start or stop its task. A task named add or remove can't start a full
+  list: add it with sw today add add. Needs: sudo apt install xfce4-genmon-plugin
 
-Pomodoro flow
-  Work timer counts down → session-end chime → break timer counts down →
-  break-end chime + desktop notification. Enter skips the break early.
+DURATION: 90m, 1h, 1h30m, 5400s, or plain minutes.
+Tags: words join with -, so `sw deep work` is deep-work. For a tag named like
+a command, put -- first: sw -- break. Shortcut: alias swp='sw pomo' in ~/.bashrc.
 
-DURATION accepts: 90m, 1h, 1h30m, 5400s, or a bare integer (= minutes).
-DATE accepts: YYYY-MM-DD (e.g. 2026-05-12) or YYYYMMDD (e.g. 20260512).
-
-Tag: a single positional, joined with `-` if multi-word.
-  sw                             untagged stopwatch
-  sw theology                    tagged: theology
-  sw deep work                   tagged: deep-work
-  sw pomo deep work              pomodoro, tagged: deep-work
-  sw -- break                    `--` ends subcommand matching: stopwatch
-                                 tagged `break` (for tags that collide with
-                                 subcommand names)
-  Tag words can't begin with `-`: a mistyped flag dies instead of being
-  silently logged as tag text.
-  Renaming a tag: change the tag field (the last column) directly in the raw
-  log ~/.stopwatch_log, which is the source of truth, not in wlog.md (a
-  generated view that gets overwritten on the next rebuild). Refresh as
-  elsewhere: `sw regen`, or just let the next logged session rebuild wlog.md.
-  A tag can't contain spaces.
-
-Files (defaults; override with environment variables)
-  ~/.stopwatch_log               raw log, one session per line: date, HH:MM
-                                 (when it ended), seconds, tag, separated by
-                                 tabs or spaces; `sw regen` names any line it
-                                 can't read
-                                 override: SW_RAW_LOG
-  ~/Documents/mv/wlog.md         readable summary, each session shown as
-                                 start–end and rounded to the minute; rebuilt
-                                 on every change (or on demand with `sw regen`
-                                 after a hand-edit)
-                                 override: SW_MD_LOG
-
-Config (in wlog.md, above the `# log` line; seeded on first run inside a code
-fence, which is optional; missing keys use defaults; a line whose value can't
-be read is a hard error, not a silent fallback, so trailing notes after a
-value break it):
-  Daily target: 8h               default 8; integer >= 1; `h` suffix optional
-  Working days per week: 5       default 5; integer 1-7
-  Pomodoro work: 25m             default 25; integer minutes >= 1; `m` optional
-  Pomodoro break: 5m             default 5; integer minutes >= 1; `m` optional
-
-Sounds (override with SW_SOUND_SESSION_END / SW_SOUND_BREAK_END, or edit the paths):
-  Pomo session-end: message.oga  short chime when a pomodoro work timer completes
-  Break-end: complete.oga        longer chime + desktop notification when any
-                                 break ends (pomodoro break or standalone `sw break`)
-
-Concurrency
-  Mutating ops (session commit, add, amend, sub, clear, clear-before, regen)
-  acquire an exclusive flock on ${XDG_RUNTIME_DIR:-$HOME/.cache}/sw-${UID}.lock
-  so two parallel invocations can't corrupt the log or wlog.md. Read-only ops
-  (last, sum, help, break, dry-run clears) don't lock.
-
-Drawbacks
-  - The timer must be started and stopped manually. If you forget:
-    `sw add 90m tag`              for a missed session that ended around now
-    `sw amend 1h30m`              to fix the last entry's duration
-    `sw sub 20m` / `sw sub`       to trim the last entry, or drop it entirely
-    Anything else: edit the raw log directly, then `sw regen`
-    (format: date<TAB>HH:MM<TAB>seconds<TAB>tag).
-  - `sw amend` and `sw sub` change the duration but keep the logged end time,
-    so in wlog.md it's the start that moves. After a forgotten stop, fix the
-    HH:MM in the raw log as well if you want the range to be right.
+Files
+  ~/.stopwatch_log         raw log, the record: date, end HH:MM, seconds, tag.
+                           Edit it to fix or remove sessions; the work log
+                           follows on the next sw run
+  ~/Documents/mv/wlog.md   work log, rebuilt from the raw log. Settings and
+                           notes go above its `# log` line; everything below
+                           is replaced. Settings: Daily target: 8h,
+                           Working days per week: 5, Remind after: 3h (a
+                           timer running that long gets a notification; 0h
+                           turns it off), Pomodoro work: 25m, Pomodoro break: 5m
+  To keep the logs elsewhere, change the paths at the top of this script.
 """
 
 # ---- output ----
@@ -298,6 +702,7 @@ Drawbacks
 def _write(stream, text):
     # Terminal output is best effort: after a logout the terminal is gone, and
     # a session being committed on SIGHUP must still reach the log.
+    """Write TEXT to STREAM and flush, ignoring a terminal that has gone away."""
     if stream is None:
         return
     try:
@@ -311,8 +716,21 @@ def say(msg=""):
     _write(sys.stdout, msg + "\n")
 
 
+# A list while sw runs from a panel click or a keyboard shortcut, which have no
+# terminal to print to: warnings collect here and show as one desktop
+# notification on exit.
+NOTICES = None
+
+
 def warn(msg):
     _write(sys.stderr, msg + "\n")
+    if NOTICES is not None:
+        NOTICES.append(msg)
+
+
+def notify(body):
+    if shutil.which("notify-send"):
+        _run_quietly(["notify-send", "sw", _esc(body)])
 
 
 def die(msg):
@@ -320,16 +738,7 @@ def die(msg):
     sys.exit(1)
 
 
-# ---- formatting (integer division truncates toward zero) ----
-
-
-def _tdiv(a, b):
-    q = abs(a) // abs(b)
-    return q if (a < 0) == (b < 0) else -q
-
-
-def _tmod(a, b):
-    return a - b * _tdiv(a, b)
+# ---- formatting ----
 
 
 # Whole minutes, half a minute rounding up. Applied once to each session when
@@ -345,18 +754,12 @@ def fmt_mins(m):
     return "%dh %02dm" % (m // 60, m % 60)
 
 
-# The same format to the second, for what the reports don't round: a duration
-# the user typed (`sw sub 90s`) and a raw row too short to count.
-def fmt_secs(s):
-    m, sec = divmod(s, 60)
-    return fmt_mins(m) + (" %02ds" % sec if sec else "")
-
-
 # Clock for the live timer line: MM:SS under an hour, H:MM:SS at or above one.
 def fmt_clock(s):
-    if s >= 3600:
-        return "%d:%02d:%02d" % (_tdiv(s, 3600), _tdiv(_tmod(s, 3600), 60), _tmod(s, 60))
-    return "%02d:%02d" % (_tdiv(s, 60), _tmod(s, 60))
+    m, sec = divmod(s, 60)
+    if m >= 60:
+        return "%d:%02d:%02d" % (m // 60, m % 60, sec)
+    return "%02d:%02d" % (m, sec)
 
 
 # ---- argument parsing ----
@@ -369,6 +772,7 @@ _DIGITS = re.compile(r"[0-9]+")
 # Seconds for 90m, 1h, 1h30m, 5400s, or a bare integer (minutes); None if the
 # text isn't one of those or comes to zero.
 def parse_duration(d):
+    """Seconds for 90m, 1h, 1h30m, 5400s or plain minutes; None if D is none of those or is zero."""
     m = _DUR_HM.fullmatch(d)
     if m:
         total = int(m.group(1)) * 3600 + int(m.group(2)) * 60
@@ -383,27 +787,12 @@ def parse_duration(d):
     return total if total > 0 else None
 
 
-# YYYY-MM-DD or YYYYMMDD to YYYY-MM-DD; None for other shapes or impossible
-# dates such as 2026-02-30.
-def normalize_date(d):
-    if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", d):
-        n = d
-    elif re.fullmatch(r"[0-9]{8}", d):
-        n = "%s-%s-%s" % (d[0:4], d[4:6], d[6:8])
-    else:
-        return None
-    try:
-        datetime.date(int(n[0:4]), int(n[5:7]), int(n[8:10]))
-    except ValueError:
-        return None
-    return n
-
-
 # Joins the words with `-` (runs of whitespace and dashes collapse to one) and
 # returns `-`, the in-band "no tag" marker, when nothing is left. A leading `--`
 # is consumed; any other word starting with `-` is fatal, so a mistyped flag
 # dies loudly instead of being committed to the log as tag text.
 def args_to_tag(args):
+    """The tag for words ARGS: joined with -, `-` when empty; dies on a word that looks like a flag."""
     if args and args[0] == "--":
         args = args[1:]
     for a in args:
@@ -441,16 +830,20 @@ def _lines(text):
 
 
 def _config_section():
-    text = _read_bytes(MD_LOG).decode("utf-8", "surrogateescape")
+    """The lines above `# log`. Reads no further: everything below is the
+    generated log, which only grows, and the panel reads this every tick."""
     section = []
-    for line in _lines(text):
-        if line == "# log":
-            break
-        section.append(line)
+    with open(MD_LOG, "rb") as f:
+        for raw in f:
+            line = raw.decode("utf-8", "surrogateescape").rstrip("\n")
+            if line == "# log":
+                break
+            section.append(line)
     return section
 
 
 def read_config():
+    """Load the settings above `# log` into CFG; dies naming a line it can't read."""
     if not os.path.isfile(MD_LOG):
         return
     try:
@@ -458,55 +851,28 @@ def read_config():
     except OSError as e:
         die("config: cannot read %s: %s" % (MD_LOG, e.strerror))
 
-    # First line whose whole value parses wins. A line that has the key but no
-    # readable value is a hard error rather than a silent fallback to the default.
-    def value(key, suffix):
-        pat = re.compile(re.escape(key) + ":" + _WS + "([0-9]+)" + suffix + _WS)
-        for line in section:
-            m = pat.fullmatch(line)
-            if m:
-                return int(m.group(1))
-        return None
-
-    def present(key):
-        return any(line.startswith(key + ":") for line in section)
-
-    v = value("Daily target", "h?")
-    if v is not None:
-        if v < 1:
-            die("config: 'Daily target' must be >= 1 (got %d)" % v)
-        CFG.daily_target = v
-    elif present("Daily target"):
-        die("config: 'Daily target' line is present but its value is unreadable (expected an integer >= 1, optional 'h' suffix, and nothing after it; see 'sw help')")
-    v = value("Working days per week", "")
-    if v is not None:
-        if not 1 <= v <= 7:
-            die("config: 'Working days per week' must be 1-7 (got %d)" % v)
-        CFG.working_days = v
-    elif present("Working days per week"):
-        die("config: 'Working days per week' line is present but its value is unreadable (expected an integer 1-7 and nothing after it; see 'sw help')")
-    v = value("Pomodoro work", "m?")
-    if v is not None:
-        if v < 1:
-            die("config: 'Pomodoro work' must be >= 1 (got %d)" % v)
-        CFG.work_mins = v
-    elif present("Pomodoro work"):
-        die("config: 'Pomodoro work' line is present but its value is unreadable (expected an integer >= 1, optional 'm' suffix, and nothing after it; see 'sw help')")
-    v = value("Pomodoro break", "m?")
-    if v is not None:
-        if v < 1:
-            die("config: 'Pomodoro break' must be >= 1 (got %d)" % v)
-        CFG.break_mins = v
-    elif present("Pomodoro break"):
-        die("config: 'Pomodoro break' line is present but its value is unreadable (expected an integer >= 1, optional 'm' suffix, and nothing after it; see 'sw help')")
+    # The first line whose whole value parses wins. A line with the key but no
+    # readable value stops sw rather than silently using the default.
+    for key, attr, unit, low, high, need in (
+            ("Pomodoro work", "work_mins", "m", 1, None, "whole minutes, 1 or more, such as '%s: 25m'"),
+            ("Pomodoro break", "break_mins", "m", 1, None, "whole minutes, 1 or more, such as '%s: 5m'"),
+            ("Daily target", "daily_target", "h", 1, 24, "whole hours, 1 to 24, such as '%s: 8h'"),
+            ("Working days per week", "working_days", "", 1, 7, "a number of days, 1 to 7, such as '%s: 5'"),
+            ("Remind after", "remind_hours", "h", 0, 24, "whole hours, 0 to 24, such as '%s: 3h' (0 turns it off)")):
+        pat = re.compile(re.escape(key) + ":" + _WS + "([0-9]+)" + (unit + "?" if unit else "") + _WS)
+        found = next((m for m in map(pat.fullmatch, section) if m), None)
+        if found and low <= int(found.group(1)) <= (high or int(found.group(1))):
+            setattr(CFG, attr, int(found.group(1)))
+        elif found or any(line.startswith(key + ":") for line in section):
+            die("config: can't read the '%s' line in %s: it needs %s, with nothing after it"
+                % (key, MD_LOG, need % key))
 
 
 # ---- the raw log ----
 #
 # One session per line: date, HH:MM (when it ended, which is when it was
 # logged), seconds, tag, split on tabs or spaces. The reports read every line
-# through parse_entry; last, amend and sub check only the last line's field
-# count, so they can show or change a row the reports skip.
+# through parse_entry. A row with no tag field counts as untagged.
 
 _DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 _TIME_RE = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
@@ -533,12 +899,20 @@ def split_fields(line):
     return [f for f in _FIELD_SEP.split(line) if f]
 
 
+def row_fields(line):
+    """A raw-log row's fields, with a missing tag read as untagged: a row of
+    date, HH:MM, seconds counts the same as one ending in `-`."""
+    f = split_fields(line)
+    return f + ["-"] if len(f) == 3 else f
+
+
 def is_blank(line):
     return line.strip(" \t\r") == ""
 
 
 def parse_entry(line):
-    f = split_fields(line)
+    """An Entry for one raw-log LINE, or None if it isn't date, HH:MM, seconds, tag."""
+    f = row_fields(line)
     if len(f) != 4:
         return None
     d, hm, s, tag = f
@@ -559,13 +933,6 @@ def read_raw_text():
         return None
 
 
-def read_raw_or_die():
-    try:
-        return read_raw_text() or ""
-    except OSError as e:
-        die("cannot read %s" % _describe(e, RAW_LOG))
-
-
 def load_entries(text):
     """Valid entries in file order, and (line number, text) for every non-blank
     line that isn't one."""
@@ -579,17 +946,8 @@ def load_entries(text):
     return entries, bad
 
 
-# Only the reports filter: the clears count every entry, so a dry run and the
-# real run agree on how many lines go.
 def report_entries(entries):
     return [e for e in entries if e.secs >= MIN_SESSION_SECS]
-
-
-def last_entry_index(lines):
-    for i in range(len(lines) - 1, -1, -1):
-        if not is_blank(lines[i]):
-            return i
-    return None
 
 
 # ---- how a session reads (wlog.md and the terminal share these) ----
@@ -617,17 +975,15 @@ def tag_label(tag):
     return "untagged" if _is_untagged(tag) else tag
 
 
-def entry_dur(secs):
-    """A logged duration as the reports show it, or to the second for a row
-    too short for them to count."""
-    return fmt_secs(secs) if secs < MIN_SESSION_SECS else fmt_mins(round_mins(secs))
+def same_tag(a, b):
+    return tag_label(a) == tag_label(b)
 
 
 def describe_session(date, hm, secs, tag):
     """A raw-log session as the terminal echoes it, in wlog.md's terms; a
     malformed time field is shown as it stands."""
     when = session_range(hm, round_mins(secs)) if _TIME_RE.fullmatch(hm) else hm
-    return "%s %s %s %s" % (date, when, entry_dur(secs), tag_label(tag))
+    return "%s %s %s %s" % (date, when, fmt_mins(round_mins(secs)), tag_label(tag))
 
 
 def day_total(date):
@@ -639,15 +995,8 @@ def day_total(date):
     return sum(e.mins for e in report_entries(entries) if e.date == date)
 
 
-# "Today's total" when DATE is today, "Total for DATE" otherwise: amend and sub
-# act on the last entry, which may belong to an earlier day, and a commit that
-# straddles midnight lands on the day it was stamped.
 def say_day_total(date):
-    mins = day_total(date)
-    if date == datetime.date.today().isoformat():
-        say("Today's total: %s" % fmt_mins(mins))
-    else:
-        say("Total for %s: %s" % (date, fmt_mins(mins)))
+    say("Today's total: %s" % fmt_mins(day_total(date)))
 
 
 # ---- writes ----
@@ -679,6 +1028,10 @@ def _write_all(fd, data):
 # Temp file beside the target so the replace is a same-filesystem rename: a
 # reader or a crash sees the old file or the new one, never a partial one.
 def write_atomic(path, data):
+    """Replace PATH's contents with DATA, all at once. A link is followed, so
+    the file it points to is replaced and the link stays. The new file is
+    readable by this user only."""
+    path = os.path.realpath(path)
     fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", dir=os.path.dirname(path) or ".")
     try:
         try:
@@ -703,11 +1056,14 @@ def append_row(row):
         d = os.path.dirname(RAW_LOG)
         if d:
             os.makedirs(d, exist_ok=True)
-        fd = os.open(RAW_LOG, os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_CLOEXEC, 0o666)
+        fd = os.open(RAW_LOG, os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_CLOEXEC, 0o600)
     except OSError as e:
         raise LogUnchanged("cannot write %s" % _describe(e, RAW_LOG))
     try:
-        size = os.fstat(fd).st_size
+        st = os.fstat(fd)
+        if st.st_mode & 0o077:  # a raw log from before v47 may be readable by others
+            os.fchmod(fd, st.st_mode & 0o700)
+        size = st.st_size
         data = row.encode("utf-8", "surrogateescape") + b"\n"
         if size and os.pread(fd, 1, size - 1) != b"\n":
             data = b"\n" + data
@@ -726,35 +1082,21 @@ def append_row(row):
         os.close(fd)
 
 
-def rewrite_raw(lines):
-    data = "".join(line + "\n" for line in lines).encode("utf-8", "surrogateescape")
-    try:
-        write_atomic(RAW_LOG, data)
-    except OSError as e:
-        raise LogUnchanged("cannot write %s" % _describe(e, RAW_LOG))
-
-
-def load_raw_lines():
-    try:
-        return _lines(read_raw_text() or "")
-    except OSError as e:
-        raise LogUnchanged("cannot read %s" % _describe(e, RAW_LOG))
-
-
 # ---- lock ----
 
 
-def acquire_lock():
+def acquire_lock(wait=True):
     """Exclusive flock on LOCK_FILE, waiting up to 5 seconds. Returns the fd, or
-    None after printing why."""
+    None after printing why. With WAIT false: one silent try, None if busy."""
     try:
         if LOCK_DIR_IS_FALLBACK:
             os.makedirs(LOCK_DIR, mode=0o700, exist_ok=True)
         fd = os.open(LOCK_FILE, os.O_WRONLY | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW, 0o600)
     except OSError as e:
-        warn("cannot open lock %s" % _describe(e, LOCK_FILE))
+        if wait:
+            warn("cannot open lock %s" % _describe(e, LOCK_FILE))
         return None
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + (5 if wait else 0)
     while True:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -763,11 +1105,13 @@ def acquire_lock():
             pass
         except OSError as e:
             os.close(fd)
-            warn("cannot lock %s" % _describe(e, LOCK_FILE))
+            if wait:
+                warn("cannot lock %s" % _describe(e, LOCK_FILE))
             return None
         if time.monotonic() >= deadline:
             os.close(fd)
-            warn("another sw instance is running on this lock; try again in a moment")
+            if wait:
+                warn("another sw instance is running on this lock; try again in a moment")
             return None
         time.sleep(0.1)
 
@@ -802,7 +1146,11 @@ def locked_change(change):
             try:
                 value = change()
             except NoChange as e:
+                refresh_buttons()
                 return e.args[0], None
+            # Buttons first: they need only the raw log and the timer, which
+            # are done, while the rebuild below takes longer as the log grows.
+            refresh_buttons()
             try:
                 regenerate_md()
             except Exception as e:  # any rebuild failure leaves the raw-log change in place
@@ -813,6 +1161,7 @@ def locked_change(change):
 
 
 def run_change(change, fail_msg):
+    """Run change() through locked_change; dies with FAIL_MSG if the raw log was left as it was."""
     try:
         value, stale = locked_change(change)
     except LogUnchanged as e:
@@ -820,47 +1169,302 @@ def run_change(change, fail_msg):
             warn(e.args[0])
         die(fail_msg)
     if stale:
-        warn("%s was updated, but %s wasn't rebuilt (%s); run: sw regen" % (RAW_LOG, MD_LOG, stale))
+        warn("%s was updated, but %s wasn't rebuilt (%s); sw tries again on its next run"
+             % (RAW_LOG, MD_LOG, stale))
     return value
+
+
+# ---- the running timer ----
+#
+# The session being timed is a one-line file, not a process, so the panel
+# buttons, keyboard shortcuts and every terminal see one timer and any of them
+# can stop it. Fields, tab-separated: tag, start, the boot it started in, and
+# the machine's sleep count when it started (see sleep_clock).
+
+KEEP = object()  # a decide() answer: leave the running session as it is
+
+
+def sleep_clock():
+    """Seconds this machine has spent asleep since it booted, or None where the
+    kernel can't say. The boot clock keeps counting through a suspend and the
+    monotonic clock doesn't, so the gap between them grows only during sleep.
+    Read at a session's start and again later, it gives the sleep in between
+    with no polling."""
+    try:
+        return int(round(time.clock_gettime(time.CLOCK_BOOTTIME)
+                         - time.clock_gettime(time.CLOCK_MONOTONIC)))
+    except (AttributeError, OSError):
+        return None
+
+
+class Running:
+    __slots__ = ("tag", "start", "boot", "slept")
+
+    def __init__(self, tag, start, boot, slept=None):
+        self.tag, self.start, self.boot, self.slept = tag, start, boot, slept
+
+    def same(self, other):
+        """Whether OTHER is this session: a later start of the same tag isn't."""
+        return other is not None and other.tag == self.tag and other.start == self.start
+
+    def asleep(self):
+        """Seconds the machine has slept since this session started; 0 when
+        unknown, as for a timer started before v49."""
+        now = sleep_clock()
+        if self.slept is None or now is None:
+            return 0
+        return max(0, now - self.slept)
+
+    def awake(self, now):
+        """Seconds this session has run up to NOW with the machine awake."""
+        return max(0, now - self.start - self.asleep())
+
+
+class StateError(Exception):
+    """The state file exists but can't be read as a session. args[0] says why."""
+
+
+class Gone(Exception):
+    """The session a caller expected was stopped or replaced meanwhile (from the
+    panel, say), so nothing was changed."""
+
+
+def boot_id():
+    """This boot's ID, or "" where the kernel doesn't say."""
+    try:
+        with open("/proc/sys/kernel/random/boot_id") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def read_state():
+    """The running session, or None when nothing runs."""
+    try:
+        line = _read_bytes(STATE_FILE).decode("utf-8", "surrogateescape").strip()
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        raise StateError("cannot read %s" % _describe(e, STATE_FILE))
+    if not line:
+        return None
+    f = split_fields(line)
+    # Before v40 the third field was when sw last saw it running, always digits;
+    # a boot field never is.
+    if len(f) == 4 and _DIGITS.fullmatch(f[2]):
+        del f[2]
+    if len(f) == 3:  # written before v49, with no sleep count
+        f.append("-")
+    if len(f) == 4 and _DIGITS.fullmatch(f[1]) and (f[3] == "-" or _DIGITS.fullmatch(f[3])):
+        return Running(f[0], int(f[1]), "" if f[2] == "-" else f[2],
+                       None if f[3] == "-" else int(f[3]))
+    raise StateError("%s isn't a running session ('%s'); fix it, or delete it to drop that "
+                     "session unlogged" % (STATE_FILE, line))
+
+
+def read_state_or_die():
+    try:
+        return read_state()
+    except StateError as e:
+        die(e.args[0])
+
+
+def write_state(r):
+    d = os.path.dirname(STATE_FILE)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    line = "%s\t%d\t%s\t%s\n" % (r.tag, r.start, r.boot or "-", "-" if r.slept is None else r.slept)
+    write_atomic(STATE_FILE, line.encode("utf-8", "surrogateescape"))
+
+
+def clear_state():
+    try:
+        os.unlink(STATE_FILE)
+    except FileNotFoundError:
+        pass
+
+
+class Outcome:
+    """What a change to the running timer did."""
+
+    def __init__(self):
+        self.ended = None    # the session stopped, if one was
+        self.secs = 0        # its length as logged
+        self.asleep = 0      # the sleep left out of it
+        self.logged = None   # its row's (date, HH:MM); None when under a minute
+        self.started = None  # the session started, if one was
+        self.kept = None     # the session left running, when decide() kept it
+
+
+def change_timer(decide, expect=None, secs=None, fail="failed to update the timer"):
+    """Under the lock, apply decide(running session): KEEP leaves it, None stops
+    it, a tag stops it and starts that tag. A stopped session is logged, lasting
+    SECS, or by default the time it ran awake. If EXPECT isn't what's running,
+    raises Gone. The state file changes before the row is appended, so a failed
+    append loses the row (the error gives the `sw add` to restore it) instead of
+    leaving the session running to be logged twice."""
+
+    def change():
+        try:
+            cur = read_state()
+        except StateError as e:
+            raise LogUnchanged(e.args[0])
+        if expect is not None and not expect.same(cur):
+            raise Gone()
+        out = Outcome()
+        nxt = decide(cur)
+        if nxt is KEEP:
+            out.kept = cur
+            raise NoChange(out)
+        now = int(time.time())
+        try:
+            if nxt is not None:
+                out.started = Running(nxt, now, boot_id(), sleep_clock())
+                write_state(out.started)
+            elif cur is not None:
+                clear_state()
+        except OSError as e:
+            raise LogUnchanged("cannot write %s" % _describe(e, STATE_FILE))
+        if cur is None:
+            raise NoChange(out)
+        out.ended = cur
+        if secs is None:
+            out.asleep = cur.asleep()
+            out.secs = max(0, now - cur.start - out.asleep)
+        else:
+            out.secs = secs
+        if out.secs < MIN_SESSION_SECS:
+            raise NoChange(out)
+        stamp = time.localtime(now)
+        out.logged = (time.strftime("%Y-%m-%d", stamp), time.strftime("%H:%M", stamp))
+        try:
+            append_row("%s\t%s\t%d\t%s" % (out.logged[0], out.logged[1], out.secs, cur.tag))
+        except LogUnchanged as e:
+            msg = "%s\n%s wasn't logged; recover it with: sw add %ds%s" % (
+                e.args[0], tag_label(cur.tag), out.secs, "" if cur.tag == "-" else " " + cur.tag)
+            if out.started is not None:
+                msg += "\n%s is running" % tag_label(out.started.tag)
+            raise LogUnchanged(msg)
+        return out
+
+    return run_change(change, fail)
+
+
+def discard(expect):
+    """Drop EXPECT unlogged, unless it was stopped or replaced meanwhile.
+    True if it was dropped."""
+
+    def change():
+        try:
+            cur = read_state()
+        except StateError as e:
+            raise LogUnchanged(e.args[0])
+        if not expect.same(cur):
+            raise NoChange(False)
+        try:
+            clear_state()
+        except OSError as e:
+            raise LogUnchanged("cannot write %s" % _describe(e, STATE_FILE))
+        raise NoChange(True)
+
+    return run_change(change, "failed to cancel the session")
+
+
+def resolve_stale():
+    """Drop, unlogged, a session left running across a shutdown or restart: how
+    long it really ran is unknown. Returns what to tell the user, or None."""
+    try:
+        cur = read_state()
+    except StateError:
+        return None  # the caller's own read reports it
+    boot = boot_id()
+    if cur is None or not boot or not cur.boot or cur.boot == boot or not discard(cur):
+        return None
+    return ("%s was running when the machine went down (started %s); sw stopped it without "
+            "logging it. Record the time you worked with: sw add DURATION %s"
+            % (tag_label(cur.tag), time.strftime("%a %H:%M", time.localtime(cur.start)),
+               "" if cur.tag == "-" else cur.tag))
+
+
+def overdue(cur, now=None):
+    """Whether running session CUR has been awake past the `Remind after` length."""
+    now = int(time.time()) if now is None else now
+    return bool(CFG.remind_hours) and cur is not None and cur.awake(now) >= CFG.remind_hours * 3600
+
+
+def remind_once(cur):
+    """One desktop notification per session that runs past `Remind after`: a
+    forgotten timer otherwise inflates the log without a sign. REMIND_FILE
+    records the session last reminded about, so every button and terminal
+    showing it can call this and only the first notifies."""
+    if not overdue(cur):
+        return
+    mark = "%s\t%d" % (cur.tag, cur.start)
+    try:
+        if _read_bytes(REMIND_FILE).decode("utf-8", "surrogateescape").strip() == mark:
+            return
+    except OSError:
+        pass
+    try:
+        write_atomic(REMIND_FILE, (mark + "\n").encode("utf-8", "surrogateescape"))
+    except OSError:
+        return  # without the mark every tick would notify again
+    notify("%s has been running for %s, since %s. Still working? If not, stop it and fix the time "
+           "in the raw log." % (tag_label(cur.tag), fmt_mins(round_mins(cur.awake(int(time.time())))),
+                                _since(cur.start)))
+
+
+def _since(epoch):
+    """When a session started: HH:MM today, with the weekday before today."""
+    t = time.localtime(epoch)
+    if time.strftime("%Y-%m-%d", t) == datetime.date.today().isoformat():
+        return time.strftime("%H:%M", t)
+    return time.strftime("%a %H:%M", t)
+
+
+def _todays_rows(today):
+    """The raw log's rows for TODAY, read from the end back to the first row
+    dated earlier, so a button's work stays the same however long the log
+    grows. Rows are appended in time order; one hand-edited into the middle
+    still counts in wlog.md, and on the buttons once it's at the end."""
+    try:
+        f = open(RAW_LOG, "rb")
+    except FileNotFoundError:
+        return []
+    with f:
+        pos = f.seek(0, os.SEEK_END)
+        data = b""
+        while pos > 0:
+            step = min(8192, pos)
+            pos -= step
+            f.seek(pos)
+            data = f.read(step) + data
+            lines = data.split(b"\n")
+            # Every line but the first is whole; stop once one is from before today.
+            if any(l.strip()[:10] < today.encode() for l in lines[1:] if l.strip()):
+                break
+    rows = [l.decode("utf-8", "surrogateescape") for l in data.split(b"\n")]
+    return [r for r in rows if r.lstrip(" \t").startswith(today)]
+
+
+def tag_today(tag):
+    """Minutes logged today under TAG, counted as wlog.md counts them."""
+    today = datetime.date.today().isoformat()
+    rows = _todays_rows(today)
+    entries, _ = load_entries("\n".join(rows))
+    return sum(e.mins for e in report_entries(entries) if e.date == today and same_tag(e.tag, tag))
 
 
 # ---- aggregates (whole minutes: every figure sums each entry's `mins`) ----
 
 
 def summarize(entries):
-    """Minutes logged, days worked, and the longest session, for ENTRIES."""
-    total = longest = 0
-    days = set()
-    for e in entries:
-        total += e.mins
-        days.add(e.date)
-        if e.mins > longest:
-            longest = e.mins
-    return total, len(days), longest
+    """Minutes logged, and days worked, for ENTRIES."""
+    return sum(e.mins for e in entries), len({e.date for e in entries})
 
 
 def in_range(entries, start, end):
     return [e for e in entries if start <= e.day <= end]
-
-
-def per_day_worked(total, days):
-    """TOTAL minutes averaged over DAYS worked, to the nearest minute."""
-    return (2 * total + days) // (2 * days) if days else 0
-
-
-def _whole_percents(values, total):
-    """Whole percentages of TOTAL for VALUES, which sum to it, reconciled to
-    100 by largest remainder; the earlier value wins a tie."""
-    floors, rems = [], []
-    for v in values:
-        p = v * 100.0 / total
-        floors.append(int(p))
-        rems.append(p - int(p))
-    for _ in range(100 - sum(floors)):
-        i = max(range(len(rems)), key=lambda k: (rems[k], -k))
-        floors[i] += 1
-        rems[i] = -1
-    return floors
 
 
 def tag_rows(entries):
@@ -877,90 +1481,6 @@ def tag_rows(entries):
         return []
     names = sorted(mins, key=lambda t: (-mins[t], t))
     return [(n, mins[n], (200 * mins[n] + total) // (2 * total)) for n in names]
-
-
-def top_tags(entries):
-    """The top 3 tags plus "other" (the remaining tags and all untagged time),
-    as whole percentages reconciled to 100. Empty when no tagged time falls in
-    the range."""
-    untagged = total = 0
-    mins = {}
-    for e in entries:
-        if _is_untagged(e.tag):
-            untagged += e.mins
-        else:
-            mins[e.tag] = mins.get(e.tag, 0) + e.mins
-        total += e.mins
-    if total <= untagged:
-        return ""
-    names = sorted(mins, key=lambda t: (-mins[t], t))
-    buckets = [[n, mins[n]] for n in names[:3]]
-    other = untagged + sum(mins[n] for n in names[3:])
-    if other > 0:
-        for b in buckets:
-            if b[0] == "other":  # a real tag named "other" absorbs the residual
-                b[1] += other
-                break
-        else:
-            buckets.append(["other", other])
-    percents = _whole_percents([b[1] for b in buckets], total)
-    return ", ".join("%s %d%%" % (b[0], p) for b, p in zip(buckets, percents))
-
-
-def best_records(entries):
-    """All-time records as (minutes, when), or None where nothing is logged:
-    the longest session (its day), and the best day, Mon-Sun week (its Monday),
-    calendar month ((year, month)) and year. Periods still in progress count,
-    as today does for the best day; the later period wins a tie, and the
-    earlier session keeps the longest."""
-    longest = None
-    days, weeks, months, years = {}, {}, {}, {}
-    for e in entries:
-        if longest is None or e.mins > longest[0]:
-            longest = (e.mins, e.day)
-        monday = e.day - datetime.timedelta(days=e.day.weekday())
-        for totals, key in ((days, e.day), (weeks, monday),
-                            (months, (e.day.year, e.day.month)), (years, e.day.year)):
-            totals[key] = totals.get(key, 0) + e.mins
-
-    def best(totals):
-        top = None
-        for k, v in totals.items():
-            if top is None or (v, k) > top:
-                top = (v, k)
-        return top
-
-    return longest, best(days), best(weeks), best(months), best(years)
-
-
-def count_working_days(start, end):
-    """Days in [start, end] whose weekday (Mon=1) is <= the working days per week."""
-    if start > end:
-        return 0
-    n = (end - start).days + 1
-    full, rest = divmod(n, 7)
-    count = full * CFG.working_days
-    dow = start.isoweekday()
-    for i in range(rest):
-        if (dow - 1 + i) % 7 + 1 <= CFG.working_days:
-            count += 1
-    return count
-
-
-def to_date_line(entries, period_start, period_end, first_ever, today):
-    """The current period's line: its minutes against the target, and how many
-    of its working days so far had any work. Both count from the later of the
-    period's start and the first logged day, so the time before tracking began
-    counts against neither."""
-    start = max(period_start, first_ever)
-    total = sum(e.mins for e in entries)
-    target = CFG.daily_target * count_working_days(start, period_end)
-    worked = len({e.day for e in entries
-                  if start <= e.day <= today and e.day.isoweekday() <= CFG.working_days})
-    line = "To date: %s" % fmt_mins(total)
-    if target > 0:
-        line += " of %dh target (%.1f%%)" % (target, total * 100.0 / (target * 60))
-    return line + ", worked %d of %d working days" % (worked, count_working_days(start, today))
 
 
 # ---- block renderers ----
@@ -995,59 +1515,125 @@ def _week_label(monday):
     return "%s %d – %s %d" % (monday.strftime("%b"), monday.day, sunday.strftime("%b"), sunday.day)
 
 
+def count_working_days(start, end):
+    """Days from START to END, both included, that are working days."""
+    if start > end:
+        return 0
+    full, rest = divmod((end - start).days + 1, 7)
+    dow = start.weekday()  # Monday is 0
+    return full * CFG.working_days + sum(1 for k in range(rest) if (dow + k) % 7 < CFG.working_days)
+
+
+def to_date_line(entries, start, end, first_ever, today, prefix="To date: "):
+    """The current period's line: its time against the target for the whole
+    period, and how many of its working days so far had any work. Both count
+    from the later of START and FIRST_EVER, the first day logged, so the time
+    before tracking began counts against neither."""
+    start = max(start, first_ever)
+    total = sum(e.mins for e in entries)
+    target = CFG.daily_target * count_working_days(start, end)
+    worked = len({e.day for e in entries
+                  if start <= e.day <= today and e.day.weekday() < CFG.working_days})
+    line = prefix + fmt_mins(total)
+    if target:
+        line += " of %dh target (%s)" % (target, _pct(total, target))
+    return line + ", worked %d of %d working days" % (worked, count_working_days(start, today))
+
+
+def to_date_rows(entries, today, first_ever):
+    """The current month's and year's to-date lines, as [label, text] rows for
+    the dashboard and `sw status` to align."""
+    nxt = datetime.date(today.year + today.month // 12, today.month % 12 + 1, 1)
+    rows = []
+    for label, start, end in ((today.strftime("%B %Y"), today.replace(day=1), nxt - datetime.timedelta(days=1)),
+                              ("%04d" % today.year, datetime.date(today.year, 1, 1),
+                               datetime.date(today.year, 12, 31))):
+        rows.append([label, to_date_line(in_range(entries, start, end), start, end, first_ever, today,
+                                         prefix="")])
+    return rows
+
+
+def longest(entries):
+    """The longest session's minutes, or 0."""
+    return max((e.mins for e in entries), default=0)
+
+
+def best_records(entries):
+    """The best session, day, week (by its Monday), month and year, each as
+    (minutes, when); the later one wins a tie, the earlier session keeps the
+    longest. Periods still running count, as today does for the best day."""
+    first = None
+    totals = ({}, {}, {}, {})
+    for e in entries:
+        if first is None or e.mins > first[0]:
+            first = (e.mins, e.day)
+        monday = e.day - datetime.timedelta(days=e.day.weekday())
+        for t, key in zip(totals, (e.day, monday, (e.day.year, e.day.month), e.day.year)):
+            t[key] = t.get(key, 0) + e.mins
+    return [first] + [max(((v, k) for k, v in t.items()), default=None) for t in totals]
+
+
 def render_dashboard(entries, today):
-    one = datetime.timedelta(days=1)
-    yesterday = today - one
-    week_start = today - datetime.timedelta(days=today.weekday())
-    last_week_start = week_start - 7 * one
-
-    def row(label, when, start, end, with_longest):
-        ents = in_range(entries, start, end)
-        total, _, longest = summarize(ents)
-        lng = "longest %s" % fmt_mins(longest) if with_longest and longest else ""
-        return [label, when, fmt_mins(total), lng, top_tags(ents)]
-
-    # This week and last week are closed Mon-Sun ranges, matching the monthly
-    # week lines. This week leaves out its longest session: still a moving target.
-    rows = [row("Today", _day_label(today), today, today, True),
-            row("Yesterday", _day_label(yesterday), yesterday, yesterday, True),
-            row("This week", _week_label(week_start), week_start, week_start + 6 * one, False),
-            row("Last week", _week_label(last_week_start), last_week_start, week_start - one, True)]
-    out = [FENCE] + _table(rows, {2})
-    longest, day, week, month, year = best_records(entries)
-    best = []
-    if longest:
-        best.append(["Best session", fmt_mins(longest[0]), _dated(longest[1])])
-    if day:
-        best.append(["Best day", fmt_mins(day[0]), _dated(day[1])])
-    if week:
-        best.append(["Best week", fmt_mins(week[0]), "week of %s" % week[1].isoformat()])
-    if month:
-        best.append(["Best month", fmt_mins(month[0]), "%04d-%02d" % month[1]])
-    if year:
-        best.append(["Best year", fmt_mins(year[0]), "%04d" % year[1]])
-    if best:
-        out += [""] + _table(best, {1})
-    out.append(FENCE)
-    return "\n".join(out) + "\n"
-
-
-_PERIOD_HEAD = ["Hours", "Days", "Avg/day", "Longest", "Top tag"]
-
-
-def _period_cells(label, entries):
-    """A period's table row: minutes, days worked, per day worked, longest
-    session, top tag. One with nothing logged shows its zeros and no more."""
-    if not entries:
-        return [label, fmt_mins(0), "0", "", "", ""]
-    total, days, longest = summarize(entries)
-    top = next(("%s %d%%" % (n, p) for n, _, p in tag_rows(entries) if n != "untagged"), "")
-    return [label, fmt_mins(total), str(days), fmt_mins(per_day_worked(total, days)),
-            fmt_mins(longest), top]
+    """When wlog.md was rebuilt; the latest day worked and the one before it,
+    against the daily target, and their weeks, each as a short block; the
+    current month and year to date; and the records. Blocks name the dates
+    they show, so a file opened days later still reads right."""
+    out = [FENCE, "Updated %s" % time.strftime("%a %Y-%m-%d %H:%M")]
+    if entries:
+        days = sorted({e.day for e in entries})
+        latest = days[-1]
+        monday = latest - datetime.timedelta(days=latest.weekday())
+        week = datetime.timedelta(days=7)
+        periods = [("Latest day", _day_label(latest), latest, latest, True)]
+        if len(days) > 1:
+            periods.append(("Day before", _day_label(days[-2]), days[-2], days[-2], True))
+        periods += [("Latest week", _week_label(monday), monday, monday + datetime.timedelta(days=6), False),
+                    ("Week before", _week_label(monday - week), monday - week,
+                     monday - datetime.timedelta(days=1), False)]
+        width = max(len(p[0]) for p in periods)
+        for label, when, start, end, target in periods:
+            ents = in_range(entries, start, end)
+            total = summarize(ents)[0]
+            facts = [fmt_mins(total)]
+            hours = CFG.daily_target * (1 if target else count_working_days(max(start, days[0]), end))
+            if hours:
+                facts.append(_pct_of(total, hours))
+            if ents:
+                facts.append("longest %s" % fmt_mins(longest(ents)))
+            out += ["", "%s   %s" % (label.ljust(width), when), "  " + " · ".join(facts)]
+            if ents:
+                out.append("  " + tag_line(ents))
+        out += [""] + _table(to_date_rows(entries, today, days[0]), set())
+        session, day, wk, month, year = best_records(entries)
+        out += [""] + _table([
+            ["Best session", fmt_mins(session[0]), _dated(session[1])],
+            ["Best day", fmt_mins(day[0]), _dated(day[1])],
+            ["Best week", fmt_mins(wk[0]), _week_label(wk[1]) + " %04d" % wk[1].year],
+            ["Best month", fmt_mins(month[0]), datetime.date(month[1][0], month[1][1], 1).strftime("%B %Y")],
+            ["Best year", fmt_mins(year[0]), "%04d" % year[1]]], {1})
+    return "\n".join(out + [FENCE]) + "\n"
 
 
-def _period_table(first_head, rows):
-    return _table([[first_head] + _PERIOD_HEAD] + rows, {1, 2, 3, 4})
+def _pct(total, hours):
+    """TOTAL minutes as a whole-number share of HOURS: `21%`. Every share of a
+    target in sw is written this way."""
+    return "%d%%" % ((200 * total + hours * 60) // (hours * 120))
+
+
+def _pct_of(total, hours):
+    """TOTAL minutes as a share of HOURS: `21% of 8h`."""
+    return "%s of %dh" % (_pct(total, hours), hours)
+
+
+def tag_line(entries, top=3):
+    """The TOP tags by time, then the rest as `other`: `email 37%, work 37%, other 26%`."""
+    rows = tag_rows(entries)
+    shown = ", ".join("%s %d%%" % (n, p) for n, _, p in rows[:top])
+    if len(rows) > top:
+        total = sum(m for _, m, _ in rows)
+        rest = sum(m for _, m, _ in rows[top:])
+        shown += ", other %d%%" % ((200 * rest + total) // (2 * total))
+    return shown
 
 
 def render_tag_table(entries):
@@ -1055,85 +1641,104 @@ def render_tag_table(entries):
     return _table([["Tag", "Hours", "%"]] + rows, {1, 2}) if rows else []
 
 
-def render_years(entries, first_ever, today):
-    """A row for every year since the first logged one, newest first, zeros
-    included; empty until the span covers two years."""
-    if first_ever is None:
-        return ""
-    last = max([today.year] + [e.day.year for e in entries])
-    if last == first_ever.year:
-        return ""
-    by_year = {}
-    for e in entries:
-        by_year.setdefault(e.day.year, []).append(e)
-    rows = [_period_cells("%04d" % y, by_year.get(y, [])) for y in range(last, first_ever.year - 1, -1)]
-    return "\n".join([FENCE] + _period_table("Year", rows) + [FENCE]) + "\n"
+def _per_day(total, days):
+    """Minutes per day worked, rounded to the nearest minute."""
+    return (2 * total + days) // (2 * days) if days else 0
 
 
-def render_year(year, entries, first_ever, today):
-    """The to-date line while it's the current year; a row for every month
-    since tracking began, newest first, zeros included, the year's total last;
-    then the year's tags."""
-    first = first_ever.month if year == first_ever.year else 1
-    if year < today.year:
-        last = 12
-    else:
-        last = max([e.day.month for e in entries] + ([today.month] if year == today.year else []))
-    by_month = {}
-    for e in entries:
-        by_month.setdefault(e.day.month, []).append(e)
-    rows = [_period_cells(datetime.date(year, m, 1).strftime("%b"), by_month.get(m, []))
-            for m in range(last, first - 1, -1)]
-    rows.append(_period_cells("%04d" % year, entries))
+def _period_row(label, entries):
+    """A period's row: hours, days worked, hours per day worked, top tag. One
+    with nothing logged shows its zeros."""
+    total, days = summarize(entries)
+    if not entries:
+        return [label, fmt_mins(0), "0", "", "", ""]
+    top = next(("%s %d%%" % (n, p) for n, _, p in tag_rows(entries) if n != "untagged"), "")
+    return [label, fmt_mins(total), str(days), fmt_mins(_per_day(total, days)),
+            fmt_mins(longest(entries)), top]
+
+
+def _period_table(first_head, rows):
+    return _table([[first_head, "Hours", "Days", "Per day", "Longest", "Top tag"]] + rows, {1, 2, 3, 4})
+
+
+def render_years(entries):
+    """A row for every year from the first logged to the latest, newest first,
+    zeros included; nothing until the log covers two years."""
+    years = sorted({e.day.year for e in entries})
+    if len(years) < 2:
+        return ""
+    rows = [_period_row("%04d" % y, [e for e in entries if e.day.year == y])
+            for y in range(years[-1], years[0] - 1, -1)]
+    return "\n" + "\n".join([FENCE] + _period_table("Year", rows) + [FENCE]) + "\n"
+
+
+def render_year(year, entries, first_month, first_day, today):
+    """A row for every month from FIRST_MONTH to the year's latest month worked
+    (December for a year since ended), newest first, zeros included, and the
+    year's total last; then the year's tags. The current year opens with its
+    to-date line, counted from FIRST_DAY, the first day logged."""
+    last = 12 if year < today.year else max(e.day.month for e in entries)
+    rows = [_period_row(datetime.date(year, m, 1).strftime("%b"),
+                        [e for e in entries if e.day.month == m])
+            for m in range(last, first_month - 1, -1)]
+    rows.append(_period_row("%04d" % year, entries))
     out = [FENCE]
     if year == today.year:
         out += [to_date_line(entries, datetime.date(year, 1, 1), datetime.date(year, 12, 31),
-                             first_ever, today), ""]
+                             first_day, today), ""]
     out += _period_table("Month", rows) + [""] + render_tag_table(entries) + [FENCE]
     return "\n".join(out) + "\n"
 
 
-def _last_of_month(year, month):
-    nxt = datetime.date(year + month // 12, month % 12 + 1, 1)
-    return nxt - datetime.timedelta(days=1)
-
-
-def render_month(year, month, entries, all_entries, first_ever, today):
-    """The month's summary; while it's the current month, its to-date line and
-    weeks; then its tags. Closed months show only what the raw log alone
-    decides, so editing the config never rewrites them."""
-    total, days, longest = summarize(entries)
-    out = [FENCE, "%s · %d %s worked · %s per day worked · longest %s"
-           % (fmt_mins(total), days, "day" if days == 1 else "days",
-              fmt_mins(per_day_worked(total, days)), fmt_mins(longest))]
-    if (year, month) == (today.year, today.month):
-        out.append(to_date_line(entries, datetime.date(year, month, 1), _last_of_month(year, month),
-                                first_ever, today))
-        weeks = render_weeks_for_month(year, month, all_entries, today)
-        if weeks:
-            out += [""] + weeks
-    out += [""] + render_tag_table(entries) + [FENCE]
-    return "\n".join(out) + "\n"
-
-
-def render_weeks_for_month(year, month, entries, today):
-    """ISO weeks whose Monday falls in the month, latest first, skipping Mondays
-    still ahead. Each shows its full Mon-Sun total, so a week that spills into
-    the next month sits under the month it started in."""
-    first = datetime.date(year, month, 1)
-    last = _last_of_month(year, month)
-    monday = first + datetime.timedelta(days=(7 - first.weekday()) % 7)
-    mondays = []
-    while monday <= last:
-        mondays.append(monday)
-        monday += datetime.timedelta(days=7)
+def render_weeks(year, month, entries, first, latest):
+    """A line for each Monday-to-Sunday week that starts in the month, latest
+    first: its full total, days worked and share of its target (counted from
+    FIRST in the week tracking began), so a week that runs into the next
+    month is listed under the month it started in. ENTRIES needs this month
+    and the next. Weeks that start after LATEST, the latest day worked, or end
+    before FIRST, the first, are left out."""
+    day = datetime.date(year, month, 1)
+    day += datetime.timedelta(days=(7 - day.weekday()) % 7)
     rows = []
-    for mon in reversed(mondays):
-        if mon > today:
-            continue
-        total = summarize(in_range(entries, mon, mon + datetime.timedelta(days=6)))[0]
-        rows.append(["Week %02d" % mon.isocalendar()[1], _week_label(mon), fmt_mins(total)])
-    return _table(rows, {2}) if rows else []
+    while day.month == month and day <= latest:
+        end = day + datetime.timedelta(days=6)
+        if end >= first:
+            total, days = summarize(in_range(entries, day, end))
+            target = CFG.daily_target * count_working_days(max(day, first), end)
+            rows.append([_week_label(day), fmt_mins(total),
+                         "%d %s" % (days, "day" if days == 1 else "days"),
+                         _pct_of(total, target) if target else ""])
+        day += datetime.timedelta(days=7)
+    return _table(rows[::-1], {1, 2, 3}) if rows else []
+
+
+def render_month(year, month, entries, nearby, first, latest, today):
+    """A month's block: totals; days worked against working days (to TODAY in
+    the current month); its to-date line while current; its top tags; and
+    its weeks. NEARBY holds this month's and the next month's sessions, for
+    weeks that run on; FIRST and LATEST are the first and latest days logged."""
+    total, days = summarize(entries)
+    start = max(datetime.date(year, month, 1), first)
+    nxt = datetime.date(year + month // 12, month % 12 + 1, 1)
+    end = min(nxt - datetime.timedelta(days=1), today)
+    on = len({e.day for e in entries if e.day.weekday() < CFG.working_days})
+    head = fmt_mins(total)
+    if days:
+        head += " · %s per day worked · longest %s" % (fmt_mins(_per_day(total, days)),
+                                                        fmt_mins(longest(entries)))
+    worked = "%d %s worked of %d working days" % (on, "day" if on == 1 else "days",
+                                                   count_working_days(start, end))
+    if days > on:
+        worked += ", plus %d other %s" % (days - on, "day" if days - on == 1 else "days")
+    out = [FENCE, head, worked]
+    if (year, month) == (today.year, today.month):
+        out.append(to_date_line(entries, datetime.date(year, month, 1), nxt - datetime.timedelta(days=1),
+                                first, today))
+    weeks = render_weeks(year, month, nearby, first, latest)
+    if entries:
+        out.append("Tags: " + tag_line(entries))
+    out += ([""] + weeks if weeks else []) + [FENCE]
+    return "\n".join(out) + "\n"
 
 
 def _start_order(e):
@@ -1141,48 +1746,87 @@ def _start_order(e):
     return (end - e.mins, end, e.secs, e.tag)
 
 
+def _hm(mins):
+    m = mins % 1440
+    return "%02d:%02d" % (m // 60, m % 60)
+
+
+def day_timeline(sessions):
+    """A day's sessions in the order they started, with the breaks between them:
+    a list of (start, end, entry) in minutes from that midnight, entry None for
+    a break. A session that began the evening before starts below zero. Gaps
+    under MIN_BREAK_MINS, and sessions overlapping one before them (an `sw add`
+    over timed work, say), add no break."""
+    out, reach = [], None
+    for e in sorted(sessions, key=_start_order):
+        end = _clock_mins(e.hm)
+        start = end - e.mins
+        if reach is not None and start - reach >= MIN_BREAK_MINS:
+            out.append((reach, start, None))
+        out.append((start, end, e))
+        reach = end if reach is None else max(reach, end)
+    return out
+
+
 def render_days(entries):
-    """Days latest first, each day's sessions in the order they started."""
+    """Days latest first. Each day's line gives its total, sessions, and, with
+    more than one, when the first started and the last ended and the breaks in
+    between; under it, the sessions in the order they started, each ending
+    with the break that followed it, if any."""
     by_day = {}
     for e in entries:
         by_day.setdefault(e.day, []).append(e)
     width = max(len(fmt_mins(e.mins)) for e in entries)
+    tag_width = max(len(tag_label(e.tag)) for e in entries)
     out = []
     for d in sorted(by_day, reverse=True):
         sessions = by_day[d]
         n = len(sessions)
-        out.append("- %s — %s, %d %s" % (_dated(d), fmt_mins(sum(e.mins for e in sessions)), n,
-                                         "session" if n == 1 else "sessions"))
-        for e in sorted(sessions, key=_start_order):
-            out.append("  - %s   %s   %s" % (session_range(e.hm, e.mins), fmt_mins(e.mins).rjust(width),
-                                            tag_label(e.tag)))
+        line = "- %s — %s, %d %s" % (_dated(d), fmt_mins(sum(e.mins for e in sessions)), n,
+                                     "session" if n == 1 else "sessions")
+        timeline = day_timeline(sessions)
+        if n > 1:
+            first = min(a for a, _, _ in timeline)
+            last = max(b for _, b, _ in timeline)
+            line += " · %s–%s" % (_hm(first), _hm(last))
+            breaks = sum(b - a for a, b, e in timeline if e is None)
+            if breaks:
+                line += " · breaks %s" % fmt_mins(breaks)
+        out.append(line)
+        for i, (a, b, e) in enumerate(timeline):
+            if e is None:
+                continue
+            row = "  - %s–%s   %s   %s" % (_hm(a), _hm(b), fmt_mins(e.mins).rjust(width),
+                                          tag_label(e.tag))
+            nxt = timeline[i + 1] if i + 1 < len(timeline) else None
+            if nxt is not None and nxt[2] is None:
+                row = "%s   then %s break" % (row.ljust(len(row) - len(tag_label(e.tag)) + tag_width),
+                                              fmt_mins(nxt[1] - nxt[0]))
+            out.append(row)
     return "".join(line + "\n" for line in out)
 
 
 def render_config_seed():
-    """Written once, when wlog.md is first created: the effective config, which
-    is the defaults at that point, fenced so a markdown preview keeps its lines
-    apart. The suffixes are the ones read_config accepts, and it skips the
-    fence lines, so the block reads back unchanged."""
-    return ("# config (edit a value; delete a line to use its default)\n"
-            + FENCE + "\n"
-            + "%-22s %s\n" % ("Daily target:", "%dh" % CFG.daily_target)
-            + "%-22s %s\n" % ("Working days per week:", "%d" % CFG.working_days)
-            + "%-22s %s\n" % ("Pomodoro work:", "%dm" % CFG.work_mins)
-            + "%-22s %s\n" % ("Pomodoro break:", "%dm" % CFG.break_mins)
+    """Written once, when wlog.md is first created."""
+    return ("# config (edit a value; delete a line to use its default)\n" + FENCE + "\n"
+            + "Daily target:          %dh\nWorking days per week: %d\n" % (CFG.daily_target, CFG.working_days)
+            + "Remind after:          %dh\n" % CFG.remind_hours
+            + "Pomodoro work:         %dm\nPomodoro break:        %dm\n" % (CFG.work_mins, CFG.break_mins)
             + FENCE + "\n\n")
 
 
 _BAD_LINE_SHOWN = 5
 
+# Written under `# log` on every rebuild. Before v33 nothing said so, and notes
+# typed below `# log` were lost on the next rebuild.
+GENERATED_NOTE = ("<!-- Everything below is rebuilt from the raw log on every change: edits here are "
+                  "lost. Write notes above the # log line. -->\n")
 
 def regenerate_md():
     """Rebuild wlog.md from the raw log, keeping everything above `# log`.
     Lines of the raw log that aren't sessions are named on stderr and left out;
     sessions under a minute are left out silently."""
-    if not os.path.isfile(RAW_LOG):
-        return
-    entries, bad = load_entries(read_raw_text())
+    entries, bad = load_entries(read_raw_text()) if os.path.isfile(RAW_LOG) else ([], [])
     for n, line in bad[:_BAD_LINE_SHOWN]:
         warn("warning: %s line %d isn't date, HH:MM, seconds, tag; left out of the totals: %s"
              % (RAW_LOG, n, line))
@@ -1208,25 +1852,25 @@ def regenerate_md():
         header = render_config_seed()
 
     entries = report_entries(entries)
-    today = datetime.date.today()
-    first_ever = min((e.day for e in entries), default=None)
-    by_year, by_month = {}, {}
+    by_month = {}
     for e in entries:
-        by_year.setdefault(e.day.year, []).append(e)
         by_month.setdefault((e.day.year, e.day.month), []).append(e)
-
-    parts = [header, "# log\n\n", render_dashboard(entries, today)]
-    years = render_years(entries, first_ever, today)
-    if years:
-        parts.append("\n## All years\n\n" + years)
-    for y in sorted(by_year, reverse=True):
-        parts.append("\n## %04d\n\n" % y)
-        parts.append(render_year(y, by_year[y], first_ever, today))
-        for (yy, m) in sorted((k for k in by_month if k[0] == y), reverse=True):
-            parts.append("\n### %s\n\n" % datetime.date(yy, m, 1).strftime("%B"))
-            parts.append(render_month(yy, m, by_month[(yy, m)], entries, first_ever, today))
-            parts.append("\n")
-            parts.append(render_days(by_month[(yy, m)]))
+    today = datetime.date.today()  # once, so a rebuild across midnight reads one day throughout
+    parts = [header, "# log\n\n", GENERATED_NOTE, "\n", render_dashboard(entries, today), render_years(entries)]
+    first = min(by_month) if by_month else None
+    days = sorted({e.day for e in entries}) if entries else []
+    year = None
+    for (y, m) in sorted(by_month, reverse=True):
+        if y != year:
+            year = y
+            parts.append("\n## %04d\n\n" % y)
+            parts.append(render_year(y, [e for e in entries if e.day.year == y],
+                                     first[1] if y == first[0] else 1, days[0], today))
+        parts.append("\n### %s\n\n" % datetime.date(y, m, 1).strftime("%B"))
+        nxt = (y + m // 12, m % 12 + 1)
+        parts.append(render_month(y, m, by_month[(y, m)], by_month[(y, m)] + by_month.get(nxt, []),
+                                  days[0], days[-1], today))
+        parts.append("\n" + render_days(by_month[(y, m)]))
     write_atomic(MD_LOG, "".join(parts).encode("utf-8", "surrogateescape"))
 
 
@@ -1234,11 +1878,12 @@ def regenerate_md():
 
 
 class Timer:
-    start = 0          # epoch the current timer began
-    completed = False  # a countdown reached zero (never, for the count-up)
-    elapsed = 0        # what the finished timer logs
-    commit_tag = ""    # tag to log if logout or kill ends a committable phase; "" for the break
-    signal_commit = False
+    session = None            # the session this terminal shows; None for a break
+    started_here = False      # Ctrl+C drops a session only if this terminal started it
+    commit_on_hangup = False  # pomodoro work: its countdown can't outlive the terminal
+    completed = False         # a countdown reached zero (never, for the count-up)
+    gone = False              # the session was stopped or replaced elsewhere
+    exiting = False           # a signal is already ending this process
 
 
 TIMER = Timer()
@@ -1259,35 +1904,58 @@ def _exit_now(code):
     os._exit(code)
 
 
-# Ctrl+C discards the running work session on purpose and says so. During a
-# break there is nothing to discard: the pomodoro before it is already logged.
+def _exiting():
+    """True if a signal is already ending this process; otherwise claims the
+    exit, holding further signals so the first one finishes what it started."""
+    if TIMER.exiting:
+        return True
+    TIMER.exiting = True
+    signal.pthread_sigmask(signal.SIG_BLOCK, _HELD_SIGNALS)
+    return False
+
+
+# Ctrl+C drops a session this terminal started, on purpose, and says so. On a
+# session it found already running it only closes the view: an hour started
+# from the panel shouldn't vanish because a terminal was attached to it. During
+# a break there is nothing to drop: the pomodoro before it is already logged.
 def _on_interrupt(signum, frame):
-    if TIMER.commit_tag:
-        _write(sys.stdout, "\n\n⏹ cancelled, nothing logged\n")
-    else:
+    """Ctrl+C in a live view: drop a session this terminal started, else just close the view."""
+    if _exiting():
+        return
+    s = TIMER.session
+    if s is None:
         _write(sys.stdout, "\n\n⏹ break cancelled\n")
+    elif not TIMER.started_here:
+        _write(sys.stdout, "\n\n⏹ left the live view; %s keeps running (sw stop stops it)\n"
+               % tag_label(s.tag))
+    else:
+        try:
+            dropped = discard(s)
+        except SystemExit as e:
+            _exit_now(e.code if isinstance(e.code, int) else 1)
+        _write(sys.stdout, "\n\n⏹ cancelled, nothing logged\n" if dropped
+               else "\n\n⏹ already stopped elsewhere\n")
     _exit_now(130)
 
 
-def _commit_and_exit(code):
-    """Logout, a terminal close, or kill during a committable phase: the session
-    lives only in memory until committed, so commit what ran, then exit with the
-    conventional 128+signal code."""
-    if TIMER.signal_commit:
-        return  # a second signal mid-commit: let the first one finish
-    TIMER.signal_commit = True
-    signal.pthread_sigmask(signal.SIG_BLOCK, _HELD_SIGNALS)
-    elapsed = int(time.time()) - TIMER.start
+def _hangup(code):
+    """The terminal went away or `kill` arrived during a pomodoro's work phase:
+    log the work so far, then exit with the conventional 128+signal code. A
+    stopwatch needs no handler, as its session lives on in the state file."""
+    if _exiting():
+        return
     _write(sys.stderr, "\n\n⏹ terminated by signal\n")
     try:
-        finish(elapsed, TIMER.commit_tag)
+        change_timer(lambda c: None, expect=TIMER.session, fail="failed to commit session")
+    except Gone:
+        pass
     except SystemExit as e:
         _exit_now(e.code if isinstance(e.code, int) else 1)
     _exit_now(code)
 
 
 def _on_terminate(signum, frame):
-    _commit_and_exit(129 if signum == signal.SIGHUP else 143)
+    _hangup(129 if signum == signal.SIGHUP else 143)
 
 
 def _enter_pressed(tty, timeout):
@@ -1308,44 +1976,56 @@ def _enter_pressed(tty, timeout):
         return False
     except termios.error:
         pass
-    if TIMER.commit_tag:
-        _commit_and_exit(129)
+    if TIMER.commit_on_hangup:
+        _hangup(129)
     _exit_now(129)
 
 
 # One-second live timer shared by the stopwatch, the pomodoro work phase, and
-# the break, so their displays are identical by construction. Both modes count
-# from wall-clock time, so a suspend or a closed lid counts as elapsed instead
-# of pausing the timer. A countdown that reaches zero logs its nominal length;
-# an early Enter and the count-up log the wall-clock span actually run. Each
-# redraw ends with EL (\033[K) so a clock that shrinks at the hour boundary
-# (1:00:00 -> 59:59) leaves no stale columns.
-def run_timer(tty, mode, icon, label, total=0, commit_tag=""):
-    TIMER.start = int(time.time())
-    TIMER.completed = False
-    TIMER.commit_tag = commit_tag
-    TIMER.signal_commit = False
+# the break, so their displays are identical by construction. The count-up
+# shows the session's awake time, so a suspend doesn't inflate it; the
+# countdowns run on wall-clock time, so a block or break that ends during a
+# suspend has ended when the lid opens. A session's timer counts from the
+# session's start, so a stopwatch that found its tag already running shows the
+# whole run, and it stops showing when the session is stopped or replaced
+# elsewhere. Each redraw ends with EL (\033[K) so a clock that shrinks at the
+# hour boundary (1:00:00 -> 59:59) leaves no stale columns.
+def run_timer(tty, mode, icon, label, total=0):
+    """Draw the live clock once a second until Enter, the countdown ends, or the session is stopped elsewhere."""
+    s = TIMER.session
+    origin = s.start if s is not None else int(time.time())
+    TIMER.completed = TIMER.gone = TIMER.exiting = False
     signal.signal(signal.SIGINT, _on_interrupt)
-    if commit_tag:
+    if TIMER.commit_on_hangup:
         signal.signal(signal.SIGHUP, _on_terminate)
         signal.signal(signal.SIGTERM, _on_terminate)
     try:
         while True:
             now = int(time.time())
+            if s is not None:
+                try:
+                    latest = read_state()
+                except StateError:
+                    latest = None
+                if not s.same(latest):
+                    TIMER.gone = True
+                    break
+            if s is not None and now % 60 == 0:
+                remind_once(s)
             if mode == "down":
-                remaining = max(0, total - (now - TIMER.start))
+                remaining = max(0, total - (now - origin))
                 _write(sys.stdout, "\r   %s  %s: %s \033[K" % (icon, label, fmt_clock(remaining)))
                 if remaining == 0:
                     TIMER.completed = True
                     break
             else:
-                _write(sys.stdout, "\r   %s  %s: %s \033[K" % (icon, label, fmt_clock(now - TIMER.start)))
+                shown = s.awake(now) if s is not None else now - origin
+                _write(sys.stdout, "\r   %s  %s: %s \033[K" % (icon, label, fmt_clock(shown)))
             if _enter_pressed(tty, 1.0):
                 break
     finally:
-        for s in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
-            signal.signal(s, signal.SIG_DFL)
-    TIMER.elapsed = total if TIMER.completed else int(time.time()) - TIMER.start
+        for sig in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
+            signal.signal(sig, signal.SIG_DFL)
 
 
 def _hm_in(seconds):
@@ -1367,56 +2047,111 @@ def play_sound(path):
 # ---- modes ----
 
 
-def finish(elapsed, tag):
-    """Commit a finished timer session. If it can't be written, say so with the
-    command that puts it back, since the session exists nowhere else."""
-    if elapsed < MIN_SESSION_SECS:
-        say("under a minute, not logged")
+def _say_asleep(out):
+    """How much sleep a stopped session left out, and the `sw add` that puts it
+    back; nothing when it slept under half a minute."""
+    m = round_mins(out.asleep)
+    if out.ended is None or not m:
         return
-    stamp = time.localtime()  # one reading: the row's date and the total line agree
-    day = time.strftime("%Y-%m-%d", stamp)
-    hm = time.strftime("%H:%M", stamp)
-    recover = "sw add %ds%s" % (elapsed, "" if tag == "-" else " " + tag)
-    run_change(lambda: append_row("%s\t%s\t%d\t%s" % (day, hm, elapsed, tag)),
-               "failed to commit session; recover it with: %s" % recover)
-    say("Session: %s" % fmt_mins(round_mins(elapsed)))
-    say_day_total(day)
+    say("%s asleep left out; sw add %dm%s puts it back"
+        % (fmt_mins(m), m, "" if out.ended.tag == "-" else " " + out.ended.tag))
+
+
+def _say_stopped(out):
+    """The session a timer change stopped, if any, as it was logged."""
+    if out.ended is None:
+        return
+    if out.logged:
+        say("logged: %s" % describe_session(out.logged[0], out.logged[1], out.secs, out.ended.tag))
+    else:
+        say("%s ran under a minute%s, not logged" % (tag_label(out.ended.tag),
+                                                     " awake" if round_mins(out.asleep) else ""))
+    _say_asleep(out)
+
+
+def _say_stale():
+    msg = resolve_stale()
+    if msg:
+        warn(msg)
+
+
+def _finish(s, secs=None):
+    """Stop S from its live view and log it; SECS overrides the time it ran."""
+    try:
+        out = change_timer(lambda c: None, expect=s, secs=secs, fail="failed to commit session")
+    except Gone:
+        say("already stopped elsewhere")
+        return
+    if out.logged is None:
+        say("under a minute, not logged")
+        _say_asleep(out)
+        return
+    say("Session: %s" % fmt_mins(round_mins(out.secs)))
+    _say_asleep(out)
+    say_day_total(out.logged[0])
 
 
 def run_stopwatch(tag):
+    """`sw [tag]`: start TAG (or join it if running) and show it live until Enter or Ctrl+C."""
     tty = open_tty()
-    say("⏱  stopwatch started %s. Enter stops & logs, Ctrl+C cancels." % time.strftime("%H:%M"))
+    _say_stale()
+    out = change_timer(lambda cur: KEEP if cur is not None and same_tag(cur.tag, tag) else tag)
+    _say_stopped(out)
+    TIMER.commit_on_hangup = False
+    if out.kept is not None:
+        TIMER.session, TIMER.started_here = out.kept, False
+        say("⏱  %s has been running since %s. Enter stops & logs, Ctrl+C leaves it running."
+            % (tag_label(tag), _since(out.kept.start)))
+    else:
+        TIMER.session, TIMER.started_here = out.started, True
+        say("⏱  stopwatch started %s. Enter stops & logs, Ctrl+C cancels." % time.strftime("%H:%M"))
+    say("   Closing this window leaves the timer running.")
     say("")
-    run_timer(tty, "up", "⏱", "elapsed", 0, tag)
+    run_timer(tty, "up", "⏱", "elapsed")
     say("")
     say("")
+    if TIMER.gone:
+        say("⏹ stopped elsewhere (the panel, a shortcut, or another sw)")
+        return
     say("⏹ stopped")
-    finish(TIMER.elapsed, tag)
+    _finish(TIMER.session)
 
 
 def run_pomodoro(tag):
+    """`sw pomo [tag]`: a fresh work block counted down, logged at its set length, then a break."""
     tty = open_tty()
+    _say_stale()
     mins = CFG.work_mins
+    out = change_timer(lambda cur: tag)  # a fresh block, even if tag was running
+    _say_stopped(out)
+    TIMER.session, TIMER.started_here, TIMER.commit_on_hangup = out.started, True, True
     say("🍅 pomodoro started! focus for %d minutes." % mins)
     say("   Started %s, ends %s. Enter stops early & logs, Ctrl+C cancels."
         % (time.strftime("%H:%M"), _hm_in(mins * 60)))
     say("")
-    run_timer(tty, "down", "⏱", "time remaining", mins * 60, tag)
+    run_timer(tty, "down", "⏱", "time remaining", mins * 60)
     say("")
     say("")
-    if TIMER.completed:
+    s = TIMER.session
+    TIMER.session, TIMER.commit_on_hangup = None, False
+    if TIMER.gone:
+        say("⏹ stopped elsewhere (the panel, a shortcut, or another sw)")
+    elif TIMER.completed:
+        # A countdown that reaches zero logs its set length, so a suspend
+        # mid-block doesn't inflate the logged focus.
         say("✅ session complete!")
-        finish(TIMER.elapsed, tag)
+        _finish(s, mins * 60)
         play_sound(SOUND_SESSION_END)
         say("")
         run_break(tty, CFG.break_mins)
     else:
         say("⏹ stopped early")
-        finish(TIMER.elapsed, tag)
+        _finish(s)
 
 
 # Rest timer shared by the pomodoro and `sw break`. Logs nothing.
 def run_break(tty, mins):
+    """Count a MINS-minute break down; logs nothing."""
     say("%dm break. Press Enter to skip." % mins)
     say("   Break ends %s" % _hm_in(mins * 60))
     say("")
@@ -1433,6 +2168,7 @@ def run_break(tty, mins):
 
 
 def cmd_break(args):
+    """`sw break [MINUTES]`: a break timer on its own."""
     mins, got = CFG.break_mins, False
     for a in args:
         if a.startswith("-"):
@@ -1448,69 +2184,660 @@ def cmd_break(args):
     run_break(open_tty(), mins)
 
 
-def cmd_sum(args):
+# ---- the timer without a live view: commands, shortcuts, panel buttons ----
+
+
+def _timer_command(decide):
+    """Apply DECIDE to the timer without a live view, and say what happened."""
+    _say_stale()
+    out = change_timer(decide)
+    _say_stopped(out)
+    if out.started is not None:
+        say("started %s at %s" % (tag_label(out.started.tag), _since(out.started.start)))
+    elif out.kept is not None:
+        say("%s is already running, since %s" % (tag_label(out.kept.tag), _since(out.kept.start)))
+    elif out.ended is None:
+        say("nothing running")
+    if out.logged:
+        say_day_total(out.logged[0])
+
+
+def cmd_start(args):
+    tag = args_to_tag(args)
+    _timer_command(lambda cur: KEEP if cur is not None and same_tag(cur.tag, tag) else tag)
+
+
+def cmd_stop(args):
     if args:
-        die("sum: takes no arguments")
+        die("stop: takes no arguments")
+    _timer_command(lambda cur: None)
+
+
+def cmd_toggle(args):
+    tag = args_to_tag(args)
+    _timer_command(lambda cur: None if cur is not None and same_tag(cur.tag, tag) else tag)
+
+
+def _tilde(path):
+    home = os.environ.get("HOME", "")
+    return "~" + path[len(home):] if home and path.startswith(home + "/") else path
+
+
+def _work_length():
+    """How many of today's logged sessions were at least a pomodoro long."""
     today = datetime.date.today().isoformat()
-    total = count = 0
-    if os.path.isfile(RAW_LOG):
-        for e in report_entries(load_entries(read_raw_or_die())[0]):
-            if e.date == today:
-                total += e.mins
-                if e.mins >= CFG.work_mins:
-                    count += 1
-    say("Today's total: %s (%d work-length sessions)" % (fmt_mins(total), count))
+    n = sum(1 for e in report_entries(load_entries("\n".join(_todays_rows(today)))[0])
+            if e.date == today and e.mins >= CFG.work_mins)
+    return "%d %s of %dm or more" % (n, "session" if n == 1 else "sessions", CFG.work_mins)
 
 
-def cmd_last(args):
+def cmd_status(args):
+    """`sw status`: what's running, today's total, then this week and the month and year to date."""
     if args:
-        die("last: takes no arguments")
-    if not os.path.isfile(RAW_LOG):
-        say("no sessions logged")
+        die("status: takes no arguments")
+    _say_stale()
+    cur = read_state_or_die()
+    total = day_total(datetime.date.today().isoformat())
+    if cur is None:
+        say("nothing running")
+        say("Today's total: %s; %s" % (fmt_mins(total), _work_length()))
+        _say_periods(None)
         return
-    lines = _lines(read_raw_or_die())
-    i = last_entry_index(lines)
-    if i is None:
-        say("no sessions logged")
-        return
-    last = lines[i]
-    f = split_fields(last)
-    if len(f) != 4:
-        die("last entry isn't in the expected 4-field format ('%s'); edit %s" % (last, RAW_LOG))
-    d, t, s, tg = f
-    if not _DIGITS.fullmatch(s):
-        die("last entry has a malformed seconds field ('%s'); edit %s" % (s, RAW_LOG))
-    say(describe_session(d, t, int(s), tg))
+    now = int(time.time())
+    run = round_mins(cur.awake(now))
+    asleep = round_mins(cur.asleep())
+    say("running: %s, since %s (%s so far%s)%s" % (
+        tag_label(cur.tag), _since(cur.start), fmt_mins(run),
+        ", not counting %s asleep" % fmt_mins(asleep) if asleep else "",
+        " — still working?" if overdue(cur, now) else ""))
+    say("Today's total: %s, counting the running session; %s" % (fmt_mins(total + run), _work_length()))
+    _say_periods(cur)
 
 
-# Unlike the timer paths, where a missing player or file stays silent, the
-# point of `sw sound` is diagnosis, so it reports what's wrong.
-def cmd_sound(args):
+def _say_periods(cur):
+    """This week against its target, then the month and year to date, as the
+    work log's dashboard has them, counting a running session CUR."""
+    try:
+        entries = report_entries(load_entries(read_raw_text())[0])
+    except OSError:
+        return
+    if cur is not None:
+        now = int(time.time())
+        stamp = time.localtime(now)
+        entries.append(Entry(time.strftime("%Y-%m-%d", stamp), datetime.date(*stamp[:3]),
+                             time.strftime("%H:%M", stamp), cur.awake(now), cur.tag))
+    if not entries:
+        return
+    today = datetime.date.today()
+    first = min(e.day for e in entries)
+    monday = today - datetime.timedelta(days=today.weekday())
+    sunday = monday + datetime.timedelta(days=6)
+    week = summarize(in_range(entries, monday, sunday))[0]
+    hours = CFG.daily_target * count_working_days(max(monday, first), sunday)
+    text = "%s   %s" % (_week_label(monday), fmt_mins(week))
+    if hours:
+        text += " · " + _pct_of(week, hours)
+    say("")
+    for line in _table([["This week", text]] + to_date_rows(entries, today, first), set()):
+        say(line)
+
+
+def _clock_hm(mins):
+    return "%d:%02d" % divmod(mins, 60)
+
+
+# Padding either side of a button's text (an en space), so neighbouring
+# buttons don't run together.
+_PAD = " "
+
+
+def _panel_face(tag, cur):
+    """The button's text and tooltip, as Pango markup: the running task in bold
+    with ▶ and today's time for it so far, ⚠ instead once it has run past
+    `Remind after`; a stopped one with today's time, or just its name before
+    any."""
+    label = tag_label(tag)
+    logged = tag_today(tag)
+    if cur is not None and same_tag(cur.tag, tag):
+        now = int(time.time())
+        awake = cur.awake(now)
+        total = logged + awake // 60
+        late = overdue(cur, now)
+        txt = "<b>%s %s %s</b>" % ("⚠" if late else PANEL_RUNNING_MARK, _esc(label), _clock_hm(total))
+        tool = "%s: running since %s\ntoday %s\nclick to stop and log it" % (
+            label, _since(cur.start), fmt_mins(total))
+        if late:
+            tool = "running for %s: still working?\n%s" % (fmt_mins(round_mins(awake)), tool)
+    else:
+        txt = _esc(label) + (" " + _clock_hm(logged) if logged else "")
+        tool = "%s: stopped\ntoday %s\nclick to start %s" % (
+            label, fmt_mins(logged), "a new session" if logged else "it")
+    return _PAD + txt + _PAD, _esc(tool)
+
+
+# ---- the panel itself (XFCE): finding, adding and refreshing sw's buttons ----
+#
+# sw's buttons are the Generic Monitor items whose command runs this script
+# with `panel`. Generic Monitor keeps each item's settings in xfconf
+# (/plugins/plugin-N/command, ...) from version 4.2, and in
+# ~/.config/xfce4/panel/genmon-N.rc before that. sw reads both, and a button
+# counts as set up only when every one of them that exists says the same:
+# a stale rc file is what the panel actually runs before 4.2.
+#
+# The panel writes each plugin's settings back from memory when it exits, so
+# sw changes them only while the panel is stopped. Before v41 sw wrote them
+# under a running panel and then restarted it, and the restart put the old
+# commands back: a button kept an old slot number, showing another task or
+# nothing, while xfconf looked right.
+
+PANEL_CHANNEL = "xfce4-panel"
+PANEL_BACKUPS_KEPT = 5  # copies of the panel settings kept in ~/.cache, newest first
+# Each redraw is one short sw run (about 36 ms), so at 50 seconds three
+# buttons cost well under 0.1% of one CPU core.
+PANEL_PERIOD_MS = PANEL_REFRESH_SECS * 1000
+IN_PANEL = False  # set while printing a button: refreshing from there would loop
+
+
+class PanelError(Exception):
+    """The panel couldn't be read or changed. args[0] says why."""
+
+
+class Button:
+    """One of sw's Generic Monitor items. SOURCES holds its settings as
+    (command, period in ms, label shown), one for each place that has them:
+    xfconf, and its genmon-N.rc file."""
+    __slots__ = ("pid", "panel", "sources")
+
+    def __init__(self, pid, panel, sources):
+        self.pid, self.panel, self.sources = pid, panel, sources
+
+    def matches(self, command):
+        want = (command, PANEL_PERIOD_MS, False)
+        return bool(self.sources) and all(s == want for s in self.sources)
+
+
+def _xfq(*args):
+    try:
+        r = subprocess.run(["xfconf-query", "-c", PANEL_CHANNEL] + list(args), capture_output=True,
+                           text=True, env=dict(os.environ, LC_ALL="C"), timeout=10)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        raise PanelError("xfconf-query failed: %s" % _describe(e))
+    if r.returncode != 0:
+        raise PanelError("xfconf-query %s: %s" % (" ".join(args), r.stderr.strip() or "failed"))
+    return r.stdout
+
+
+def _xfq_get(prop):
+    """A property's value: a string, a list for an array, or None if unset."""
+    try:
+        out = _xfq("-p", prop)
+    except PanelError:
+        return None
+    lines = out.split("\n")
+    if lines[0].startswith("Value is an array"):  # then a blank line, then one item a line
+        return [line for line in lines[2:] if line]
+    return lines[0]
+
+
+def _xfq_set(prop, kind, value):
+    _xfq("-p", prop, "-n", "-t", kind, "-s", value)
+
+
+def _rc_file(pid):
+    base = os.environ.get("XDG_CONFIG_HOME") or os.environ["HOME"] + "/.config"
+    return "%s/xfce4/panel/genmon-%d.rc" % (base, pid)
+
+
+def _rc_read(pid):
+    """Generic Monitor item PID's genmon-N.rc file as a dict; empty when it has none."""
+    try:
+        text = _read_bytes(_rc_file(pid)).decode("utf-8", "replace")
+    except OSError:
+        return {}
+    out = {}
+    for line in _lines(text):
+        key, sep, val = line.partition("=")
+        if sep:
+            out[key.strip()] = val
+    return out
+
+
+def _int(v, default):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def _settings(pid):
+    """Generic Monitor item PID's settings, from each place that has them."""
+    out = []
+    base = "/plugins/plugin-%d/" % pid
+    command = _xfq_get(base + "command")
+    if command is not None:
+        out.append((command, _int(_xfq_get(base + "update-period"), None),
+                    {"true": True, "false": False}.get(_xfq_get(base + "use-label"))))
+    rc = _rc_read(pid)
+    if rc:
+        out.append((rc.get("Command", ""), _int(rc.get("UpdatePeriod"), None),
+                    {"1": True, "0": False}.get(rc.get("UseLabel", "").strip())))
+    return out
+
+
+GENMON_INSTALL = "sudo apt install xfce4-genmon-plugin"
+
+
+def genmon_installed():
+    """Whether the Generic Monitor plugin is installed, by the file each XFCE
+    panel plugin installs to describe itself."""
+    dirs = (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")
+    return any(os.path.isfile(d + "/xfce4/panel/plugins/genmon.desktop") for d in dirs if d)
+
+
+def _is_mine(command):
+    """Whether COMMAND runs this script with `panel`, under any name or link."""
+    try:
+        words = shlex.split(command or "")
+    except ValueError:
+        return False
+    if len(words) < 2 or words[1] != "panel":
+        return False
+    return os.path.realpath(words[0]) == os.path.realpath(__file__)
+
+
+def _owned(commands):
+    """Whether a Generic Monitor with these commands is sw's: every one it has
+    runs this script with `panel`, or it has none. One with no command shows
+    only "(genmon)": left over from setting one up by hand, so sw takes it."""
+    return all(_is_mine(c) for c in commands if c.strip())
+
+
+def panel_layout():
+    """The panels in order, each as (panel id, [plugin ids]), sw's buttons in
+    the order they sit on them, and the highest plugin id in use."""
+    if not shutil.which("xfconf-query"):
+        raise PanelError("xfconf-query not found, so this isn't an XFCE session sw can change")
+    names = _xfq("-l").split()
+    found = sorted(int(m.group(1)) for m in (re.fullmatch(r"/panels/panel-(\d+)/plugin-ids", n)
+                                             for n in names) if m)
+    listed = _xfq_get("/panels")  # an array of panel ids; older panels kept a count here
+    order = [_int(v, -1) for v in listed] if isinstance(listed, list) else []
+    panels = [(p, [_int(v, -1) for v in (_xfq_get("/panels/panel-%d/plugin-ids" % p) or [])])
+              for p in [p for p in order if p in found] + [p for p in found if p not in order]]
+    buttons = []
+    for panel, pids in panels:
+        for pid in pids:
+            if _xfq_get("/plugins/plugin-%d" % pid) != "genmon":
+                continue
+            sources = _settings(pid)
+            if _owned(s[0] for s in sources):
+                buttons.append(Button(pid, panel, sources))
+    all_pids = [_int(m.group(1), 0) for m in (re.fullmatch(r"/plugins/plugin-(\d+)", n) for n in names) if m]
+    return panels, buttons, max(all_pids + [0])
+
+
+def _configure(pid, command):
+    """Point Generic Monitor item PID at COMMAND, in both of its formats."""
+    base = "/plugins/plugin-%d/" % pid
+    _xfq_set(base + "command", "string", command)
+    _xfq_set(base + "use-label", "bool", "false")
+    _xfq_set(base + "update-period", "int", str(PANEL_PERIOD_MS))
+    path = _rc_file(pid)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    write_atomic(path, ("Command=%s\nUseLabel=0\nText=\nUpdatePeriod=%d\n"
+                        % (command, PANEL_PERIOD_MS)).encode("utf-8"))
+
+
+def _backup_panel():
+    """A copy of the panel's settings file, before sw changes it, keeping the
+    newest PANEL_BACKUPS_KEPT; its path, or None."""
+    base = os.environ.get("XDG_CONFIG_HOME") or os.environ["HOME"] + "/.config"
+    src = base + "/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml"
+    if not os.path.isfile(src):
+        return None
+    dst = "%s/.cache/sw-panel-backup-%s.xml" % (os.environ["HOME"], time.strftime("%Y%m%d-%H%M%S"))
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copyfile(src, dst)
+    old = sorted(f for f in os.listdir(os.path.dirname(dst))
+                 if f.startswith("sw-panel-backup-") and f.endswith(".xml"))
+    for f in old[:-PANEL_BACKUPS_KEPT]:
+        try:
+            os.unlink(os.path.join(os.path.dirname(dst), f))
+        except OSError:
+            pass
+    return dst
+
+
+def _panel_procs():
+    """This user's running panel processes: xfce4-panel, and the wrappers that
+    run its plugins, any of which can write plugin settings as it exits."""
+    uid, found = os.getuid(), []
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        p = "/proc/" + d
+        try:
+            if os.stat(p).st_uid != uid:
+                continue
+            stat = _read_bytes(p + "/stat")
+            if stat[stat.rindex(b")") + 2:][:1] == b"Z":  # exited, not yet reaped
+                continue
+            comm = _read_bytes(p + "/comm").strip()
+            if comm == b"xfce4-panel" or (comm.startswith(b"wrapper-")
+                                         and b"xfce4/panel" in _read_bytes(p + "/cmdline")):
+                found.append(int(d))
+        except (OSError, ValueError):
+            continue
+    return found
+
+
+def _stop_panel():
+    """Quit the panel and wait until it and its plugins have exited. Returns
+    whether one was running."""
+    if not _panel_procs():
+        return False
+    if not os.environ.get("DISPLAY"):
+        raise PanelError("no DISPLAY here, so sw couldn't start the panel again; run sw today in "
+                         "a terminal in your XFCE session")
+    try:
+        subprocess.run(["xfce4-panel", "-q"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    deadline = time.monotonic() + 10
+    while _panel_procs():
+        if time.monotonic() >= deadline:
+            raise PanelError("the panel didn't quit within 10 seconds, so the buttons weren't "
+                             "changed; if the panel is gone, start it with: xfce4-panel &")
+        time.sleep(0.1)
+    return True
+
+
+def _start_panel():
+    """Start the panel in its own session, so closing this terminal leaves it
+    running. Returns whether it could be started."""
+    try:
+        subprocess.Popen(["xfce4-panel"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True,
+                         # sw holds Ctrl+C and kill here; the panel mustn't inherit that.
+                         preexec_fn=lambda: signal.pthread_sigmask(signal.SIG_SETMASK, set()))
+        return True
+    except OSError:
+        return False
+
+
+def panel_sync(slots):
+    """Make sure the panel has at least SLOTS buttons for this sw, numbered 1,
+    2, ... in the order they sit: sw's existing buttons are renumbered (a
+    fixed-tag button becomes a slot), and missing ones are added after the
+    last of them. Buttons are never removed; spare slots show nothing. The
+    panel is stopped while its settings change, and only when something needs
+    changing. Returns what was done."""
+    if shutil.which("xfconf-query") and not genmon_installed():
+        raise PanelError("the panel buttons need the Generic Monitor plugin; install it with: %s, "
+                         "then run sw today again" % GENMON_INSTALL)
+    panels, buttons, top = panel_layout()
+    me = _quote(os.path.abspath(sys.argv[0]))
+    todo = []
+    for n, b in enumerate(buttons, 1):
+        want = "%s panel %d" % (me, n)
+        if not b.matches(want):
+            todo.append((b.pid, want))
+    need = max(0, slots - len(buttons))
+    if not todo and not need:
+        return None
+    if need and not panels:
+        raise PanelError("no XFCE panel found to add buttons to")
+    # Ctrl+C, logout or kill waits until the panel is running again: ending
+    # sw between stopping the panel and starting it would leave no panel.
+    with held_signals():
+        was_running = _stop_panel()
+        added, came_back, started = [], False, False
+        try:
+            backup = _backup_panel()
+            for pid, want in todo:
+                _configure(pid, want)
+            if need:
+                panel = buttons[-1].panel if buttons else panels[0][0]
+                pids = dict(panels)[panel]
+                at = pids.index(buttons[-1].pid) + 1 if buttons else len(pids)
+                for k in range(need):
+                    pid = top + 1 + k
+                    _xfq_set("/plugins/plugin-%d" % pid, "string", "genmon")
+                    _configure(pid, "%s panel %d" % (me, len(buttons) + k + 1))
+                    added.append(pid)
+                new = pids[:at] + added + pids[at:]
+                args = ["-p", "/panels/panel-%d/plugin-ids" % panel, "-n", "--force-array"]
+                for pid in new:
+                    args += ["-t", "int", "-s", str(pid)]
+                _xfq(*args)
+        finally:
+            # Whatever happened above, a panel sw stopped is started again.
+            if was_running:
+                came_back = bool(_panel_procs())
+                if not came_back:
+                    started = _start_panel()
+    msg = []
+    if todo:
+        msg.append("renumbered %d %s" % (len(todo), "button" if len(todo) == 1 else "buttons"))
+    if added:
+        first = len(buttons) + 1
+        msg.append("added %s %s to the panel" % (
+            "slot %d" % first if len(added) == 1 else "slots %d-%d" % (first, first + len(added) - 1),
+            "button" if len(added) == 1 else "buttons"))
+    note = "; ".join(msg)
+    if backup:
+        note += " (panel settings backed up to %s)" % _tilde(backup)
+    if came_back:
+        note += ("; the panel started again on its own before sw had finished, so it may show "
+                 "the old buttons: run sw today again")
+    elif was_running and not started:
+        note += "; sw couldn't start the panel again: start it with: xfce4-panel &"
+    elif not was_running:
+        note += "; the panel isn't running, so the buttons show when it next starts"
+    return note
+
+
+def refresh_buttons():
+    """Redraw sw's buttons now instead of at their next tick. One xfconf-query
+    call finds them, then one redraw each. Best effort: does nothing outside
+    XFCE, and never fails the command that called it."""
+    if IN_PANEL or not shutil.which("xfce4-panel"):
+        return
+    try:
+        values = {}
+        for line in _xfq("-l", "-v").split("\n"):
+            parts = line.split(None, 1)
+            if parts:
+                values[parts[0]] = parts[1] if len(parts) > 1 else ""
+        for name, kind in values.items():
+            m = re.fullmatch(r"/plugins/plugin-(\d+)", name)
+            if not m or kind != "genmon":
+                continue
+            pid = int(m.group(1))
+            commands = [c for c in (values.get(name + "/command"), _rc_read(pid).get("Command"))
+                        if c is not None]
+            if any(c.strip() for c in commands) and _owned(commands):
+                subprocess.run(["xfce4-panel", "--plugin-event=genmon-%d:refresh:bool:true" % pid],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+    except Exception:  # a redraw is a nicety; the change is already made
+        pass
+
+
+def read_tasks():
+    """The day's tasks for the panel slots, in slot order."""
+    try:
+        text = _read_bytes(TASKS_FILE).decode("utf-8", "surrogateescape")
+    except FileNotFoundError:
+        return []
+    return [t for t in (line.strip() for line in _lines(text)) if t]
+
+
+def _slot(args):
+    """The slot number when ARGS is just 1 to MAX_SLOTS, else None."""
+    if len(args) == 1 and re.fullmatch(r"[1-9]", args[0]) and int(args[0]) <= MAX_SLOTS:
+        return int(args[0])
+    return None
+
+
+def _task_names(args):
+    """ARGS as task names, one per word; dies on a word that isn't one or is given twice."""
+    tags = []
+    for a in args:
+        t = args_to_tag([a])
+        if t == "-":
+            die("today: '%s' isn't a task name" % a)
+        if any(same_tag(t, x) for x in tags):
+            die("today: %s is listed twice" % t)
+        tags.append(t)
+    return tags
+
+
+def _new_task_list(args):
+    """The list `sw today ARGS` asks for: ARGS itself, or with `add` or `remove`
+    first, the current list changed by the rest. A name already there for add,
+    or missing for remove, stops sw with the list unchanged: it is almost
+    always a typo, and a quiet skip would hide it."""
+    mode = args[0] if args[0] in ("add", "remove") else None
+    names = _task_names(args[1:] if mode else args)
+    if mode and not names:
+        die("today: %s needs a task, such as: sw today %s email" % (mode, mode))
+    if mode is None:
+        tags = names
+    else:
+        current = read_tasks()
+        for t in names:
+            listed = any(same_tag(t, x) for x in current)
+            if mode == "add" and listed:
+                die("today: %s is already on the list; nothing changed" % t)
+            if mode == "remove" and not listed:
+                die("today: %s isn't on the list; nothing changed" % t)
+        if mode == "add":
+            tags = current + names
+        else:
+            tags = [x for x in current if not any(same_tag(x, t) for t in names)]
+    if len(tags) > MAX_SLOTS:
+        die("today: at most %d tasks (got %d); nothing changed" % (MAX_SLOTS, len(tags)))
+    return tags
+
+
+def cmd_today(args):
+    """`sw today [add|remove] [TASK...]`: set, change or list the day's tasks, and make the panel match them."""
+    if args in (["-c"], ["--clear"]):
+        try:
+            os.unlink(TASKS_FILE)
+        except FileNotFoundError:
+            pass
+        except OSError as e:
+            die("cannot remove %s" % _describe(e, TASKS_FILE))
+        say("no tasks set; the panel slots are empty")
+        refresh_buttons()
+        return
     if args:
-        die("sound: takes no arguments")
-    if not shutil.which("paplay"):
-        die("paplay not found (Devuan: apt install pulseaudio-utils)")
-    say("pomo session-end sound:")
-    if os.path.isfile(SOUND_SESSION_END):
-        play_sound(SOUND_SESSION_END)
-    else:
-        say("missing: %s" % SOUND_SESSION_END)
-    time.sleep(1)
-    say("break-end sound:")
-    if os.path.isfile(SOUND_BREAK_END):
-        play_sound(SOUND_BREAK_END)
-    else:
-        say("missing: %s" % SOUND_BREAK_END)
+        tags = _new_task_list(args)
+        try:
+            write_atomic(TASKS_FILE, "".join(t + "\n" for t in tags).encode("utf-8", "surrogateescape"))
+        except OSError as e:
+            die("cannot write %s" % _describe(e, TASKS_FILE))
+    tasks = read_tasks()
+    if not tasks:
+        say("no tasks set (sw today TASK... sets them)")
+    for i, t in enumerate(tasks, 1):
+        say("%d  %s" % (i, t))
+    if args:
+        try:
+            done = panel_sync(len(tasks))
+            if done:
+                say(done)
+        except PanelError as e:
+            warn("panel not changed: %s; the tasks are set" % e.args[0])
+            notify("Panel buttons not set up: %s" % e.args[0])
+        except OSError as e:
+            warn("panel not changed: %s; the tasks are set" % _describe(e))
+        refresh_buttons()
+    try:
+        cur = read_state()
+    except StateError:
+        cur = None
+    if cur is not None and not any(same_tag(cur.tag, t) for t in tasks):
+        warn("%s is still running and now has no button; sw stop stops it" % tag_label(cur.tag))
+
+
+def _empty_slot(n):
+    tool = "slot %d is empty\nset the day's tasks with: sw today TASK..." % n
+    _write(sys.stdout, "<txt></txt><tool>%s</tool>\n" % _esc(tool))
+
+
+def cmd_panel(args):
+    """Print one task's button for the XFCE Generic Monitor plugin, which runs
+    this every period and shows what it prints. Always prints a button: on any
+    failure, ⚠ with the reason in its tooltip, since the panel shows nothing
+    else and a missing button would hide the problem."""
+    global IN_PANEL
+    IN_PANEL = True
+    sys.stderr = io.StringIO()  # for the tooltip: the panel never shows stderr
+    tag = "-"
+    try:
+        read_config()
+        sync_logs()
+        slot = _slot(args)
+        if slot is None:
+            raise ValueError("a button's command should be sw panel 1 to sw panel %d, not sw panel %s; "
+                             "run sw today TASK... to set the buttons up" % (MAX_SLOTS, " ".join(args)))
+        tasks = read_tasks()
+        if slot > len(tasks):
+            _empty_slot(slot)
+            return
+        tag = args_to_tag([tasks[slot - 1]])
+        stale = resolve_stale()
+        if stale:
+            notify(stale)
+        cur = read_state()
+        remind_once(cur)
+        txt, tool = _panel_face(tag, cur)
+    except (Exception, SystemExit) as e:
+        reason = sys.stderr.getvalue().strip()
+        if not reason:
+            reason = e.args[0] if isinstance(e, (StateError, ValueError)) else _describe(e)
+        txt = "%s⚠ %s%s" % (_PAD, _esc(tag_label(tag)), _PAD)
+        tool = _esc("%s\nrun sw status in a terminal for more" % reason)
+    me = _quote(os.path.abspath(sys.argv[0]))
+    click = "%s toggle" % me if tag == "-" else "%s toggle -- %s" % (me, _quote(tag))
+    _write(sys.stdout, "<txt>%s</txt><txtclick>%s</txtclick><tool>%s</tool>\n" % (txt, click, tool))
 
 
 # ---- mutating commands ----
 
 
-def _has_entries():
-    return os.path.isfile(RAW_LOG) and os.path.getsize(RAW_LOG) > 0
+def fill_breaks(mins, busy, now):
+    """Where an added session of MINS minutes goes: into the breaks before NOW,
+    the latest first, then each earlier one, and whatever is left just before
+    the earliest busy time. BUSY is (start, end) pairs; all times are minutes
+    from today's midnight. Breaks under MIN_BREAK_MINS are rounding, so they're
+    skipped. Returns (end, minutes) pieces, earliest first."""
+    merged = []
+    for a, b in sorted((a, min(b, now)) for a, b in busy if a < now):
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    pieces, end, left = [], now, mins
+    for a, b in reversed(merged):
+        if end - b >= MIN_BREAK_MINS:
+            take = min(left, end - b)
+            pieces.append((end, take))
+            left -= take
+            if not left:
+                return pieces[::-1]
+        end = min(end, a)
+    # A session already logged today may have begun the evening before; an
+    # added piece still ends today, as every row is dated the day it ended.
+    pieces.append((max(end, 0), left))
+    return pieces[::-1]
 
 
 def cmd_add(args):
+    """`sw add DURATION [tag]`: log time that wasn't timed, into today's breaks (see fill_breaks)."""
     if not args:
         die("usage: sw add DURATION [tag]   (e.g. 90m, 1h30m, 5400s)")
     secs = parse_duration(args[0])
@@ -1519,215 +2846,31 @@ def cmd_add(args):
     if secs < MIN_SESSION_SECS:
         die("too short: %s (sessions under a minute aren't logged)" % args[0])
     tag = args_to_tag(args[1:])
-    # Stamped now, like the live timer: column 2 means "when the session ended
-    # or was logged" for every row, whatever wrote it.
-    stamp = time.localtime()
-    log_date = time.strftime("%Y-%m-%d", stamp)
-    log_hm = time.strftime("%H:%M", stamp)
-    run_change(lambda: append_row("%s\t%s\t%d\t%s" % (log_date, log_hm, secs, tag)), "failed to add session")
-    say("added: %s" % describe_session(log_date, log_hm, secs, tag))
-    say_day_total(log_date)
-
-
-# The last entry is read, checked, and rewritten entirely under the lock:
-# reading it outside would let a concurrent commit land in between and be lost.
-def cmd_amend(args):
-    if len(args) != 1:
-        die("usage: sw amend DURATION   (rewrites the last entry's duration)")
-    if not _has_entries():
-        die("no entries to amend")
-    secs = parse_duration(args[0])
-    if secs is None:
-        die("invalid duration: %s" % args[0])
-    if secs < MIN_SESSION_SECS:
-        die("too short: %s (sessions under a minute aren't logged)" % args[0])
+    rows = []
 
     def change():
-        lines = load_raw_lines()
-        i = last_entry_index(lines)
-        if i is None:
-            raise LogUnchanged("no entries to amend")
-        f = split_fields(lines[i])
-        if len(f) != 4:
-            raise LogUnchanged("last entry isn't in the expected 4-field format; edit %s directly" % RAW_LOG)
-        rewrite_raw(lines[:i] + ["%s\t%s\t%d\t%s" % (f[0], f[1], secs, f[3])])
-        return f
-
-    f = run_change(change, "failed to amend session")
-    old = entry_dur(int(f[2])) if _DIGITS.fullmatch(f[2]) else "'%s'" % f[2]
-    say("amended: %s (was %s)" % (describe_session(f[0], f[1], secs, f[3]), old))
-    say_day_total(f[0])
-
-
-def cmd_sub(args):
-    if not _has_entries():
-        die("no entries to remove")
-    if len(args) > 1:
-        die("usage: sw sub [DURATION]   (no arg removes the last entry; DURATION reduces it)")
-    if not args:
-        # Removes the last entry and echoes it, so a mistaken delete can be re-added.
-        def delete():
-            lines = load_raw_lines()
-            i = last_entry_index(lines)
-            if i is None:
-                raise LogUnchanged("no entries to remove")
-            rewrite_raw(lines[:i])
-            return lines[i]
-
-        removed = run_change(delete, "failed to remove entry")
-        f = split_fields(removed)
-        if len(f) == 4 and _DIGITS.fullmatch(f[2]):
-            say("removed: %s" % describe_session(f[0], f[1], int(f[2]), f[3]))
-            say_day_total(f[0])
-        else:
-            say("removed: %s" % removed)
-        return
-    delta = parse_duration(args[0])
-    if delta is None:
-        die("invalid duration: %s (use 90m, 1h30m, 5400s, or a bare integer = minutes)" % args[0])
-
-    # Refuses to leave less than a minute: removing the entry is bare `sw sub`'s
-    # job, not a side effect of over-subtracting.
-    def reduce():
-        lines = load_raw_lines()
-        i = last_entry_index(lines)
-        if i is None:
-            raise LogUnchanged("no entries to subtract from")
-        f = split_fields(lines[i])
-        if len(f) != 4:
-            raise LogUnchanged("last entry isn't in the expected 4-field format; edit %s directly" % RAW_LOG)
-        if not _DIGITS.fullmatch(f[2]):
-            raise LogUnchanged("last entry has a malformed seconds field ('%s'); edit %s" % (f[2], RAW_LOG))
-        cur = int(f[2])
-        new = cur - delta
-        if new < MIN_SESSION_SECS:
-            raise LogUnchanged("cannot subtract %s from a %s entry: that would leave under a minute "
-                               "(use bare 'sw sub' to remove the entry)" % (fmt_secs(delta), entry_dur(cur)))
-        rewrite_raw(lines[:i] + ["%s\t%s\t%d\t%s" % (f[0], f[1], new, f[3])])
-        return f, new
-
-    f, new = run_change(reduce, "failed to subtract")
-    say("subtracted %s: %s" % (fmt_secs(delta), describe_session(f[0], f[1], new, f[3])))
-    say_day_total(f[0])
-
-
-def _parse_yes_flags(args, cmd, positional):
-    apply, values = False, []
-    for a in args:
-        if a in ("-y", "--yes"):
-            apply = True
-        elif a.startswith("-"):
-            die("%s: unknown flag: %s" % (cmd, a))
-        else:
-            positional(values, a)
-    return apply, values
-
-
-def cmd_clear(args):
-    def reject(values, a):
-        die("clear: unexpected argument: %s" % a)
-
-    apply, _ = _parse_yes_flags(args, "clear", reject)
-    if not _has_entries():
-        say("no log to clear (%s is empty or missing)" % RAW_LOG)
-        return
-    if not apply:
-        count = read_raw_or_die().count("\n")
-        say("would clear all %d lines from %s" % (count, RAW_LOG))
-        say("re-run with -y to commit: sw clear -y")
-        return
-
-    # A file-level wipe: counts lines, junk included, under the lock.
-    def wipe():
+        # Read under the lock, so a session logged meanwhile counts as busy.
+        stamp = time.localtime()
+        today = time.strftime("%Y-%m-%d", stamp)
+        now = stamp.tm_hour * 60 + stamp.tm_min
+        entries, _ = load_entries("\n".join(_todays_rows(today)))
+        busy = [(_clock_mins(e.hm) - e.mins, _clock_mins(e.hm))
+                for e in report_entries(entries) if e.date == today]
         try:
-            count = _read_bytes(RAW_LOG).count(b"\n")
-            fd = os.open(RAW_LOG, os.O_WRONLY | os.O_CLOEXEC)
-            try:
-                os.ftruncate(fd, 0)
-                os.fsync(fd)
-            finally:
-                os.close(fd)
-        except OSError as e:
-            raise LogUnchanged("cannot write %s" % _describe(e, RAW_LOG))
-        return count
+            cur = read_state()
+        except StateError as e:
+            raise LogUnchanged(e.args[0])
+        if cur is not None:
+            midnight = time.mktime(stamp[:3] + (0, 0, 0, 0, 0, -1))
+            busy.append((int(cur.start - midnight) // 60, now))
+        for end, m in fill_breaks(round_mins(secs), busy, now):
+            rows.append((today, "%02d:%02d" % divmod(end, 60), m * 60))
+        append_row("\n".join("%s\t%s\t%d\t%s" % (d, hm, s, tag) for d, hm, s in rows))
 
-    count = run_change(wipe, "failed to clear log")
-    say("cleared %d lines from %s" % (count, RAW_LOG))
-
-
-def _clear_before_counts(entries, cutoff):
-    return len(entries), sum(1 for e in entries if e.date >= cutoff)
-
-
-def cmd_clear_before(args):
-    def one_date(values, a):
-        if values:
-            die("clear-before: only one date allowed (got '%s' and '%s')" % (values[0], a))
-        values.append(a)
-
-    apply, values = _parse_yes_flags(args, "clear-before", one_date)
-    if not values:
-        die("usage: sw clear-before DATE [-y]   (DATE: YYYY-MM-DD or YYYYMMDD)")
-    cutoff = normalize_date(values[0])
-    if cutoff is None:
-        die("invalid date: %s (use YYYY-MM-DD or YYYYMMDD)" % values[0])
-    if not _has_entries():
-        say("no log to clear (%s is empty or missing)" % RAW_LOG)
-        return
-    if not apply:
-        total, keep = _clear_before_counts(load_entries(read_raw_or_die())[0], cutoff)
-        if total == keep:
-            say("no entries before %s; nothing to do" % cutoff)
-            return
-        say("would delete %d entries before %s (keeping %d)" % (total - keep, cutoff, keep))
-        say("re-run with -y to commit: sw clear-before %s -y" % cutoff)
-        return
-
-    # Counted under the lock, so the number reported is the number removed.
-    # Lines that aren't entries pass through: the contract is "delete entries
-    # before DATE", and a stray hand-edited line is not an entry.
-    def prune():
-        lines = load_raw_lines()
-        kept, total, keep = [], 0, 0
-        for line in lines:
-            e = parse_entry(line)
-            if e is None:
-                kept.append(line)
-                continue
-            total += 1
-            if e.date >= cutoff:
-                keep += 1
-                kept.append(line)
-        if total == keep:
-            raise NoChange(0)
-        rewrite_raw(kept)
-        return total - keep
-
-    deleted = run_change(prune, "failed to clear log")
-    if deleted == 0:
-        say("no entries before %s; nothing to do" % cutoff)
-    else:
-        say("deleted %d entries before %s" % (deleted, cutoff))
-
-
-def cmd_regen(args):
-    if args:
-        die("regen: takes no arguments")
-    if not os.path.isfile(RAW_LOG):
-        say("no raw log to regenerate from (%s is missing)" % RAW_LOG)
-        return
-    fd = acquire_lock()
-    if fd is None:
-        die("failed to regenerate %s" % MD_LOG)
-    try:
-        with held_signals():
-            regenerate_md()
-    except Exception as e:
-        warn(_describe(e, MD_LOG))
-        die("failed to regenerate %s" % MD_LOG)
-    finally:
-        os.close(fd)
-    say("regenerated %s from %s" % (MD_LOG, RAW_LOG))
+    run_change(change, "failed to add session")
+    for d, hm, s in rows:
+        say("added: %s" % describe_session(d, hm, s, tag))
+    say_day_total(rows[-1][0])
 
 
 # ---- help and version ----
@@ -1753,19 +2896,20 @@ def version_line():
 
 
 def _init_paths():
-    global RAW_LOG, MD_LOG, LOCK_DIR, LOCK_FILE, LOCK_DIR_IS_FALLBACK
-    global SOUND_SESSION_END, SOUND_BREAK_END
+    """Set the file paths from HOME and the settings at the top of this script."""
+    global RAW_LOG, MD_LOG, STATE_FILE, TASKS_FILE, REMIND_FILE, LOCK_DIR, LOCK_FILE, LOCK_DIR_IS_FALLBACK
     home = os.environ.get("HOME")
     if home is None:
         die("HOME is not set")
 
-    def env(name, default):
-        return os.environ.get(name) or default
+    def expand(path):
+        return home + path[1:] if path.startswith("~/") else path
 
-    RAW_LOG = env("SW_RAW_LOG", home + "/.stopwatch_log")
-    MD_LOG = env("SW_MD_LOG", home + "/Documents/mv/wlog.md")
-    SOUND_SESSION_END = env("SW_SOUND_SESSION_END", DEFAULT_SOUND_SESSION_END)
-    SOUND_BREAK_END = env("SW_SOUND_BREAK_END", DEFAULT_SOUND_BREAK_END)
+    RAW_LOG = expand(RAW_LOG_PATH)
+    MD_LOG = expand(WORK_LOG_PATH)
+    STATE_FILE = home + "/.stopwatch_running"
+    TASKS_FILE = home + "/.stopwatch_tasks"
+    REMIND_FILE = home + "/.stopwatch_reminded"
     # Never /tmp: a lock file another account can create first would block
     # every commit. Only this user can write under ~/.cache.
     runtime = os.environ.get("XDG_RUNTIME_DIR")
@@ -1774,7 +2918,48 @@ def _init_paths():
     LOCK_FILE = "%s/sw-%d.lock" % (LOCK_DIR, os.getuid())
 
 
+def _mtime(path):
+    try:
+        return os.stat(path).st_mtime_ns
+    except OSError:
+        return None
+
+
+def sync_logs():
+    """Make the work log follow the raw log: create the raw log if it doesn't
+    exist yet, and rebuild the work log when it's missing or older than the raw
+    log, as after pasting into or hand-editing the raw log. Best effort: a
+    problem here shows up on the next change that logs something."""
+    raw, md = _mtime(RAW_LOG), _mtime(MD_LOG)
+    if raw is not None and md is not None and md >= raw:
+        return
+    fd = acquire_lock(wait=False)
+    if fd is None:
+        return
+    try:
+        with held_signals():
+            if not os.path.exists(RAW_LOG):
+                d = os.path.dirname(RAW_LOG)
+                if d:
+                    os.makedirs(d, exist_ok=True)
+                os.close(os.open(RAW_LOG, os.O_WRONLY | os.O_CREAT | os.O_CLOEXEC, 0o600))
+            regenerate_md()
+    except Exception as e:  # the raw log is untouched; the next run tries again
+        warn("%s wasn't rebuilt (%s); sw tries again on its next run" % (MD_LOG, _describe(e)))
+    finally:
+        os.close(fd)
+
+
+def _stderr_is_tty():
+    try:
+        return os.isatty(2)
+    except OSError:
+        return False
+
+
 def main(argv):
+    """Run one sw command; returns the exit status."""
+    global NOTICES
     # Ctrl+C outside a timer, and a closed pipe, end the program quietly as they
     # would a shell tool, instead of raising a Python traceback.
     signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -1796,26 +2981,38 @@ def main(argv):
     if first in ("version", "--version"):
         say(version_line())
         return 0
+    # The panel reads the config itself, so a broken one shows on the button.
+    if first == "panel":
+        cmd_panel(argv[1:])
+        return 0
+    # A panel click or a keyboard shortcut has no terminal: say what went wrong
+    # in a desktop notification instead.
+    if first in ("start", "stop", "toggle") and not _stderr_is_tty():
+        NOTICES = []
 
-    read_config()
-
-    commands = {
-        "sound": cmd_sound, "last": cmd_last, "sum": cmd_sum, "add": cmd_add,
-        "amend": cmd_amend, "sub": cmd_sub, "clear": cmd_clear,
-        "clear-before": cmd_clear_before, "regen": cmd_regen, "break": cmd_break,
-    }
-    if first == "--":
-        # `--` ends subcommand matching, so tags named like subcommands stay reachable.
-        run_stopwatch(args_to_tag(argv[1:]))
-    elif first in commands:
-        commands[first](argv[1:])
-    elif first == "pomo":
-        run_pomodoro(args_to_tag(argv[1:]))
-    elif first.startswith("-"):
-        die("unknown flag: %s (try sw help)" % first)
-    else:
-        # Default: stopwatch, every argument a tag word.
-        run_stopwatch(args_to_tag(argv))
+    try:
+        read_config()
+        sync_logs()
+        commands = {
+            "add": cmd_add, "break": cmd_break,
+            "start": cmd_start, "stop": cmd_stop, "toggle": cmd_toggle, "status": cmd_status,
+            "today": cmd_today,
+        }
+        if first == "--":
+            # `--` ends subcommand matching, so tags named like subcommands stay reachable.
+            run_stopwatch(args_to_tag(argv[1:]))
+        elif first in commands:
+            commands[first](argv[1:])
+        elif first == "pomo":
+            run_pomodoro(args_to_tag(argv[1:]))
+        elif first.startswith("-"):
+            die("unknown flag: %s (try sw help)" % first)
+        else:
+            # Default: stopwatch, every argument a tag word.
+            run_stopwatch(args_to_tag(argv))
+    finally:
+        if NOTICES:
+            notify("\n".join(NOTICES))
     return 0
 
 

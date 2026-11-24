@@ -9,7 +9,7 @@ Commands below use the name `sw`; if your link has another name, such as `psw`, 
 A command prints nothing when it works, unless the text says what it prints.
 Times and totals in the samples are examples; yours will differ.
 
-# Install sw
+## Install sw
 
 Do this once.
 Save the script under a plain name, such as `~/Documents/sw.py`.
@@ -31,9 +31,9 @@ sudo apt install xfce4-genmon-plugin
 It ends either by installing the plugin, or with `xfce4-genmon-plugin is already the newest version`.
 If you skip this, `sw today` tells you, in the terminal and in a desktop notification, and shows this same command.
 
-# Get started
+## Get started
 
-## Set the day's tasks
+### Set the day's tasks
 
 Type one word per task, in the order you want them on the panel:
 
@@ -58,7 +58,7 @@ added slots 1-3 buttons to the panel (panel settings backed up to ~/.cache/sw-pa
 The panel disappears for a moment and comes back with three new buttons, `work`, `theology` and `email`.
 That is normal: `sw` has to stop the panel to add buttons.
 
-## Start and stop a task
+### Start and stop a task
 
 Click a button to start its task.
 It turns bold and counts up today's time for that task: `▶ work 0:00`.
@@ -69,7 +69,7 @@ Clicking another task's button stops and logs the running one first; only one ta
 Hover over a button for when it started and what a click will do.
 Clicks redraw every button at once; otherwise buttons redraw every 50 seconds, so the running clock can lag by up to a minute.
 
-## Check your totals
+### Check your totals
 
 ```bash
 sw status
@@ -90,7 +90,7 @@ The first two lines are today; "2 sessions of 25m or more" counts the sessions a
 The last three lines are explained in "How the targets work".
 These figures match the sample work log in the next section.
 
-# Read the work log
+## Read the work log
 
 The work log is `~/Documents/mv/wlog.md`; open it in any editor.
 This is the whole file after two days of use, read at 11:20 on Tuesday:
@@ -189,7 +189,7 @@ Once your log covers two years, a table of every year appears just below the das
 A week that runs into the next month, such as Nov 30 – Dec 6, is listed under the month its Monday falls in.
 With more than three tags, the rest show as `other`, such as `work 50%, email 20%, calls 15%, other 15%`.
 
-# How the targets work
+## How the targets work
 
 A target is your daily target times the number of working days.
 With the default 8 hours and 5 working days, a full week's target is 5 × 8h = 40h.
@@ -207,9 +207,9 @@ The month line then adds `plus 1 other day`, such as `5 days worked of 5 working
 The targets only change the percentages.
 The hours you worked read the same whatever target you set.
 
-# How sw counts
+## How sw counts
 
-## One timer, no pause
+### One timer, no pause
 
 There is one timer, however you start it: a panel button, a keyboard shortcut or a terminal.
 Starting a task stops the one that was running and logs it first, so no minute counts twice.
@@ -217,12 +217,12 @@ There is no pause.
 Stopping logs the session; starting the same task again begins a new session.
 That is why the work log can show your breaks.
 
-## Very short sessions aren't logged
+### Very short sessions aren't logged
 
 A session under one minute is almost always a mis-click, so `sw` drops it.
 `sw stop` then prints `work ran under a minute, not logged`.
 
-## Sleep doesn't count
+### Sleep doesn't count
 
 When you close the lid, the machine usually goes to sleep.
 `sw` leaves that sleep out.
@@ -245,13 +245,13 @@ While a session runs, `sw status` says how much it has left out: `running: work,
 A pomodoro counts down by the clock, so a block that ends while the machine sleeps has ended when you open the lid.
 It still logs exactly its set length.
 
-## Time away with the machine awake still counts
+### Time away with the machine awake still counts
 
 If the screen only blanks, or the lid closes without the machine sleeping, `sw` sees no sleep.
 It also can't see the lunch you walked off to without stopping the timer.
 So the one habit it needs is: stop it when you stop.
 
-## A forgotten timer gets a reminder
+### A forgotten timer gets a reminder
 
 Once a session has run 3 hours with the machine awake, its button shows `⚠` instead of `▶`, such as `⚠ work 3:04`.
 You also get one desktop notification:
@@ -263,7 +263,7 @@ work has been running for 3h 00m, since 09:00. Still working? If not, stop it an
 If you had stopped working, stop the timer, then shorten that session in the raw log; see "Edit the raw log".
 Change the 3 hours with the `Remind after` setting.
 
-## A crash or restart
+### A crash or restart
 
 Everything already logged is on disk and safe.
 Closing the terminal or logging out leaves a running timer running; `sw status` and `sw stop` reach it from any terminal.
@@ -277,9 +277,9 @@ work was running when the machine went down (started Tue 09:00); sw stopped it w
 
 Then log the time you actually worked with `sw add`, such as `sw add 2h work`.
 
-# Everyday tasks
+## Everyday tasks
 
-## Change the day's tasks
+### Change the day's tasks
 
 To add or remove a task without typing the whole list again:
 
@@ -315,7 +315,7 @@ Removing the task that's running leaves it running, and `sw` says `errands is st
 A task literally named `add` or `remove` can't start a full list, since `sw` reads it as the command.
 Add it with `sw today add add`.
 
-## Time a session in a terminal
+### Time a session in a terminal
 
 ```bash
 sw deep work
@@ -339,7 +339,7 @@ If another task was running, `sw` first logs it and prints a `logged:` line for 
 If this same task was already running, started from the panel say, it prints `⏱  deep-work has been running since 09:10. Enter stops & logs, Ctrl+C leaves it running.`
 Then Ctrl+C only closes the view: `⏹ left the live view; deep-work keeps running (sw stop stops it)`.
 
-## Run a pomodoro
+### Run a pomodoro
 
 ```bash
 sw pomo deep work
@@ -364,7 +364,7 @@ A 5-minute break counts down next; at its end a second chime plays, a notificati
 For a shorter command, add `alias swp='sw pomo'` to `~/.bashrc`.
 To hear the two chimes now, run `paplay /usr/share/sounds/freedesktop/stereo/suspend-error.oga` and `paplay /usr/share/sounds/freedesktop/stereo/complete.oga`.
 
-## Take a break on its own
+### Take a break on its own
 
 ```bash
 sw break 10
@@ -375,7 +375,7 @@ It ends as a pomodoro's break does.
 `sw break` alone uses the `Pomodoro break` length, 5 minutes unless you change it.
 A break logs nothing, and doesn't stop a running timer.
 
-## Start or stop without a terminal view
+### Start or stop without a terminal view
 
 ```bash
 sw start work
@@ -395,7 +395,7 @@ With nothing running, `sw stop` prints `nothing running`.
 That makes a good keyboard shortcut: in Settings > Keyboard > Application Shortcuts, add the full path, such as `/home/you/.local/bin/sw toggle work`.
 A session started this way has no cancel; to drop it unlogged, run `rm ~/.stopwatch_running`.
 
-## Log time you didn't time
+### Log time you didn't time
 
 Say it's 11:20 on Tuesday in the sample, and you spent 30 minutes on email without timing it:
 
@@ -422,9 +422,9 @@ Breaks under 2 minutes are skipped.
 Write lengths as `90m`, `1h`, `1h30m`, `5400s`, or plain minutes such as `45`.
 To put a session at a time of your choosing, or to change or remove one, edit the raw log.
 
-# Settings and files
+## Settings and files
 
-## Change the settings
+### Change the settings
 
 Five settings sit above the `# log` line of the work log:
 
@@ -442,7 +442,7 @@ Edit a value and save; the next `sw` run uses it.
 Delete a line to use its default.
 A line `sw` can't read stops every command with a message naming it, so don't write notes after a value.
 
-## Edit the raw log
+### Edit the raw log
 
 The raw log is `~/.stopwatch_log`.
 Each line is one session:
@@ -457,7 +457,7 @@ To shorten it to 45 minutes, change `3600` to `2700`; to remove it, delete the l
 Save, and the work log follows on the next `sw` run, or within a minute from the panel.
 A line `sw` can't read is named in a warning and left out of the totals until you fix it.
 
-## Move the logs
+### Move the logs
 
 The two paths are the first settings at the top of the script, in the file itself, not the link:
 
@@ -470,7 +470,7 @@ Change them and save; `sw` creates the new files, empty, on its next run.
 To keep your history, paste the old raw log into the new one and save; the work log follows.
 Saving a new version of the script puts these paths back to the defaults, so set them again after each update.
 
-## Update sw
+### Update sw
 
 Open the script itself, not the link, replace everything in it with the new version, and save.
 You can do this with a timer running: the timer lives in a file of its own.
@@ -478,7 +478,7 @@ One catch when updating from v48 or older: a timer already running then can't le
 Timers you start after the update can.
 Then run `sw version`, which prints the new version number.
 
-## The files sw uses
+### The files sw uses
 
 - `~/.stopwatch_log`: the raw log, the record of every session.
 - `~/Documents/mv/wlog.md`: the work log, rebuilt from the raw log.
@@ -490,7 +490,7 @@ Then run `sw version`, which prints the new version number.
 All of them are readable by you only.
 If the work log is a link, into a synced folder say, `sw` writes through the link and leaves it in place.
 
-# Fix a problem
+## Fix a problem
 
 | What you see | Meaning and fix |
 | --- | --- |
@@ -506,7 +506,7 @@ If the work log is a link, into a synced folder say, `sw` writes through the lin
 | The work log is missing months | The raw log in use isn't the one with your history, often after an update reset the paths. Check the paths at the top of the script. |
 | Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove the copy and link the current script instead. |
 
-# When not to use it
+## When not to use it
 
 The log stays honest only while no one with power over you reads it.
 Once a boss can reward or punish you by it, you'll pad it, and the number stops meaning anything.
@@ -514,7 +514,7 @@ Don't use it as a whip on yourself either: it measures time, not attention.
 For deep, absorbed work, starting and stopping a timer breaks the spell, so keep `sw` for scattered and admin time.
 Run it honestly for a week or two, learn where your hours go, and then you can put it down.
 
-# The script
+## The script
 
 ````python3
 #!/usr/bin/python3 -S

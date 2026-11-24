@@ -514,7 +514,7 @@ Don't use it as a whip on yourself either: it measures time, not attention.
 For deep, absorbed work, starting and stopping a timer breaks the spell, so keep `sw` for scattered and admin time.
 Run it honestly for a week or two, learn where your hours go, and then you can put it down.
 
-## The script
+# The script
 
 ````python3
 #!/usr/bin/python3 -S

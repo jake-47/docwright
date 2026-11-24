@@ -46,6 +46,8 @@
 
 - [Git reference](./gitreference.md)
 
+- [Git nested repo](./git-nested-repo.md)
+
 - [Git setup script](./git-setup-script.md)
 
 - [Git history delete](./git-delete.md)

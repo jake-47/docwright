@@ -2,7 +2,7 @@
 
 > - **For:** anyone who knows what they want Git to do and needs the command.
 > - **Before you start:** [Getting started with Git](./git-getting-started.md).
-> - **Reading time:** about 54 minutes end to end, but it's a lookup: find your task and read that section.
+> - **Reading time:** about 50 minutes end to end, but it's a lookup: find your task and read that section.
 > - **You end with:** Git set up once, and the command for whatever you need to do next.
 
 Lookup by task. The [concepts doc](./gitconcepts.md) covers the mental model and the why; this one tells you the command.
@@ -711,119 +711,16 @@ notes-to-self.md
 
 ## Moving tracked files into their own repo
 
-Use this when files this repo tracks move into a folder that becomes a repo of its own, such as a site or a book split out of a notes repo. [A repo inside a repo](./gitconcepts.md#a-repo-inside-a-repo) in the concepts doc explains what each repo sees. The order is what matters: this repo records the move, then lets go of the folder, and only then does the folder get its own `.git`.
+Use this when files this repo tracks move into a folder that becomes a repo of its own, such as a site or a book split out of a notes repo. [Moving files into their own repo](./git-nested-repo.md) has the full walkthrough: deciding whether the folder needs its own repo at all, the steps that carry the files' history into the new repo so File History there reaches back to each file's first commit, the fix for a folder repo that already started fresh, and the pitfalls. [A repo inside a repo](./gitconcepts.md#a-repo-inside-a-repo) in the concepts doc explains what each repo sees.
 
-The examples move `notes/tea.md` into `blog/book/tea.md`, with `blog/` becoming its own repo. Run them from this repo's root, and start with a clean tree: `git status --short` prints nothing.
+The order, in short, for a folder that has no `.git` yet:
 
-### The clean order
+1. Move the files with `git mv`, and commit the move with no edits in it.
+2. Build the folder's repo from a filtered copy of this repo's history with [git filter-repo](#git-filter-repo), not with `git init`. A repo made with `git init` starts empty, so File History in the folder begins at its first commit.
+3. Stop tracking the folder here: `git rm -r --cached` on it, and its name on a line of its own in `.gitignore`, in one commit.
+4. Move the filtered copy's `.git` into the folder.
 
-1. Record the move as a rename, in a commit with no edits.
-
-```bash
-mkdir -p blog/book
-git mv notes/tea.md blog/book/tea.md
-git commit -m "Move tea.md into blog"
-git show --stat -M HEAD
-```
-
-Expected: `{notes => blog/book}/tea.md | 0`. The `0` means the content didn't change, so it counts as a rename and `git log --follow` carries the history across it. A move that also edits the file can come out as a delete plus an add; the commit hook from [one-time setup](#one-time-setup) warns below 60% similarity.
-
-2. Stop tracking the folder, and ignore it.
-
-```bash
-git rm -r -q --cached blog
-echo 'blog/' >> .gitignore
-git add .gitignore
-git commit -m "Stop tracking blog: it has its own repo"
-```
-
-Before the commit, `git status --short` lists `D  blog/...` for every file in the folder, and the commit reports `delete mode 100644 blog/...` for each. That's this repo dropping its record of them, not the files: everything stays on disk. Both halves are needed. The `.gitignore` line alone untracks nothing, so this repo keeps showing every change to those files; `git rm --cached` alone leaves the folder showing as untracked.
-
-3. Give the folder its own repo.
-
-```bash
-git -C blog init -b main
-git -C blog add -A
-git -C blog commit -m "First commit"
-```
-
-Expected: `Initialized empty Git repository in .../blog/.git/`, then the first commit's summary. Afterwards `git ls-files blog` prints nothing, `git status --short` lists nothing under `blog/`, and `git -C blog status --short` prints nothing. The moved files' history stays in this repo, through the rename: `git log --oneline --follow -- blog/book/tea.md` lists the commits from before the move. The new repo starts from its first commit.
-
-### Carrying the history into the new repo
-
-To have `git log` inside the new repo reach back before the move, build its `.git` from a filtered copy of this repo instead of running `git init`. It needs [git filter-repo](#git-filter-repo). Do it after step 1 and before step 2: the copy has to include the move but not the commit that stops tracking the folder.
-
-List every path the moved files have had:
-
-```bash
-git ls-files blog | while IFS= read -r f; do git log --follow --name-only --format= -- "$f"; done | sed '/^$/d' | sort -u > ../paths.txt
-cat ../paths.txt
-```
-
-Expected: each file's current `blog/...` path and every earlier one, such as `notes/tea.md`. A move made with heavy edits can hide an earlier name; add any you know is missing as its own line.
-
-Make the filtered copy outside this repo:
-
-```bash
-git clone --no-local . ../blog-new
-cd ../blog-new
-git filter-repo --paths-from-file ../paths.txt --path-rename blog/:
-git log --oneline --follow -- book/tea.md
-cd -
-```
-
-Expected: filter-repo prints `NOTICE: Removing 'origin' remote`, which is normal: the copy can't push over this repo. The log lists the file's commits from before the move, and `cd -` prints the folder it returns to. Paths match whole parts, so `notes/tea` doesn't match `notes/tea.md`, and only the listed files come along. Commit messages carry over unchanged, including any that mention files left behind.
-
-Then do step 2, and in place of step 3:
-
-```bash
-mv ../blog-new/.git blog/.git
-rm -rf ../blog-new
-git -C blog status --short
-```
-
-Expected: no output. filter-repo removed the copy's remote, so add the new repo's own with `git -C blog remote add origin <url>`. Pushing it replaces whatever that remote already holds, so a remote that isn't empty needs a force push the first time.
-
-### Pitfalls
-
-1. Running `git init` in the folder before steps 1 and 2. This repo can no longer see inside the folder to record the move. If it already tracks files there, both repos claim them: `git status` here keeps showing `M` or `MM` for them after you commit in the folder's repo, and only step 2 clears it.
-2. Discarding or restoring those files from this repo while it still tracks them. `git restore` here writes this repo's older copy into the folder, undoing the folder repo's work. In VSCodium, don't use Discard on this repo's entries for that folder.
-3. Treating the `.gitignore` line as step 2. It hides only files Git isn't tracking yet; `git rm -r --cached` is what lets go.
-4. Trusting `git check-ignore` on a tracked file. It skips tracked files and prints nothing; `git check-ignore -v --no-index <path>` prints the `.gitignore` line that matches.
-5. Reading the next push as a loss. Pushing this repo after step 2 removes the folder from its latest version on the forge; older commits keep it.
-
-### Checks and recovery
-
-Which repo owns the folder:
-
-```bash
-git ls-files blog                         # prints nothing once this repo has let go
-git -C blog rev-parse --show-toplevel     # prints the path of blog itself
-```
-
-If the second command prints this repo's path instead, `blog/.git` is missing or broken, and Git treats `blog/` as an ordinary folder of this repo.
-
-Undo step 2's `git rm -r --cached` before committing it:
-
-```bash
-git reset -q -- blog
-```
-
-Expected: no output, and `git status --short` shows the folder's files as before. Nothing on disk changes.
-
-### In VSCodium
-
-The Source Control view lists every repo it finds, each with its own changes. Between steps 2 and 3, this repo's `D` entries for the folder and the folder repo's `U` entries for the same files show together: one repo letting go, the other not yet committing. `git status --short` in each tells them apart.
-
-If the folder's repo is missing from the Repositories list, open it with **Git: Open Repository** from the command palette (Ctrl+Shift+P) and pick the folder. To see what VSCodium found, open **View > Output** and pick **Git** in the dropdown at the panel's top right; search the log for `repository`. Ctrl+Shift+U also opens the Output panel, but an input method such as IBus may take it first, since it often starts Unicode entry on Linux. VSCodium finds repos in subfolders only while the `git.autoRepositoryDetection` setting is `true`, the default.
-
-Search skips ignored folders. Its `search.useIgnoreFiles` setting, on by default, makes it leave out whatever `.gitignore` lists, so once step 2 ignores `blog/`, a search from this repo's folder no longer finds the folder's files. The fix that brings back search and Source Control together is a workspace with the folder as a root of its own:
-
-1. File > Add Folder to Workspace, and pick `blog`.
-2. File > Save Workspace As, and save it outside the repo, such as `~/notes.code-workspace`.
-3. From then on, open that file with File > Open Workspace from File instead of opening the folder.
-
-Expected: the Explorer shows two roots, this repo's folder and `blog`, and `blog` also still appears inside the first; that's normal. Search covers both and groups its results by root, because the outer repo's `.gitignore` doesn't apply to a folder that's its own root (`search.useParentIgnoreFiles` is off by default). Source Control lists both repos without **Git: Open Repository**. A workspace file saved inside the repo shows as untracked there; save it outside, or add its name to this repo's `.gitignore`.
+Three things look like fixes and aren't. A `.gitignore` line alone untracks nothing. Reverting the "Stop tracking" commit writes this repo's older copies over the folder's files. And `git check-ignore` prints nothing for a tracked file; `git check-ignore -v --no-index <path>` prints the `.gitignore` line that matches.
 
 
 ## .gitattributes template
@@ -1006,11 +903,18 @@ git log --follow -- <file>
 git log --oneline --follow -- <file>
 ```
 
-Show a file's history with the actual diffs, or with per-commit change stats.
+Show a file's history with the actual diffs, or with per-commit change stats. With a path, `-p` shows only that file's changes at each commit, even when the commit changed other files too. Add `--follow` to carry on across renames; the `git lf` alias can't take `-p`, because it ends in `--`.
 
 ```bash
-git log -p -- <file>        # full patch at each commit touching the file
-git log --stat              # files changed and line counts per commit
+git log -p -- <file>              # full patch at each commit touching the file
+git log -p --follow -- <file>     # the same, across renames
+git log --stat                    # files changed and line counts per commit
+```
+
+To click through the same history in a window, `gitk` (`sudo apt install gitk`) lists the commits that touched the paths you give it and shows only those files' changes. Give it every path the file has had, or commits from before a rename are left out:
+
+```bash
+gitk -- <new-path> <old-path>
 ```
 
 Show the history of specific lines or a single function, with the diff at each step. The line-range form takes start and end; the function form names the symbol and lets Git find its bounds. This is the time axis to `blame -L`'s snapshot: blame says who last touched each line, `-L` says how the region got there.

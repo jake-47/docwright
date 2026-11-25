@@ -9,25 +9,25 @@ Why are you not as good as you'd want to be at something?
 It's often not a lack of talent or luck.
 You simply didn't put in the time.
 You think you worked eight hours, but you didn't.
-And you know it, but you don't track time because perhaps it helps you to lie to yourself and others.
+There's a part of you that knows it, but you refuse to track time perhaps because it makes it easier for you to lie to yourself or others.
 But if you really cared about excellence, you'd face the truth.
 It's really hard to improve what you don't measure.
 
-The `sw` script quantifies your work ethic.
+The `sw` script measures the hours you actually work.
 But do you really want to know?
 
 Now the script counts time, not attention.
 But no amount of attention makes up for time you never put in.
-So, all that the script requires of you is honesty.
+So, all it asks of you is honesty.
 Click start when you start.
 When your mind wanders, bring it back or stop the timer.
 That's all.
-Once it's set up, it's just two clicks: once to start a task, one to stop or switch task.
+Once it's set up, it's just two clicks: one to start a task, one to stop or switch task.
 Everything else is done for you.
 
-Note for employers: The work log is mostly useless for you, unless you have a honest employee who cares about excellence.
+Note for employers: The work log is mostly useless for you, unless you have an honest employee who cares about excellence.
 Goodhart's law says when a measure becomes a target, it stops being a good measure.
-The moment you or a client reads someone else's log, it tends to becomes a target.
+The moment you or a client reads someone else's log, it tends to become a target.
 Employees might start padding it, and the numbers stop meaning anything.
 
 ![alt text](attachments/goodharts-law.png)
@@ -150,7 +150,7 @@ Then type `su -`, give the root password, run the same line without `sudo` in fr
 
 ### 2. Save the script
 
-Save the [script](#the-script) in your Documents folder or where ever you wish, as `sw.py` or something else.
+Save the [script](#the-script) in your Documents folder or wherever you wish, as `sw.py`.
 Then make it runnable:
 
 ```bash
@@ -647,8 +647,8 @@ The logs and timer files are readable by you only.
 # note any you change. The daily target, working days, pomodoro and break
 # lengths are set at the top of the work log instead.
 
-RAW_LOG_PATH = "~/Documents/mv/.stopwatch_log"          # the record: one line per session
-WORK_LOG_PATH = "~/Documents/mv/wlog.md"      # the readable view, rebuilt from the record
+RAW_LOG_PATH = "~/Documents/.stopwatch_log"          # the record: one line per session
+WORK_LOG_PATH = "~/Documents/wlog.md"      # the readable view, rebuilt from the record
 SOUND_SESSION_END = "/usr/share/sounds/freedesktop/stereo/suspend-error.oga"  # a pomodoro ends
 SOUND_BREAK_END = "/usr/share/sounds/freedesktop/stereo/complete.oga"   # a break ends
 SOUND_INSTALL = "sudo apt install pulseaudio-utils sound-theme-freedesktop"  # what plays them

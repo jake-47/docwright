@@ -117,7 +117,7 @@
 
 - [Focus box with Wifi](./focus-box-wifi.md)
 
-- [Stopwatch pomodoro tracker](./stopwatch-pomo.md)
+- [Work log: stopwatch script](./stopwatch-pomo.md)
 
 # Outro
 

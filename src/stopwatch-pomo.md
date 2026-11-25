@@ -1,143 +1,43 @@
-# Stopwatch pomodoro tracker
+# Work log: stopwatch script
 
-`sw` tracks your work, logs each session, and builds a readable work log from the sessions.
-On the XFCE panel it gives each of the day's tasks a button, plus two break buttons.
+This is for Debian users only.
+The panel buttons need the XFCE desktop.
 
-![alt text](attachments/sw-img.png)
+## Why
 
-Commands below use the name `sw`; if your link has another name, such as `psw`, type that instead.
-A command prints nothing when it works, unless the text says what it prints.
-Times and totals in the samples are examples; yours will differ.
+Why are you not as good as you'd want to be at something?
+It's often not a lack of talent or luck.
+You simply didn't put in the time.
+You think you worked eight hours, but you didn't.
+And you know it, but you don't track time because perhaps it helps you to lie to yourself and others.
+But if you really cared about excellence, you'd face the truth.
+It's really hard to improve what you don't measure.
 
-## Install sw
+The `sw` script quantifies your work ethic.
+But do you really want to know?
 
-Do this once.
-Save the script under a plain name, such as `~/Documents/sw.py`.
-Link it as `sw`, as the run scripts by name guide describes.
-Check it:
+Now the script counts time, not attention.
+But no amount of attention makes up for time you never put in.
+So, all that the script requires of you is honesty.
+Click start when you start.
+When your mind wanders, bring it back or stop the timer.
+That's all.
+Once it's set up, it's just two clicks: once to start a task, one to stop or switch task.
+Everything else is done for you.
 
-```bash
-sw version
-```
+Note for employers: The work log is mostly useless for you, unless you have a honest employee who cares about excellence.
+Goodhart's law says when a measure becomes a target, it stops being a good measure.
+The moment you or a client reads someone else's log, it tends to becomes a target.
+Employees might start padding it, and the numbers stop meaning anything.
 
-It prints `sw, v` followed by the version number, such as `sw, v50`.
+![alt text](attachments/goodharts-law.png)
 
-Then install what the panel buttons, the chimes and the notifications need:
+The work log is best kept private, something sacred, between you and God.
 
-```bash
-sudo apt install python3 xfce4-genmon-plugin pulseaudio-utils libnotify-bin sound-theme-freedesktop
-```
+## What you get
 
-It ends either by installing them, or with a line like `xfce4-genmon-plugin is already the newest version` for each one you already have.
-Both are fine.
-This works on Devuan and Debian alike.
-
-Check that you can hear the chimes:
-
-```bash
-sw sound
-```
-
-It plays the two chimes, one after the other, and prints:
-
-```
-pomodoro end: playing /usr/share/sounds/freedesktop/stereo/suspend-error.oga
-break end: playing /usr/share/sounds/freedesktop/stereo/complete.oga
-Heard nothing? Check the volume, and that the sound isn't muted.
-```
-
-The last line always prints; if you heard both chimes, ignore it.
-If something is missing, `sw sound` says what and prints the `apt` line that installs it.
-
-## Get started
-
-### Set the day's tasks
-
-Type one word per task, in the order you want them on the panel:
-
-```bash
-sw today work theology email
-```
-
-It prints the list, numbered by button:
-
-```
-1  work
-2  theology
-3  email
-```
-
-The first time, it also prints a line like:
-
-```
-added slots 1-3 buttons to the panel; added the short and long break buttons (panel settings backed up to ~/.cache/sw-panel-backup-20261125-085500.xml)
-```
-
-The panel disappears for a moment and comes back with five new buttons: `work`, `theology`, `email`, `☕ 5m` and `☕ 15m`.
-That is normal: `sw` has to stop the panel to add buttons.
-The two break buttons are in italics, so they stand apart from your tasks.
-
-A task name is one word.
-For two words, join them with `-`, such as `deep-work`.
-A name with a space stops the command: `today: task names are one word: use deep-work, not 'deep work'`.
-
-### Start and stop a task
-
-Click a button to start its task.
-It turns bold and counts up today's time for that task: `▶ work 0:00`.
-Click it again to stop and log the session.
-It goes back to plain and shows today's time, such as `work 1:00`.
-
-Clicking another task's button stops and logs the running one first; only one task runs at a time.
-Hover over a button for when it started and what a click will do.
-Clicks redraw every button at once; otherwise buttons redraw every 50 seconds, so the running clock can lag by up to a minute.
-
-### Take a break
-
-Click `☕ 5m` for a short break, or `☕ 15m` for a long one.
-The click stops and logs the running task, then starts the break.
-The button turns bold and counts down the minutes, such as `☕ 4m left`.
-
-When the break ends, you hear a chime and get a notification that says `back to work`.
-Your task doesn't start again by itself; click its button when you're back.
-
-- **Click the running break** to end it early.
-- **Click the other break button** to switch to that break instead.
-- **Click a task's button** during a break to end the break and start the task.
-
-The chime comes on time, even if the panel hasn't redrawn.
-A break logs nothing: the work log already shows it as the gap between two sessions.
-To change the two lengths, see "Change the settings".
-
-### Check your totals
-
-```bash
-sw status
-```
-
-With nothing running, it prints:
-
-```
-nothing running
-Today's total: 1h 45m; 2 sessions of 25m or more
-
-This week       Nov 23–29   4h 45m · 12% of 40h
-November 2026   4h 45m of 48h target (10%), worked 2 of 2 working days
-2026            4h 45m of 232h target (2%), worked 2 of 2 working days
-```
-
-The first two lines are today; "2 sessions of 25m or more" counts the sessions at least one pomodoro long.
-The last three lines are explained in "How the targets work".
-These figures match the sample work log in the next section.
-During a break, `sw status` starts with a line like `short break running: 4m left, ends 10:45`.
-
-## Read the work log
-
-The work log is `~/Documents/mv/wlog.md`; open it in any editor.
-This is the whole file after two days of use, read at 11:20 on Tuesday:
-
-- Monday: work 09:00–10:00, email 10:15–10:45, work 11:00–12:30.
-- Tuesday: work 09:00–10:00, theology 10:15–11:00.
+A work log, `wlog.md` in your Documents folder, rebuilt every time you stop a task.
+Here it is after two days, read at 11:20 on Tuesday:
 
 ~~~
 # config (edit a value; delete a line to use its default)
@@ -217,121 +117,258 @@ Nov 23–29   4h 45m   2 days   12% of 40h
   - 11:00–12:30   1h 30m   work
 ~~~
 
-What each part is:
+And on the XFCE panel, a button for each of the day's tasks, plus two break buttons:
 
-- **Everything above `# log` is yours.** The settings live there, and you can add notes there. `sw` never changes it.
-- **Everything below `# log` is rebuilt** every time a session is logged. Anything you type there is lost, so don't. To change a session or a tag, edit the raw log instead; see "Fix, rename or remove sessions".
-- **The dashboard** is the first box. It shows the last two days you worked and their weeks, then the month and year so far, then your best ever session, day, week, month and year.
-- **"Week before" shows `0h 00m`** here because tracking began on Monday Nov 23. Weeks before your first logged day have no target.
-- **Each year** gets a table with a row per month and the year's total, then every tag with its share of the year.
-- **Each month** opens with its total and its days worked, then its top three tags, then a line per week.
-- **Each day** lists its sessions in the order they started. A break shows at the end of the session before it, such as `then 0h 15m break`.
+![alt text](attachments/sw-img.png)
 
-Once your log covers two years, a table of every year appears just below the dashboard.
-A week that runs into the next month, such as Nov 30 – Dec 6, is listed under the month its Monday falls in.
-With more than three tags, the rest show as `other`, such as `work 50%, email 20%, calls 15%, other 15%`.
+The running task is bold, with `▶`, and counts up today's time for it.
+
+## Install
+
+You do this once.
+Every step happens in a terminal.
+To open one, open the Applications menu and pick Terminal Emulator.
+Type or paste each command, then press Enter.
+To paste in the terminal, press Ctrl+Shift+V, not Ctrl+V.
+A command that works prints nothing, unless the step says what it prints.
+
+### 1. Install what sw needs
+
+```bash
+sudo apt install python3 xfce4-genmon-plugin pulseaudio-utils libnotify-bin sound-theme-freedesktop
+```
+
+It asks for your password.
+Nothing shows while you type it; that's normal.
+Type it and press Enter.
+If it then asks `Do you want to continue? [Y/n]`, press Enter.
+It ends either by installing them, or with a line like `xfce4-genmon-plugin is already the newest version` for each one you already have.
+Both are fine.
+
+If it says `is not in the sudoers file`, you set a root password when you installed Debian, and your account can't use `sudo`.
+Then type `su -`, give the root password, run the same line without `sudo` in front, and type `exit`.
+
+### 2. Save the script
+
+Save the [script](#the-script) in your Documents folder or where ever you wish, as `sw.py` or something else.
+Then make it runnable:
+
+```bash
+chmod +x ~/Documents/sw.py
+```
+
+`~` means your home folder, so `~/Documents` is your Documents folder.
+
+### 3. Give it a name
+
+```bash
+mkdir -p ~/.local/bin
+ln -s ~/Documents/sw.py ~/.local/bin/sw
+```
+
+`~/.local/bin` is the folder for your own commands.
+The first line makes it, if it isn't there yet.
+The second puts a link named `sw` in it, pointing at the script.
+Typing `sw` now runs the script, and saving a new version over the script updates the command.
+If `ln` says `File exists`, an old `sw` is in the way: remove it with `rm ~/.local/bin/sw` and run the `ln` line again.
+
+### 4. Log out and back in
+
+Then open a terminal and check:
+
+```bash
+sw version
+```
+
+It prints `sw, v` and the version number, such as `sw, v51`.
+
+If it prints `bash: sw: command not found` instead, your session doesn't look in `~/.local/bin` yet.
+Run this once, then log out and back in:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.xsessionrc
+```
+
+### 5. Check the chimes
+
+```bash
+sw sound
+```
+
+It plays the two chimes, one after the other, and prints:
+
+```
+pomodoro end: playing /usr/share/sounds/freedesktop/stereo/suspend-error.oga
+break end: playing /usr/share/sounds/freedesktop/stereo/complete.oga
+Heard nothing? Check the volume, and that the sound isn't muted.
+```
+
+The last line always prints; if you heard both chimes, ignore it.
+If something is missing, it says what, and prints the `apt` line that installs it.
+
+## Every day
+
+### Set the day's tasks
+
+One word per task, in the order you want them on the panel:
+
+```bash
+sw today work theology email
+```
+
+It prints the list, numbered by button:
+
+```
+1  work
+2  theology
+3  email
+```
+
+The first time, it also prints a line like:
+
+```
+added task buttons 1-3 to the panel; added the short and long break buttons (panel settings backed up to ~/.cache/sw-panel-backup-20261125-085500.xml)
+```
+
+The panel disappears for a moment and comes back with the new buttons.
+That's normal: `sw` has to stop the panel to add buttons.
+
+For a two-word task, join the words with `-`, such as `deep-work`.
+A name with a space stops the command: `today: task names are one word: use deep-work, not 'deep work'`.
+
+### Start and stop
+
+Click a task's button to start it.
+Click it again to stop and log the session.
+Clicking another task's button stops and logs the running one first.
+Only one task runs at a time.
+
+Hover over a button to see when it started and what a click will do.
+A click redraws every button at once; otherwise they redraw every 50 seconds, so the running clock can lag by up to a minute.
+
+### Take a break
+
+Click `☕ 5m` for a short break, or `☕ 15m` for a long one.
+The click stops and logs the running task, then starts the break.
+The button turns bold and counts down, such as `☕ 4m left`.
+
+When the break ends, you hear a chime and get a notification: `back to work`.
+Your task doesn't start again by itself; click its button when you're back.
+
+- Click the running break to end it early.
+- Click the other break button to switch to it.
+- Click a task's button to end the break and start the task.
+
+A break logs nothing: the work log shows it as the gap between two sessions.
+
+### Check your totals
+
+```bash
+sw status
+```
+
+With nothing running, it prints:
+
+```
+nothing running
+Today's total: 1h 45m; 2 sessions of 25m or more
+
+This week       Nov 23–29   4h 45m · 12% of 40h
+November 2026   4h 45m of 48h target (10%), worked 2 of 2 working days
+2026            4h 45m of 232h target (2%), worked 2 of 2 working days
+```
+
+"2 sessions of 25m or more" counts the sessions at least a pomodoro long.
+While a task runs, the first line is `running: work, since 09:00 (0h 30m so far)`.
+During a break, it starts with a line like `short break running: 4m left, ends 10:45`.
+
+## Read the work log
+
+Open `~/Documents/wlog.md` in any editor.
+The sample at the top of this guide is a whole file.
+
+- **Above `# log` is yours.** The settings live there, and you can add notes there. `sw` never changes it.
+- **Below `# log` is rebuilt** every time a session is logged. Anything you type there is lost. To fix a session, edit the raw log; see "Fix, rename or remove sessions".
+- **The dashboard** is the first box: the last two days you worked and their weeks, the month and year so far, and your best session, day, week, month and year.
+- **Each year** has a row per month, then every tag with its share of the year.
+- **Each month** has its total, days worked, top three tags, and a line per week.
+- **Each day** lists its sessions in the order they started. A break shows at the end of the session before it: `then 0h 15m break`.
+
+"Week before" shows `0h 00m` in the sample because tracking began on Monday Nov 23.
+Once your log covers two years, a table of every year appears under the dashboard.
+A week that runs into the next month, such as Nov 30 – Dec 6, is listed under the month its Monday falls in, or under the next month if nothing was logged in the first.
+With more than three tags, the rest show as `other`.
 
 ## How the targets work
 
 A target is your daily target times the number of working days.
-With the default 8 hours and 5 working days, a full week's target is 5 × 8h = 40h.
+With 8 hours and 5 working days, a full week's target is 5 × 8h = 40h.
 
-November 2026 has 21 working days, so a full November's target is 21 × 8h = 168h.
-But days before your first logged day don't count.
+Days before your first logged day don't count.
 In the sample, tracking began on Monday Nov 23.
 From then to the end of November there are 6 working days, so November's target is 6 × 8h = 48h.
 4h 45m of 48h is 10%.
 
-"Worked 2 of 2 working days" counts the working days so far that had any work: Monday and Tuesday both did.
-Work on a Saturday or Sunday still counts toward your hours.
-The month line then adds `plus 1 other day`, such as `5 days worked of 5 working days, plus 1 other day`.
+"Worked 2 of 2 working days" counts the working days so far that had any work.
+Work on a weekend still counts toward your hours, and the month line adds it: `plus 1 other day`.
 
-The targets only change the percentages.
-The hours you worked read the same whatever target you set.
+The targets only change the percentages, never the hours.
 
 ## How sw counts
 
-### One timer, no pause
+**One timer.**
+Panel, keyboard shortcut or terminal, it's the same timer.
+Starting a task stops and logs the one before, so no minute counts twice.
+There's no pause: stopping logs the session, and starting again begins a new one.
+That's how the log shows your breaks.
 
-There is one timer, however you start it: a panel button, a keyboard shortcut or a terminal.
-Starting a task stops the one that was running and logs it first, so no minute counts twice.
-There is no pause.
-Stopping logs the session; starting the same task again begins a new session.
-That is why the work log can show your breaks.
+**Every break stops work.**
+A break button, `sw break`, or the break after a pomodoro: each one stops and logs the running task first, wherever it was started.
+Otherwise the break would count as work.
 
-### Every break stops work
+**Under a minute isn't logged.**
+That's a mis-click.
+`sw stop` says `work ran under a minute, not logged`.
 
-A break always stops and logs the running task first, however you start it: a break button, `sw break`, or the break after a pomodoro.
-That matters most when you mix the panel and a terminal.
-Say you click `work` at 09:00 and type `sw break 15` at 10:00.
-The task you started from the panel isn't shown in the terminal, but `sw break` still logs it, 09:00–10:00, before the break begins.
-Without that, the break would count as work.
-
-### Very short sessions aren't logged
-
-A session under one minute is almost always a mis-click, so `sw` drops it.
-`sw stop` then prints `work ran under a minute, not logged`.
-
-### Sleep doesn't count
-
-When you close the lid, the machine usually goes to sleep.
-`sw` leaves that sleep out.
-Say you start `work` at 12:00, close the lid at 12:30, open it at 14:00, and stop at 14:30.
-You worked one hour, and the machine slept 1h 30m.
-`sw stop` prints:
+**Sleep doesn't count.**
+Close the lid and the machine sleeps; `sw` leaves that time out.
+Start `work` at 12:00, close the lid at 12:30, open it at 14:00, stop at 14:30, and `sw stop` prints:
 
 ```
 logged: 2026-11-24 13:30–14:30 1h 00m work
 1h 30m asleep left out; sw add 90m work puts it back
 ```
 
-The logged session shows as 13:30–14:30: one hour, ending when you stopped.
-If you were working away from the screen while it slept, reading on paper say, run the `sw add` it gives you.
+If you were working away from the screen meanwhile, run the `sw add` it gives you.
+A pomodoro and a break count down by the clock, so one that ends during sleep has ended when you open the lid.
 
-The button, `sw status` and the stopwatch's clock all leave the sleep out too.
-While a session runs, `sw status` says how much it has left out: `running: work, since 12:00 (0h 30m so far, not counting 1h 30m asleep)`.
-`sw` needs no checking in the background for this: Linux keeps count of how long the machine has slept, and `sw` reads that count when a session starts and when it stops.
+**Time away with the machine awake counts.**
+`sw` can't see the lunch you walked off to.
+Stop the timer when you stop, or click a break.
 
-A pomodoro and a break count down by the clock, so one that ends while the machine sleeps has ended when you open the lid.
-A pomodoro still logs exactly its set length.
-
-### Time away with the machine awake still counts
-
-If the screen only blanks, or the lid closes without the machine sleeping, `sw` sees no sleep.
-It also can't see the lunch you walked off to without stopping the timer.
-So the one habit it needs is: stop it when you stop, or click a break button.
-
-### A forgotten timer gets a reminder
-
-Once a session has run 3 hours with the machine awake, its button shows `⚠` instead of `▶`, such as `⚠ work 3:04`.
-You also get one desktop notification:
+**A forgotten timer gets a reminder.**
+After 3 hours awake, the button shows `⚠` instead of `▶`, and you get one notification:
 
 ```
 work has been running for 3h 00m, since 09:00. Still working? If not, stop it and fix the time in the raw log.
 ```
 
-If you had stopped working, stop the timer, then shorten that session in the raw log; see "Fix, rename or remove sessions".
 Change the 3 hours with the `Remind after` setting.
 
-### A crash or restart
-
-Everything already logged is on disk and safe.
-Closing the terminal or logging out leaves a running timer running; `sw status` and `sw stop` reach it from any terminal.
-
-If the machine shuts down while a timer runs, `sw` can't know how long you really worked.
-So the next time `sw` checks the timer, on any start, stop or status, or a panel redraw, it drops that session without logging it, and tells you:
+**A crash or a restart.**
+Everything logged is safe on disk.
+Closing the terminal or logging out leaves the timer running; `sw status` and `sw stop` reach it from any terminal.
+If the machine shuts down while a timer runs, `sw` can't know how long you worked, so it drops that session and tells you:
 
 ```
 work was running when the machine went down (started Tue 09:00); sw stopped it without logging it. Record the time you worked with: sw add DURATION work
 ```
 
-Then log the time you actually worked with `sw add`, such as `sw add 2h work`.
+Then log what you actually worked, such as `sw add 2h work`.
 
-## Everyday tasks
+## More commands
 
 ### Change the day's tasks
-
-To add, remove or rename a task without typing the whole list again:
 
 ```bash
 sw today add errands
@@ -339,48 +376,82 @@ sw today remove theology
 sw today rename errands chores
 ```
 
-`add` puts the task at the end, on the next task button.
-`remove` takes it off, and the tasks after it move up one button.
-All three print the new list, as `sw today` does; after the three commands above:
+`add` puts the task on the next button.
+`remove` takes it off; the tasks after it move up one button.
+`rename` renames the button, today's sessions under the old name, and the running timer if it's that task, so a typo fix keeps today's time.
+Earlier days keep the old name.
+Each prints the new list; `rename` first prints what it renamed, such as `renamed errands to chores: 1 session today and the running timer`.
+
+A typo stops the command and changes nothing, such as `today: errands isn't on the list; nothing changed`.
+Up to 9 tasks.
+A spare button goes blank; `sw` never removes a button.
+`sw today` alone prints the list; `sw today -c` blanks the task buttons.
+
+### Time in a terminal
+
+```bash
+sw deep work
+```
+
+It starts a stopwatch tagged `deep-work` and shows the clock: `⏱  elapsed: 12:04`.
+Enter stops and logs it; Ctrl+C throws it away.
+If the task was already running, from the panel say, Ctrl+C only closes the view.
+Closing the window leaves it running.
+`sw` alone starts an untagged session.
+
+```bash
+sw pomo deep work
+```
+
+It counts 25 minutes down, chimes, logs exactly 25 minutes, then counts a 5-minute break down and chimes again.
+Enter during the work stops early and logs what you did; Enter during the break skips it.
+Ctrl+C during the work throws the block away; closing the window logs what you did so far.
+
+```bash
+sw break 10
+```
+
+It stops and logs the running task, then counts a 10-minute break down.
+`sw break` alone uses the `Pomodoro break` length.
+
+### Without a live view
+
+```bash
+sw start work
+sw stop
+sw toggle work
+```
+
+`sw stop` prints what it logged:
 
 ```
-1  work
-2  email
-3  chores
+logged: 2026-11-24 09:30–10:20 0h 50m work
+Today's total: 3h 10m
 ```
 
-`rename` also prints what else it renamed, before the list:
+`sw toggle work` stops `work` if it's running, and starts it otherwise.
+For a keyboard shortcut, add the full path in Settings > Keyboard > Application Shortcuts, such as `/home/you/.local/bin/sw toggle work`.
+The break buttons work the same way: `/home/you/.local/bin/sw breakbutton short`, or `long`.
+
+### Log time you didn't time
+
+```bash
+sw add 30m email
+```
+
+`sw` fits the time into today's breaks, latest first, so it never overlaps a session.
+In the sample, at 11:20 on Tuesday, the last break is the 20 minutes since 11:00, so the other 10 go into the break before it:
 
 ```
-renamed errands to chores: 1 session today and the running timer
+added: 2026-11-24 10:05–10:15 0h 10m email
+added: 2026-11-24 11:00–11:20 0h 20m email
+Today's total: 2h 15m
 ```
 
-It renames the button, the sessions logged today under the old name, and the running timer if it's that task.
-So fixing a typo, such as `theolgy` to `theology`, keeps today's time on the button.
-Earlier days keep the old name; to rename those, see "Fix, rename or remove sessions".
+If the breaks are too short, the rest goes before the day's first session.
+Write lengths as `90m`, `1h`, `1h30m`, `5400s`, or plain minutes such as `45`, up to 24 hours.
 
-The spare button goes blank; `sw` never removes a button.
-Name several tasks to add or remove them at once, such as `sw today add errands calls`.
-You can have up to 9 tasks.
-
-A typo stops the command and changes nothing:
-
-- Adding a task already there prints `today: errands is already on the list; nothing changed`.
-- Removing or renaming one that isn't there prints `today: errands isn't on the list; nothing changed`.
-- Renaming to a name already on the list prints `today: work is already on the list; nothing changed`.
-
-Removing the task that's running leaves it running, and `sw` says `errands is still running and now has no button; sw stop stops it`.
-
-`sw today` alone prints the list.
-`sw today -c` blanks every task button and prints `no tasks set; the task buttons are empty`.
-The break buttons stay.
-
-A task literally named `add`, `remove` or `rename` can't start a full list, since `sw` reads it as the command.
-Add it with `sw today add add`.
-
-### Type less: short flags
-
-Each flag stands for the words after it:
+### Short flags
 
 | Flag | Same as |
 | --- | --- |
@@ -394,122 +465,13 @@ Each flag stands for the words after it:
 | `-trn` | `today rename` |
 | `-tc` | `today -c` |
 
-So `sw -p deep work` runs a pomodoro tagged `deep-work`, and `sw -ta errands` adds a task.
-A tag can never start with `-`, so a flag never clashes with a task name.
-
-### Time a session in a terminal
-
-```bash
-sw deep work
-```
-
-It prints:
-
-```
-⏱  stopwatch started 09:30. Enter stops & logs, Ctrl+C cancels.
-   Closing this window leaves the timer running.
-```
-
-Then a clock counts up: `⏱  elapsed: 12:04`.
-Words join with `-`, so this session is tagged `deep-work`.
-`sw` alone starts an untagged session.
-
-- **Enter** stops and logs it, printing `⏹ stopped`, `Session: 0h 50m` and `Today's total: 3h 10m`.
-- **Ctrl+C** throws it away, printing `⏹ cancelled, nothing logged`.
-
-If another task was running, `sw` first logs it and prints a `logged:` line for it.
-If this same task was already running, started from the panel say, it prints `⏱  deep-work has been running since 09:10. Enter stops & logs, Ctrl+C leaves it running.`
-Then Ctrl+C only closes the view: `⏹ left the live view; deep-work keeps running (sw stop stops it)`.
-
-### Run a pomodoro
-
-```bash
-sw pomo deep work
-```
-
-It prints:
-
-```
-🍅 pomodoro started! focus for 25 minutes.
-   Started 09:30, ends 09:55. Enter stops early & logs, Ctrl+C cancels.
-```
-
-Then it counts 25 minutes down: `⏱  time remaining: 24:59`.
-At zero you hear a chime and see `✅ session complete!`, the session and today's total.
-A 5-minute break counts down next; at its end a second chime plays, a notification says `back to work`, and it prints `⏰ break over!`.
-
-- **Enter** during the work stops early and logs what you did, printing `⏹ stopped early`.
-- **Enter** during the break skips it: `⏭ break skipped`.
-- **Ctrl+C** during the work throws the block away.
-- **Closing the window** during the work logs what you did so far.
-
-`sw -p deep work` does the same with less typing.
-
-### Take a break in a terminal
-
-```bash
-sw break 10
-```
-
-If a task is running, it first logs it and prints the `logged:` line and today's total.
-Then it prints `10m break. Press Enter to skip.` and `   Break ends 10:40`, and counts down: `☕  break remaining: 09:59`.
-It ends as a pomodoro's break does.
-`sw break` alone uses the `Pomodoro break` length, 5 minutes unless you change it.
-This break shows in the terminal only, not on a break button.
-
-### Start or stop without a terminal view
-
-```bash
-sw start work
-sw stop
-```
-
-`sw start work` prints `started work at 09:30`.
-`sw stop` prints the session it logged, then today's total:
-
-```
-logged: 2026-11-24 09:30–10:20 0h 50m work
-Today's total: 3h 10m
-```
-
-With nothing running, `sw stop` prints `nothing running`.
-`sw toggle work` stops `work` if it's running, and starts it otherwise.
-That makes a good keyboard shortcut: in Settings > Keyboard > Application Shortcuts, add the full path, such as `/home/you/.local/bin/sw toggle work`.
-The break buttons work as shortcuts too: `/home/you/.local/bin/sw breakbutton short`, or `long`.
-A session started this way has no cancel; to drop it unlogged, run `rm ~/.stopwatch_running`.
-
-### Log time you didn't time
-
-Say it's 11:20 on Tuesday in the sample, and you spent 30 minutes on email without timing it:
-
-```bash
-sw add 30m email
-```
-
-`sw` puts the time into today's breaks, so it never overlaps a logged session or the running timer.
-It fills the latest break first, up to now, then the break before that, and so on back through the day.
-
-Tuesday has two breaks: 10:00–10:15, and 11:00 up to now, 11:20.
-The 20-minute break after 11:00 takes 20 minutes, and the 15-minute break takes the other 10, at its end:
-
-```
-added: 2026-11-24 10:05–10:15 0h 10m email
-added: 2026-11-24 11:00–11:20 0h 20m email
-Today's total: 2h 15m
-```
-
-Two lines are normal: each piece is its own session in the work log.
-If the breaks are too short, what's left goes just before the day's first session.
-Breaks under 2 minutes are skipped.
-
-Write lengths as `90m`, `1h`, `1h30m`, `5400s`, or plain minutes such as `45`.
-To put a session at a time of your choosing, or to change or remove one, edit the raw log.
+So `sw -p deep work` runs a pomodoro, and `sw -ta errands` adds a task.
 
 ## Settings and files
 
 ### Change the settings
 
-Six settings sit above the `# log` line of the work log:
+The settings sit at the top of the work log, above `# log`:
 
 ```
 Daily target:          8h
@@ -524,122 +486,109 @@ Long break:            15m
 `Remind after: 0h` turns the reminder off.
 `Pomodoro break` is the break after a pomodoro, the `☕ 5m` button, and `sw break` with no length.
 `Long break` is the `☕ 15m` button.
-The buttons show their length, so changing a setting changes the button's label too, at its next redraw.
 
-Edit a value and save; the next `sw` run uses it.
+Edit a value and save; the work log follows on the next `sw` run, or within a minute from the panel.
 Delete a line to use its default.
 A line `sw` can't read stops every command with a message naming it, so don't write notes after a value.
 
-A work log made before v50 has no `Long break` line.
-The long break button then uses 15 minutes; to change it, add the line yourself, under `Pomodoro break`.
-
 ### Fix, rename or remove sessions
 
-Every change to your sessions goes in the raw log, `~/.stopwatch_log`.
-Never edit below `# log` in the work log: that part is rebuilt from the raw log, and your edit is lost on the next session.
-
-Each line of the raw log is one session, newest at the top:
+Every session lives in the raw log, `~/.stopwatch_log`.
+The name starts with a dot, so it's hidden; in the file manager, Ctrl+H shows it.
+Stop the timer before you edit it: a session logged while the file is open in your editor is lost when you save.
+Each line is one session, newest at the top:
 
 ```
 2026-11-24	11:00	2700	theology
 2026-11-24	10:00	3600	work
 ```
 
-That is the date, the time the session ended, its length in seconds, and its tag, separated by tabs or spaces.
+The date, the time the session ended, its length in seconds, and its tag.
 3600 seconds is one hour, so the `work` session ran 09:00–10:00.
 
-- **To shorten it** to 45 minutes, change `3600` to `2700`.
-- **To remove it**, delete the line.
-- **To rename it**, change the tag at the end of the line.
+- To shorten it to 45 minutes, change `3600` to `2700`.
+- To remove it, delete the line.
+- To rename it, change the tag.
 
-Save, and the work log follows on the next `sw` run, or within a minute from the panel.
-`sw` also puts the lines back in order, newest first, so a line you add at the bottom moves to its place.
-A line `sw` can't read moves to the top, and is named in a warning and left out of the totals until you fix it.
+Save, and the work log follows.
+A line you add anywhere moves to its place.
+A line `sw` can't read moves to the top, and is left out of the totals until you fix it.
+The work log names it under `Updated`, such as `⚠ raw log line 1 isn't date, HH:MM, seconds, tag; left out until you fix it: 2026-11-24 9:30 1800 email`.
 
-To rename a tag on every day at once, such as `theolgy` to `theology`:
+To rename a tag on every day at once:
 
 ```bash
 sed -i 's/\ttheolgy$/\ttheology/' ~/.stopwatch_log
 ```
 
-It prints nothing.
-It changes only tags that are exactly `theolgy`, so `theolgy-notes` stays as it is.
-To rename the task on today's buttons too, also run `sw today rename theolgy theology`.
+It changes only tags that are exactly `theolgy`.
+Also run `sw today rename theolgy theology` if it's on today's buttons.
 
-### Move the logs
+### Back up
 
-The two paths are the first settings at the top of the script, in the file itself, not the link:
+Two files hold everything:
 
-```
-RAW_LOG_PATH = "~/.stopwatch_log"
-WORK_LOG_PATH = "~/Documents/mv/wlog.md"
-```
+- `~/.stopwatch_log`, the raw log: every session you ever logged.
+- `~/Documents/wlog.md`, the work log: your settings and notes. The rest of it is rebuilt from the raw log.
 
-Change them and save; `sw` creates the new files, empty, on its next run.
-To keep your history, paste the old raw log into the new one and save; the work log follows.
-Saving a new version of the script puts these paths back to the defaults, so set them again after each update.
+Back up those two.
+Everything else `sw` makes again, or doesn't need.
 
 ### Update sw
 
-Open the script itself, not the link, replace everything in it with the new version, and save.
-You can do this with a timer running: the timer lives in a file of its own.
-Then run `sw version`, which prints the new version number.
+Open the script, `~/Documents/sw.py`, replace everything in it with the new version, and save.
+You can do this with a timer running.
+`sw version` then prints the new version number.
 
-When updating from v49 or older:
+### Move the logs
 
-- **The raw log turns newest first** on the first `sw` run, button redraws included. Nothing is lost; only the order of the lines changes.
-- **Run `sw today` with your tasks once**, such as `sw today work theology email`, to add the two break buttons. It prints `added the short and long break buttons`.
-- **`sw break` now stops the running task** before the break, as every break does.
+The two paths are at the top of the script:
 
-When updating from v48 or older, there's one more catch: a timer already running then can't leave out sleep, since the old version didn't note the sleep count when it started.
-Timers you start after the update can.
+```
+RAW_LOG_PATH = "~/.stopwatch_log"
+WORK_LOG_PATH = "~/Documents/wlog.md"
+```
+
+Change them and save; `sw` starts the new files on its next run.
+Move your old raw log to the new path first, or your history stays behind.
+An update puts these paths back to the defaults, so set them again after each one.
 
 ### The files sw uses
 
-- `~/.stopwatch_log`: the raw log, the record of every session, newest first.
-- `~/Documents/mv/wlog.md`: the work log, rebuilt from the raw log.
+- `~/.stopwatch_log`: the raw log.
+- `~/Documents/wlog.md`: the work log.
 - `~/.stopwatch_running`: the running timer, if any.
 - `~/.stopwatch_break`: the break a break button started, if any.
 - `~/.stopwatch_tasks`: the day's tasks.
 - `~/.stopwatch_reminded`: the last session you were reminded about.
-- `~/.cache/sw-panel-backup-*.xml`: a copy of the panel settings from each time `sw today` changed the panel; the newest 5 are kept.
+- `~/.cache/sw-panel-backup-*.xml`: the panel settings from before each change `sw today` made; the newest 5 are kept.
 
-All of them are readable by you only.
-If the work log is a link, into a synced folder say, `sw` writes through the link and leaves it in place.
+The logs and timer files are readable by you only.
 
 ## Fix a problem
 
 | What you see | Meaning and fix |
 | --- | --- |
-| A button shows `(genmon)` | A Generic Monitor with no command. Run `sw today` with your tasks; it takes it over as a button. |
-| A running button shows `⚠` | The session has run longer than `Remind after`. Stop it if you've stopped working, then fix its time in the raw log. |
-| A stopped button shows `⚠` | Hover over it for the reason. Usually a settings line `sw` can't read, or a button set up by hand. |
+| `bash: sw: command not found` | See step 4 of "Install". |
+| A button shows `(genmon)` | A Generic Monitor with no command. Run `sw today` with your tasks; it takes it over. |
+| A running button shows `⚠` | It has run longer than `Remind after`. Stop it if you've stopped, then fix its time in the raw log. |
+| A stopped button shows `⚠` | Hover over it for the reason, usually a settings line `sw` can't read. |
 | `… wasn't rebuilt (…)` | The work log couldn't be written, for the reason in brackets. The raw log is safe; fix the cause and the next `sw` run rebuilds it. |
 | A button is blank | Its slot has no task today. Add one with `sw today add`. |
 | No break buttons | Run `sw today` with your tasks; it adds them. |
-| A button shows another task, or another task's time | Its settings are out of step. Run `sw today` with your tasks; it renumbers the buttons and prints `renumbered 1 button`. |
-| The panel is gone after `sw today` | Start it again with `xfce4-panel &`, then run `sw today` with your tasks. |
-| `panel not changed: … Generic Monitor plugin …` | Install the packages as in "Install sw", then run `sw today` again. |
-| No chime, or no notification | Install the packages as in "Install sw". Then `sw sound` checks the chimes and says what's still missing. |
-| `today: task names are one word …` | Join the words with `-`, such as `deep-work`. |
-| `invalid duration: …` after `sw add` | `sw add` logs time. To put a task on the panel, use `sw today add`. |
-| A renamed tag changed back, or a fix is gone | You edited the work log. Make the change in the raw log instead. |
+| A button shows another task's name or time | Run `sw today` with your tasks; it renumbers the buttons. |
+| The panel is gone after `sw today` | Start it with `xfce4-panel &`, then run `sw today` with your tasks again. |
+| `panel not changed: … Generic Monitor plugin …` | Do step 1 of "Install", then run `sw today` again. |
+| No chime, or no notification | Do step 1 of "Install", then run `sw sound`. |
+| `invalid duration: …` after `sw add` | `sw add` logs time. To add a task to the panel, use `sw today add`. |
+| A fix you made is gone | You edited below `# log` in the work log. Make the change in the raw log. |
 | The work log is missing months | The raw log in use isn't the one with your history, often after an update reset the paths. Check the paths at the top of the script. |
-| Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove the copy and link the current script instead. |
-
-## When not to use it
-
-The log stays honest only while no one with power over you reads it.
-Once a boss can reward or punish you by it, you'll pad it, and the number stops meaning anything.
-Don't use it as a whip on yourself either: it measures time, not attention.
-For deep, absorbed work, starting and stopping a timer breaks the spell, so keep `sw` for scattered and admin time.
-Run it honestly for a week or two, learn where your hours go, and then you can put it down.
-
+| Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove it, and use the link. |
 ## The script
 
 ````python3
 #!/usr/bin/python3 -S
-# sw, v50
+# sw, v51
 #
 # Stopwatch, pomodoro, and work log, with optional XFCE panel buttons.
 #
@@ -698,8 +647,8 @@ Run it honestly for a week or two, learn where your hours go, and then you can p
 # note any you change. The daily target, working days, pomodoro and break
 # lengths are set at the top of the work log instead.
 
-RAW_LOG_PATH = "~/Documents/.stopwatch_log"          # the record: one line per session
-WORK_LOG_PATH = "~/Documents/wlog.md"   # the readable view, rebuilt from the record
+RAW_LOG_PATH = "~/Documents/mv/.stopwatch_log"          # the record: one line per session
+WORK_LOG_PATH = "~/Documents/mv/wlog.md"      # the readable view, rebuilt from the record
 SOUND_SESSION_END = "/usr/share/sounds/freedesktop/stereo/suspend-error.oga"  # a pomodoro ends
 SOUND_BREAK_END = "/usr/share/sounds/freedesktop/stereo/complete.oga"   # a break ends
 SOUND_INSTALL = "sudo apt install pulseaudio-utils sound-theme-freedesktop"  # what plays them
@@ -835,18 +784,17 @@ Tags: words join with -, so `sw deep work` is deep-work. For a tag named like
 a command, put -- first: sw -- break.
 
 Files
-  ~/.stopwatch_log         raw log, the record, newest session first: date,
-                           end HH:MM, seconds, tag. Edit it to fix, rename or
-                           remove sessions; the work log follows on the next
-                           sw run. Never edit below # log in the work log:
-                           that part is rebuilt and your edit is lost
-  ~/Documents/mv/wlog.md   work log, rebuilt from the raw log. Settings and
-                           notes go above its `# log` line; everything below
-                           is replaced. Settings: Daily target: 8h,
-                           Working days per week: 5, Remind after: 3h (a
-                           timer running that long gets a notification; 0h
-                           turns it off), Pomodoro work: 25m, Pomodoro break: 5m
-                           (also the short break button), Long break: 15m
+  """ + RAW_LOG_PATH + """
+      raw log, the record, newest session first: date, end HH:MM, seconds,
+      tag. Edit it to fix, rename or remove sessions; the work log follows on
+      the next sw run. Never edit below # log in the work log: that part is
+      rebuilt and your edit is lost
+  """ + WORK_LOG_PATH + """
+      work log, rebuilt from the raw log. Settings and notes go above its
+      `# log` line; everything below is replaced. Settings: Daily target: 8h,
+      Working days per week: 5, Remind after: 3h (a timer running that long
+      gets a notification; 0h turns it off), Pomodoro work: 25m, Pomodoro
+      break: 5m (also the short break button), Long break: 15m
   To keep the logs elsewhere, change the paths at the top of this script.
   The chimes need: """ + SOUND_INSTALL + "\n"
 
@@ -854,9 +802,9 @@ Files
 
 
 def _write(stream, text):
-    # Terminal output is best effort: after a logout the terminal is gone, and
-    # a session being committed on SIGHUP must still reach the log.
     """Write TEXT to STREAM and flush, ignoring a terminal that has gone away."""
+    # Best effort: after a logout the terminal is gone, and a session being
+    # committed on SIGHUP must still reach the log.
     if stream is None:
         return
     try:
@@ -923,8 +871,6 @@ _DUR_ONE = re.compile(r"([0-9]+)([hms])")
 _DIGITS = re.compile(r"[0-9]+")
 
 
-# Seconds for 90m, 1h, 1h30m, 5400s, or a bare integer (minutes); None if the
-# text isn't one of those or comes to zero.
 def parse_duration(d):
     """Seconds for 90m, 1h, 1h30m, 5400s or plain minutes; None if D is none of those or is zero."""
     m = _DUR_HM.fullmatch(d)
@@ -1765,12 +1711,19 @@ def best_records(entries):
     return [first] + [max(((v, k) for k, v in t.items()), default=None) for t in totals]
 
 
-def render_dashboard(entries, today):
-    """When wlog.md was rebuilt; the latest day worked and the one before it,
+def render_dashboard(entries, today, bad=()):
+    """When wlog.md was rebuilt; a warning for each raw-log line in BAD, (line
+    number, text) pairs, since a panel rebuild has no terminal to warn in; the
+    latest day worked and the one before it,
     against the daily target, and their weeks, each as a short block; the
     current month and year to date; and the records. Blocks name the dates
     they show, so a file opened days later still reads right."""
     out = [FENCE, "Updated %s" % time.strftime("%a %Y-%m-%d %H:%M")]
+    if bad:
+        out += [""] + ["⚠ raw log line %d isn't date, HH:MM, seconds, tag; left out until you fix it: %s"
+                       % (n, line) for n, line in bad[:_BAD_LINE_SHOWN]]
+        if len(bad) > _BAD_LINE_SHOWN:
+            out.append("⚠ and %d more such lines" % (len(bad) - _BAD_LINE_SHOWN))
     if entries:
         days = sorted({e.day for e in entries})
         latest = days[-1]
@@ -1882,17 +1835,20 @@ def render_year(year, entries, first_month, first_day, today):
     return "\n".join(out) + "\n"
 
 
-def render_weeks(year, month, entries, first, latest):
+def render_weeks(year, month, entries, first, latest, lead):
     """A line for each Monday-to-Sunday week that starts in the month, latest
     first: its full total, days worked and share of its target (counted from
     FIRST in the week tracking began), so a week that runs into the next
-    month is listed under the month it started in. ENTRIES needs this month
-    and the next. Weeks that start after LATEST, the latest day worked, or end
-    before FIRST, the first, are left out."""
+    month is listed under the month it started in. With LEAD, the month before
+    has nothing logged, so the week running into this month is listed here,
+    or it would show nowhere. ENTRIES needs this month and the next. Weeks
+    that start after LATEST, the latest day worked, or end before FIRST, the
+    first, are left out."""
     day = datetime.date(year, month, 1)
-    day += datetime.timedelta(days=(7 - day.weekday()) % 7)
+    last = datetime.date(year + month // 12, month % 12 + 1, 1) - datetime.timedelta(days=1)
+    day += datetime.timedelta(days=-day.weekday() if lead else (7 - day.weekday()) % 7)
     rows = []
-    while day.month == month and day <= latest:
+    while day <= last and day <= latest:
         end = day + datetime.timedelta(days=6)
         if end >= first:
             total, days = summarize(in_range(entries, day, end))
@@ -1904,11 +1860,12 @@ def render_weeks(year, month, entries, first, latest):
     return _table(rows[::-1], {1, 2, 3}) if rows else []
 
 
-def render_month(year, month, entries, nearby, first, latest, today):
+def render_month(year, month, entries, nearby, first, latest, today, lead):
     """A month's block: totals; days worked against working days (to TODAY in
     the current month); its to-date line while current; its top tags; and
     its weeks. NEARBY holds this month's and the next month's sessions, for
-    weeks that run on; FIRST and LATEST are the first and latest days logged."""
+    weeks that run on; FIRST and LATEST are the first and latest days logged;
+    LEAD as for render_weeks."""
     total, days = summarize(entries)
     start = max(datetime.date(year, month, 1), first)
     nxt = datetime.date(year + month // 12, month % 12 + 1, 1)
@@ -1926,7 +1883,7 @@ def render_month(year, month, entries, nearby, first, latest, today):
     if (year, month) == (today.year, today.month):
         out.append(to_date_line(entries, datetime.date(year, month, 1), nxt - datetime.timedelta(days=1),
                                 first, today))
-    weeks = render_weeks(year, month, nearby, first, latest)
+    weeks = render_weeks(year, month, nearby, first, latest, lead)
     if entries:
         out.append("Tags: " + tag_line(entries))
     out += ([""] + weeks if weeks else []) + [FENCE]
@@ -2015,10 +1972,13 @@ _BAD_LINE_SHOWN = 5
 GENERATED_NOTE = ("<!-- Everything below is rebuilt from the raw log on every change: edits here are "
                   "lost. Write notes above the # log line. -->\n")
 
+
 def regenerate_md():
     """Rebuild wlog.md from the raw log, keeping everything above `# log`.
     Lines of the raw log that aren't sessions are named on stderr and left out;
-    sessions under a minute are left out silently."""
+    sessions under a minute are left out silently. Afterwards wlog.md carries
+    the raw log's modified time, so sync_logs can tell when either was edited."""
+    raw_mtime = _mtime(RAW_LOG)
     entries, bad = load_entries(read_raw_text()) if os.path.isfile(RAW_LOG) else ([], [])
     for n, line in bad[:_BAD_LINE_SHOWN]:
         warn("warning: %s line %d isn't date, HH:MM, seconds, tag; left out of the totals: %s"
@@ -2049,7 +2009,7 @@ def regenerate_md():
     for e in entries:
         by_month.setdefault((e.day.year, e.day.month), []).append(e)
     today = datetime.date.today()  # once, so a rebuild across midnight reads one day throughout
-    parts = [header, "# log\n\n", GENERATED_NOTE, "\n", render_dashboard(entries, today), render_years(entries)]
+    parts = [header, "# log\n\n", GENERATED_NOTE, "\n", render_dashboard(entries, today, bad), render_years(entries)]
     first = min(by_month) if by_month else None
     days = sorted({e.day for e in entries}) if entries else []
     year = None
@@ -2061,10 +2021,13 @@ def regenerate_md():
                                      first[1] if y == first[0] else 1, days[0], today))
         parts.append("\n### %s\n\n" % datetime.date(y, m, 1).strftime("%B"))
         nxt = (y + m // 12, m % 12 + 1)
+        prev = (y - 1, 12) if m == 1 else (y, m - 1)
         parts.append(render_month(y, m, by_month[(y, m)], by_month[(y, m)] + by_month.get(nxt, []),
-                                  days[0], days[-1], today))
+                                  days[0], days[-1], today, prev not in by_month))
         parts.append("\n" + render_days(by_month[(y, m)]))
     write_atomic(MD_LOG, "".join(parts).encode("utf-8", "surrogateescape"))
+    if raw_mtime is not None:
+        os.utime(MD_LOG, ns=(time.time_ns(), raw_mtime))
 
 
 # ---- live timer ----
@@ -3055,9 +3018,8 @@ def panel_sync(slots):
         msg.append("renumbered %d %s" % (len(todo), "button" if len(todo) == 1 else "buttons"))
     if added:
         first = len(tasks) + 1
-        msg.append("added %s %s to the panel" % (
-            "slot %d" % first if len(added) == 1 else "slots %d-%d" % (first, first + len(added) - 1),
-            "button" if len(added) == 1 else "buttons"))
+        msg.append("added %s to the panel" % (
+            "task button %d" % first if len(added) == 1 else "task buttons %d-%d" % (first, first + len(added) - 1)))
     if missing:
         msg.append("added the %s break %s" % (" and ".join(missing), "button" if len(missing) == 1 else "buttons"))
     note = "; ".join(msg)
@@ -3353,6 +3315,8 @@ def cmd_add(args):
         die("invalid duration: %s (use 90m, 1h30m, 5400s, or a bare integer = minutes)" % args[0])
     if secs < MIN_SESSION_SECS:
         die("too short: %s (sessions under a minute aren't logged)" % args[0])
+    if secs > 86400:
+        die("too long: %s (a session can't run longer than a day)" % args[0])
     tag = args_to_tag(args[1:])
     rows = []
 
@@ -3439,10 +3403,12 @@ def sync_logs():
     """Keep the logs in step after a hand edit or an update: create the raw log
     if it doesn't exist yet; put it in newest-first order when it isn't (a log
     from before v50, a row added by hand); and rebuild the work log when it's
-    missing or older than the raw log. Best effort: a problem here shows up on
+    missing, or when its modified time isn't the raw log's (see regenerate_md):
+    either file was edited since the last rebuild. Two seconds of slack cover
+    filesystems that store times coarsely, such as FAT. Best effort: a problem here shows up on
     the next change that logs something."""
     raw, md = _mtime(RAW_LOG), _mtime(MD_LOG)
-    if raw is not None and md is not None and md >= raw and raw_in_order():
+    if raw is not None and md is not None and abs(md - raw) <= 2 * 10**9 and raw_in_order():
         return
     fd = acquire_lock(wait=False)
     if fd is None:
@@ -3539,5 +3505,5 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
-
+    
 ````

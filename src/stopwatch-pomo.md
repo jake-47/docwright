@@ -1,9 +1,9 @@
 # Stopwatch pomodoro tracker
 
-`sw` times your work, logs each session, and builds a readable work log from the sessions.
-On the XFCE panel it gives each of the day's tasks a button.
+`sw` tracks your work, logs each session, and builds a readable work log from the sessions.
+On the XFCE panel it gives each of the day's tasks a button, plus two break buttons.
 
-![alt text](attachments/image-3.png)
+![alt text](attachments/sw-img.png)
 
 Commands below use the name `sw`; if your link has another name, such as `psw`, type that instead.
 A command prints nothing when it works, unless the text says what it prints.
@@ -20,16 +20,34 @@ Check it:
 sw version
 ```
 
-It prints `sw, v` followed by the version number, such as `sw, v49`.
+It prints `sw, v` followed by the version number, such as `sw, v50`.
 
-For the panel buttons, install the Generic Monitor plugin:
+Then install what the panel buttons, the chimes and the notifications need:
 
 ```bash
-sudo apt install xfce4-genmon-plugin
+sudo apt install python3 xfce4-genmon-plugin pulseaudio-utils libnotify-bin sound-theme-freedesktop
 ```
 
-It ends either by installing the plugin, or with `xfce4-genmon-plugin is already the newest version`.
-If you skip this, `sw today` tells you, in the terminal and in a desktop notification, and shows this same command.
+It ends either by installing them, or with a line like `xfce4-genmon-plugin is already the newest version` for each one you already have.
+Both are fine.
+This works on Devuan and Debian alike.
+
+Check that you can hear the chimes:
+
+```bash
+sw sound
+```
+
+It plays the two chimes, one after the other, and prints:
+
+```
+pomodoro end: playing /usr/share/sounds/freedesktop/stereo/suspend-error.oga
+break end: playing /usr/share/sounds/freedesktop/stereo/complete.oga
+Heard nothing? Check the volume, and that the sound isn't muted.
+```
+
+The last line always prints; if you heard both chimes, ignore it.
+If something is missing, `sw sound` says what and prints the `apt` line that installs it.
 
 ## Get started
 
@@ -52,11 +70,16 @@ It prints the list, numbered by button:
 The first time, it also prints a line like:
 
 ```
-added slots 1-3 buttons to the panel (panel settings backed up to ~/.cache/sw-panel-backup-20261124-085500.xml)
+added slots 1-3 buttons to the panel; added the short and long break buttons (panel settings backed up to ~/.cache/sw-panel-backup-20261125-085500.xml)
 ```
 
-The panel disappears for a moment and comes back with three new buttons, `work`, `theology` and `email`.
+The panel disappears for a moment and comes back with five new buttons: `work`, `theology`, `email`, `☕ 5m` and `☕ 15m`.
 That is normal: `sw` has to stop the panel to add buttons.
+The two break buttons are in italics, so they stand apart from your tasks.
+
+A task name is one word.
+For two words, join them with `-`, such as `deep-work`.
+A name with a space stops the command: `today: task names are one word: use deep-work, not 'deep work'`.
 
 ### Start and stop a task
 
@@ -68,6 +91,23 @@ It goes back to plain and shows today's time, such as `work 1:00`.
 Clicking another task's button stops and logs the running one first; only one task runs at a time.
 Hover over a button for when it started and what a click will do.
 Clicks redraw every button at once; otherwise buttons redraw every 50 seconds, so the running clock can lag by up to a minute.
+
+### Take a break
+
+Click `☕ 5m` for a short break, or `☕ 15m` for a long one.
+The click stops and logs the running task, then starts the break.
+The button turns bold and counts down the minutes, such as `☕ 4m left`.
+
+When the break ends, you hear a chime and get a notification that says `back to work`.
+Your task doesn't start again by itself; click its button when you're back.
+
+- **Click the running break** to end it early.
+- **Click the other break button** to switch to that break instead.
+- **Click a task's button** during a break to end the break and start the task.
+
+The chime comes on time, even if the panel hasn't redrawn.
+A break logs nothing: the work log already shows it as the gap between two sessions.
+To change the two lengths, see "Change the settings".
 
 ### Check your totals
 
@@ -89,6 +129,7 @@ November 2026   4h 45m of 48h target (10%), worked 2 of 2 working days
 The first two lines are today; "2 sessions of 25m or more" counts the sessions at least one pomodoro long.
 The last three lines are explained in "How the targets work".
 These figures match the sample work log in the next section.
+During a break, `sw status` starts with a line like `short break running: 4m left, ends 10:45`.
 
 ## Read the work log
 
@@ -106,6 +147,7 @@ Working days per week: 5
 Remind after:          3h
 Pomodoro work:         25m
 Pomodoro break:        5m
+Long break:            15m
 ```
 
 # log
@@ -178,7 +220,7 @@ Nov 23–29   4h 45m   2 days   12% of 40h
 What each part is:
 
 - **Everything above `# log` is yours.** The settings live there, and you can add notes there. `sw` never changes it.
-- **Everything below `# log` is rebuilt** every time a session is logged. Anything you type there is lost, so don't.
+- **Everything below `# log` is rebuilt** every time a session is logged. Anything you type there is lost, so don't. To change a session or a tag, edit the raw log instead; see "Fix, rename or remove sessions".
 - **The dashboard** is the first box. It shows the last two days you worked and their weeks, then the month and year so far, then your best ever session, day, week, month and year.
 - **"Week before" shows `0h 00m`** here because tracking began on Monday Nov 23. Weeks before your first logged day have no target.
 - **Each year** gets a table with a row per month and the year's total, then every tag with its share of the year.
@@ -217,6 +259,14 @@ There is no pause.
 Stopping logs the session; starting the same task again begins a new session.
 That is why the work log can show your breaks.
 
+### Every break stops work
+
+A break always stops and logs the running task first, however you start it: a break button, `sw break`, or the break after a pomodoro.
+That matters most when you mix the panel and a terminal.
+Say you click `work` at 09:00 and type `sw break 15` at 10:00.
+The task you started from the panel isn't shown in the terminal, but `sw break` still logs it, 09:00–10:00, before the break begins.
+Without that, the break would count as work.
+
 ### Very short sessions aren't logged
 
 A session under one minute is almost always a mis-click, so `sw` drops it.
@@ -242,14 +292,14 @@ The button, `sw status` and the stopwatch's clock all leave the sleep out too.
 While a session runs, `sw status` says how much it has left out: `running: work, since 12:00 (0h 30m so far, not counting 1h 30m asleep)`.
 `sw` needs no checking in the background for this: Linux keeps count of how long the machine has slept, and `sw` reads that count when a session starts and when it stops.
 
-A pomodoro counts down by the clock, so a block that ends while the machine sleeps has ended when you open the lid.
-It still logs exactly its set length.
+A pomodoro and a break count down by the clock, so one that ends while the machine sleeps has ended when you open the lid.
+A pomodoro still logs exactly its set length.
 
 ### Time away with the machine awake still counts
 
 If the screen only blanks, or the lid closes without the machine sleeping, `sw` sees no sleep.
 It also can't see the lunch you walked off to without stopping the timer.
-So the one habit it needs is: stop it when you stop.
+So the one habit it needs is: stop it when you stop, or click a break button.
 
 ### A forgotten timer gets a reminder
 
@@ -260,7 +310,7 @@ You also get one desktop notification:
 work has been running for 3h 00m, since 09:00. Still working? If not, stop it and fix the time in the raw log.
 ```
 
-If you had stopped working, stop the timer, then shorten that session in the raw log; see "Edit the raw log".
+If you had stopped working, stop the timer, then shorten that session in the raw log; see "Fix, rename or remove sessions".
 Change the 3 hours with the `Remind after` setting.
 
 ### A crash or restart
@@ -281,39 +331,71 @@ Then log the time you actually worked with `sw add`, such as `sw add 2h work`.
 
 ### Change the day's tasks
 
-To add or remove a task without typing the whole list again:
+To add, remove or rename a task without typing the whole list again:
 
 ```bash
 sw today add errands
 sw today remove theology
+sw today rename errands chores
 ```
 
-`add` puts the task at the end, on the next button.
+`add` puts the task at the end, on the next task button.
 `remove` takes it off, and the tasks after it move up one button.
-Both print the new list, as `sw today` does; after the two commands above:
+All three print the new list, as `sw today` does; after the three commands above:
 
 ```
 1  work
 2  email
-3  errands
+3  chores
 ```
 
+`rename` also prints what else it renamed, before the list:
+
+```
+renamed errands to chores: 1 session today and the running timer
+```
+
+It renames the button, the sessions logged today under the old name, and the running timer if it's that task.
+So fixing a typo, such as `theolgy` to `theology`, keeps today's time on the button.
+Earlier days keep the old name; to rename those, see "Fix, rename or remove sessions".
+
 The spare button goes blank; `sw` never removes a button.
-Name several tasks to change them at once, such as `sw today add errands calls`.
+Name several tasks to add or remove them at once, such as `sw today add errands calls`.
 You can have up to 9 tasks.
 
 A typo stops the command and changes nothing:
 
 - Adding a task already there prints `today: errands is already on the list; nothing changed`.
-- Removing one that isn't there prints `today: errands isn't on the list; nothing changed`.
+- Removing or renaming one that isn't there prints `today: errands isn't on the list; nothing changed`.
+- Renaming to a name already on the list prints `today: work is already on the list; nothing changed`.
 
 Removing the task that's running leaves it running, and `sw` says `errands is still running and now has no button; sw stop stops it`.
 
 `sw today` alone prints the list.
-`sw today -c` blanks every button and prints `no tasks set; the panel slots are empty`.
+`sw today -c` blanks every task button and prints `no tasks set; the task buttons are empty`.
+The break buttons stay.
 
-A task literally named `add` or `remove` can't start a full list, since `sw` reads it as the command.
+A task literally named `add`, `remove` or `rename` can't start a full list, since `sw` reads it as the command.
 Add it with `sw today add add`.
+
+### Type less: short flags
+
+Each flag stands for the words after it:
+
+| Flag | Same as |
+| --- | --- |
+| `-p` | `pomo` |
+| `-b` | `break` |
+| `-s` | `status` |
+| `-a` | `add` |
+| `-t` | `today` |
+| `-ta` | `today add` |
+| `-tr` | `today remove` |
+| `-trn` | `today rename` |
+| `-tc` | `today -c` |
+
+So `sw -p deep work` runs a pomodoro tagged `deep-work`, and `sw -ta errands` adds a task.
+A tag can never start with `-`, so a flag never clashes with a task name.
 
 ### Time a session in a terminal
 
@@ -361,19 +443,19 @@ A 5-minute break counts down next; at its end a second chime plays, a notificati
 - **Ctrl+C** during the work throws the block away.
 - **Closing the window** during the work logs what you did so far.
 
-For a shorter command, add `alias swp='sw pomo'` to `~/.bashrc`.
-To hear the two chimes now, run `paplay /usr/share/sounds/freedesktop/stereo/suspend-error.oga` and `paplay /usr/share/sounds/freedesktop/stereo/complete.oga`.
+`sw -p deep work` does the same with less typing.
 
-### Take a break on its own
+### Take a break in a terminal
 
 ```bash
 sw break 10
 ```
 
-It prints `10m break. Press Enter to skip.` and `   Break ends 10:40`, then counts down: `☕  break remaining: 09:59`.
+If a task is running, it first logs it and prints the `logged:` line and today's total.
+Then it prints `10m break. Press Enter to skip.` and `   Break ends 10:40`, and counts down: `☕  break remaining: 09:59`.
 It ends as a pomodoro's break does.
 `sw break` alone uses the `Pomodoro break` length, 5 minutes unless you change it.
-A break logs nothing, and doesn't stop a running timer.
+This break shows in the terminal only, not on a break button.
 
 ### Start or stop without a terminal view
 
@@ -393,6 +475,7 @@ Today's total: 3h 10m
 With nothing running, `sw stop` prints `nothing running`.
 `sw toggle work` stops `work` if it's running, and starts it otherwise.
 That makes a good keyboard shortcut: in Settings > Keyboard > Application Shortcuts, add the full path, such as `/home/you/.local/bin/sw toggle work`.
+The break buttons work as shortcuts too: `/home/you/.local/bin/sw breakbutton short`, or `long`.
 A session started this way has no cancel; to drop it unlogged, run `rm ~/.stopwatch_running`.
 
 ### Log time you didn't time
@@ -426,7 +509,7 @@ To put a session at a time of your choosing, or to change or remove one, edit th
 
 ### Change the settings
 
-Five settings sit above the `# log` line of the work log:
+Six settings sit above the `# log` line of the work log:
 
 ```
 Daily target:          8h
@@ -434,28 +517,54 @@ Working days per week: 5
 Remind after:          3h
 Pomodoro work:         25m
 Pomodoro break:        5m
+Long break:            15m
 ```
 
 `Working days per week: 5` means Monday to Friday; `6` adds Saturday.
 `Remind after: 0h` turns the reminder off.
+`Pomodoro break` is the break after a pomodoro, the `☕ 5m` button, and `sw break` with no length.
+`Long break` is the `☕ 15m` button.
+The buttons show their length, so changing a setting changes the button's label too, at its next redraw.
+
 Edit a value and save; the next `sw` run uses it.
 Delete a line to use its default.
 A line `sw` can't read stops every command with a message naming it, so don't write notes after a value.
 
-### Edit the raw log
+A work log made before v50 has no `Long break` line.
+The long break button then uses 15 minutes; to change it, add the line yourself, under `Pomodoro break`.
 
-The raw log is `~/.stopwatch_log`.
-Each line is one session:
+### Fix, rename or remove sessions
+
+Every change to your sessions goes in the raw log, `~/.stopwatch_log`.
+Never edit below `# log` in the work log: that part is rebuilt from the raw log, and your edit is lost on the next session.
+
+Each line of the raw log is one session, newest at the top:
 
 ```
+2026-11-24	11:00	2700	theology
 2026-11-24	10:00	3600	work
 ```
 
 That is the date, the time the session ended, its length in seconds, and its tag, separated by tabs or spaces.
-3600 seconds is one hour, so this session ran 09:00–10:00.
-To shorten it to 45 minutes, change `3600` to `2700`; to remove it, delete the line.
+3600 seconds is one hour, so the `work` session ran 09:00–10:00.
+
+- **To shorten it** to 45 minutes, change `3600` to `2700`.
+- **To remove it**, delete the line.
+- **To rename it**, change the tag at the end of the line.
+
 Save, and the work log follows on the next `sw` run, or within a minute from the panel.
-A line `sw` can't read is named in a warning and left out of the totals until you fix it.
+`sw` also puts the lines back in order, newest first, so a line you add at the bottom moves to its place.
+A line `sw` can't read moves to the top, and is named in a warning and left out of the totals until you fix it.
+
+To rename a tag on every day at once, such as `theolgy` to `theology`:
+
+```bash
+sed -i 's/\ttheolgy$/\ttheology/' ~/.stopwatch_log
+```
+
+It prints nothing.
+It changes only tags that are exactly `theolgy`, so `theolgy-notes` stays as it is.
+To rename the task on today's buttons too, also run `sw today rename theolgy theology`.
 
 ### Move the logs
 
@@ -474,15 +583,23 @@ Saving a new version of the script puts these paths back to the defaults, so set
 
 Open the script itself, not the link, replace everything in it with the new version, and save.
 You can do this with a timer running: the timer lives in a file of its own.
-One catch when updating from v48 or older: a timer already running then can't leave out sleep, since the old version didn't note the sleep count when it started.
-Timers you start after the update can.
 Then run `sw version`, which prints the new version number.
+
+When updating from v49 or older:
+
+- **The raw log turns newest first** on the first `sw` run, button redraws included. Nothing is lost; only the order of the lines changes.
+- **Run `sw today` with your tasks once**, such as `sw today work theology email`, to add the two break buttons. It prints `added the short and long break buttons`.
+- **`sw break` now stops the running task** before the break, as every break does.
+
+When updating from v48 or older, there's one more catch: a timer already running then can't leave out sleep, since the old version didn't note the sleep count when it started.
+Timers you start after the update can.
 
 ### The files sw uses
 
-- `~/.stopwatch_log`: the raw log, the record of every session.
+- `~/.stopwatch_log`: the raw log, the record of every session, newest first.
 - `~/Documents/mv/wlog.md`: the work log, rebuilt from the raw log.
 - `~/.stopwatch_running`: the running timer, if any.
+- `~/.stopwatch_break`: the break a break button started, if any.
 - `~/.stopwatch_tasks`: the day's tasks.
 - `~/.stopwatch_reminded`: the last session you were reminded about.
 - `~/.cache/sw-panel-backup-*.xml`: a copy of the panel settings from each time `sw today` changed the panel; the newest 5 are kept.
@@ -499,10 +616,14 @@ If the work log is a link, into a synced folder say, `sw` writes through the lin
 | A stopped button shows `⚠` | Hover over it for the reason. Usually a settings line `sw` can't read, or a button set up by hand. |
 | `… wasn't rebuilt (…)` | The work log couldn't be written, for the reason in brackets. The raw log is safe; fix the cause and the next `sw` run rebuilds it. |
 | A button is blank | Its slot has no task today. Add one with `sw today add`. |
+| No break buttons | Run `sw today` with your tasks; it adds them. |
 | A button shows another task, or another task's time | Its settings are out of step. Run `sw today` with your tasks; it renumbers the buttons and prints `renumbered 1 button`. |
 | The panel is gone after `sw today` | Start it again with `xfce4-panel &`, then run `sw today` with your tasks. |
-| `panel not changed: … Generic Monitor plugin …` | Install the plugin as in "Install sw", then run `sw today` again. |
+| `panel not changed: … Generic Monitor plugin …` | Install the packages as in "Install sw", then run `sw today` again. |
+| No chime, or no notification | Install the packages as in "Install sw". Then `sw sound` checks the chimes and says what's still missing. |
+| `today: task names are one word …` | Join the words with `-`, such as `deep-work`. |
 | `invalid duration: …` after `sw add` | `sw add` logs time. To put a task on the panel, use `sw today add`. |
+| A renamed tag changed back, or a fix is gone | You edited the work log. Make the change in the raw log instead. |
 | The work log is missing months | The raw log in use isn't the one with your history, often after an update reset the paths. Check the paths at the top of the script. |
 | Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove the copy and link the current script instead. |
 
@@ -518,22 +639,25 @@ Run it honestly for a week or two, learn where your hours go, and then you can p
 
 ````python3
 #!/usr/bin/python3 -S
-# sw, v49
+# sw, v50
 #
 # Stopwatch, pomodoro, and work log, with optional XFCE panel buttons.
 #
 # Subcommands (run `sw help` for details):
 #   sw [tag]               stopwatch (default)
 #   sw pomo [tag]          pomodoro, then a break
-#   sw break [mins]        break timer on its own
+#   sw break [mins]        stop work, then a break timer on its own
 #   sw start|toggle [tag]  start, or start/stop, without the live view
 #   sw stop                stop and log the session
 #   sw status              what's running, and today's total
-#   sw today [add|remove] [TASK...]
-#                          set, add to or take from the day's tasks; makes the panel buttons
+#   sw today [add|remove|rename] [TASK...]
+#                          set or change the day's tasks; makes the panel buttons
 #   sw panel SLOT          one panel button (XFCE Generic Monitor)
+#   sw breakbutton KIND    what a break button's click runs
 #   sw add DURATION [tag]  record a session in today's breaks
+#   sw sound               play both chimes
 #   sw help / version
+#   Short flags: -p -b -s -a -t -ta -tr -trn -tc (see FLAGS)
 #
 # Python 3, standard library only.
 #
@@ -545,20 +669,23 @@ Run it honestly for a week or two, learn where your hours go, and then you can p
 #   config            the settings above `# log` in the work log
 #   the raw log       the record: one session a line; the one parser every report uses
 #   how a session reads  start-end ranges and tag names, shared by terminal and work log
-#   writes            atomic replace and append; the lock; locked_change, which every
-#                     change to the raw log goes through
+#   writes            atomic replace; the raw log kept newest first; the lock;
+#                     locked_change, which every change to the raw log goes through
 #   the running timer the state file, change_timer (start/stop/log), crash handling,
 #                     sleep, the forgotten-timer reminder, and today's figures for the buttons
 #   aggregates        totals, tags, working days, targets and records
 #   block renderers   everything below `# log`: dashboard, years, months, weeks, days
 #   live timer        the terminal views: stopwatch, pomodoro, break, and their signals
-#   modes / commands  start, stop, toggle, status, today, add
-#   the panel itself  finding, adding, numbering and redrawing the XFCE buttons
+#   modes / commands  start, stop, toggle, status, sound
+#   break buttons     the two panel break timers and the process that chimes at the end
+#   the panel itself  finding, adding, numbering and redrawing the XFCE buttons; today
+#   mutating commands sw add, and the breaks its time goes into
 #   dispatch          paths, keeping the work log in step, and main()
 #
 # Invariants worth knowing before changing anything:
-#   - Only change_timer, discard and cmd_add change the raw log or the timer, and
-#     only inside locked_change, under one lock, with signals held.
+#   - Only change_timer, discard, cmd_add and the task rename change the raw log or
+#     the timer, and only inside locked_change, under one lock, with signals held.
+#   - The raw log is written newest first, whole, every time (write_raw).
 #   - Every figure sums each session's minutes rounded once (round_mins), so the
 #     terminal, the buttons and the work log always agree.
 #   - A running session's time is its awake time (Running.awake): every view of
@@ -568,13 +695,14 @@ Run it honestly for a week or two, learn where your hours go, and then you can p
 
 # ---- settings: the ones you're most likely to change ----
 # Saving a new version over this file puts them back to these values, so
-# note any you change. The daily target, working days and pomodoro lengths
-# are set at the top of the work log instead.
+# note any you change. The daily target, working days, pomodoro and break
+# lengths are set at the top of the work log instead.
 
-RAW_LOG_PATH = "~/.stopwatch_log"          # the record: one line per session
-WORK_LOG_PATH = "~/Documents/mv/wlog.md"   # the readable view, rebuilt from the record
+RAW_LOG_PATH = "~/Documents/.stopwatch_log"          # the record: one line per session
+WORK_LOG_PATH = "~/Documents/wlog.md"   # the readable view, rebuilt from the record
 SOUND_SESSION_END = "/usr/share/sounds/freedesktop/stereo/suspend-error.oga"  # a pomodoro ends
 SOUND_BREAK_END = "/usr/share/sounds/freedesktop/stereo/complete.oga"   # a break ends
+SOUND_INSTALL = "sudo apt install pulseaudio-utils sound-theme-freedesktop"  # what plays them
 PANEL_REFRESH_SECS = 50                    # how often buttons redraw on their own; clicks redraw at once
 
 import datetime
@@ -632,7 +760,8 @@ MAX_SLOTS = 9
 class Config:
     """The settings above `# log` in wlog.md; these are the defaults."""
     work_mins = 25
-    break_mins = 5
+    break_mins = 5          # the pomodoro's break, and the short break button
+    long_break_mins = 15    # the long break button
     daily_target = 8   # hours a working day aims for
     working_days = 5   # Monday through this weekday are working days
     remind_hours = 3   # a session running this long gets a reminder; 0 turns it off
@@ -641,8 +770,15 @@ class Config:
 CFG = Config()
 
 # Set by _init_paths().
-RAW_LOG = MD_LOG = STATE_FILE = TASKS_FILE = REMIND_FILE = LOCK_DIR = LOCK_FILE = ""
+RAW_LOG = MD_LOG = STATE_FILE = TASKS_FILE = REMIND_FILE = BREAK_FILE = LOCK_DIR = LOCK_FILE = ""
 LOCK_DIR_IS_FALLBACK = False
+
+# Short flags: each stands for the words after it.
+FLAGS = {
+    "-p": ["pomo"], "-b": ["break"], "-s": ["status"], "-a": ["add"],
+    "-t": ["today"], "-ta": ["today", "add"], "-tr": ["today", "remove"],
+    "-trn": ["today", "rename"], "-tc": ["today", "-c"],
+}
 
 HELP_TEXT = r"""sw — stopwatch, pomodoro and work log, with XFCE panel buttons
 
@@ -651,7 +787,7 @@ Timing
                            cancels (or, for a task already running, just
                            closes the view); closing the window keeps it running
   sw pomo [tag]            pomodoro: countdown, chime, then a break
-  sw break [MINUTES]       a break timer on its own; logs nothing
+  sw break [MINUTES]       stop and log the running task, then a break timer
   sw start [tag]           start without the live view
   sw stop                  stop and log whatever is running
   sw toggle [tag]          stop tag if it's running, else start it
@@ -660,41 +796,59 @@ Timing
                            It fills today's breaks, the latest first, splitting
                            across breaks if it must; what's left goes before
                            the day's first session
+  sw sound                 play both chimes, to check you can hear them
 
   There is one timer, whatever starts it. Starting a task stops and logs the
   one before; there's no pause, so starting a task again begins a new session.
-  Sessions under a minute aren't logged. Time the machine spends asleep (a
-  closed lid, a suspend) is left out, and sw says how much, with the sw add
-  that puts it back. A timer left running when the machine goes down is
-  stopped without logging; sw says so, and you sw add the time.
+  Every break stops and logs the running task. Sessions under a minute aren't
+  logged. Time the machine spends asleep (a closed lid, a suspend) is left
+  out, and sw says how much, with the sw add that puts it back. A timer left
+  running when the machine goes down is stopped without logging; sw says so,
+  and you sw add the time.
 
 Panel buttons (XFCE)
   sw today work theology   set the day's tasks: one button each, in order
   sw today add email       add tasks to the end of the list
   sw today remove theology take tasks off the list; the ones after move up
-  sw today                 list them; sw today -c empties the buttons
+  sw today rename theolgy theology
+                           rename a task: its button, today's sessions and
+                           the running timer; earlier days keep the old name
+  sw today                 list them; sw today -c empties the task buttons
+  Task names are one word each; join words with -, as in deep-work.
   sw makes and numbers the buttons itself, adding more when the list grows;
-  a shorter list leaves the spare ones blank. If a button shows the wrong
-  task, run sw today with your tasks again: it renumbers them. Click a button
-  to start or stop its task. A task named add or remove can't start a full
-  list: add it with sw today add add. Needs: sudo apt install xfce4-genmon-plugin
+  a shorter list leaves the spare ones blank. After the task buttons come two
+  break buttons, short and long: a click stops and logs the running task and
+  starts the break, a click on a running break ends it early, and its end
+  chimes. Their click runs sw breakbutton short (or long), which also works as
+  a keyboard shortcut. If a button shows the wrong task, run sw today with
+  your tasks again: it renumbers them. Click a task's button to start or stop
+  it. A task named add, remove or rename can't start a full list: add it with
+  sw today add add. Needs: sudo apt install xfce4-genmon-plugin
+
+Short flags
+  -p pomo   -b break   -s status   -a add   -t today
+  -ta today add   -tr today remove   -trn today rename   -tc today -c
+  So sw -p deep work runs a pomodoro tagged deep-work.
 
 DURATION: 90m, 1h, 1h30m, 5400s, or plain minutes.
 Tags: words join with -, so `sw deep work` is deep-work. For a tag named like
-a command, put -- first: sw -- break. Shortcut: alias swp='sw pomo' in ~/.bashrc.
+a command, put -- first: sw -- break.
 
 Files
-  ~/.stopwatch_log         raw log, the record: date, end HH:MM, seconds, tag.
-                           Edit it to fix or remove sessions; the work log
-                           follows on the next sw run
+  ~/.stopwatch_log         raw log, the record, newest session first: date,
+                           end HH:MM, seconds, tag. Edit it to fix, rename or
+                           remove sessions; the work log follows on the next
+                           sw run. Never edit below # log in the work log:
+                           that part is rebuilt and your edit is lost
   ~/Documents/mv/wlog.md   work log, rebuilt from the raw log. Settings and
                            notes go above its `# log` line; everything below
                            is replaced. Settings: Daily target: 8h,
                            Working days per week: 5, Remind after: 3h (a
                            timer running that long gets a notification; 0h
                            turns it off), Pomodoro work: 25m, Pomodoro break: 5m
+                           (also the short break button), Long break: 15m
   To keep the logs elsewhere, change the paths at the top of this script.
-"""
+  The chimes need: """ + SOUND_INSTALL + "\n"
 
 # ---- output ----
 
@@ -856,6 +1010,7 @@ def read_config():
     for key, attr, unit, low, high, need in (
             ("Pomodoro work", "work_mins", "m", 1, None, "whole minutes, 1 or more, such as '%s: 25m'"),
             ("Pomodoro break", "break_mins", "m", 1, None, "whole minutes, 1 or more, such as '%s: 5m'"),
+            ("Long break", "long_break_mins", "m", 1, None, "whole minutes, 1 or more, such as '%s: 15m'"),
             ("Daily target", "daily_target", "h", 1, 24, "whole hours, 1 to 24, such as '%s: 8h'"),
             ("Working days per week", "working_days", "", 1, 7, "a number of days, 1 to 7, such as '%s: 5'"),
             ("Remind after", "remind_hours", "h", 0, 24, "whole hours, 0 to 24, such as '%s: 3h' (0 turns it off)")):
@@ -947,7 +1102,9 @@ def load_entries(text):
 
 
 def report_entries(entries):
-    return [e for e in entries if e.secs >= MIN_SESSION_SECS]
+    """ENTRIES long enough to count, oldest first: the raw log is newest first,
+    and the reports (records, ties) read in time order."""
+    return sorted((e for e in reversed(entries) if e.secs >= MIN_SESSION_SECS), key=lambda e: (e.date, e.hm))
 
 
 # ---- how a session reads (wlog.md and the terminal share these) ----
@@ -1048,38 +1205,74 @@ def write_atomic(path, data):
         raise
 
 
-def append_row(row):
-    """Append one row. Adds the newline a hand edit may have left off the last
-    line, and on any write error cuts the file back to its prior size, so a
-    failed append leaves no partial row behind."""
+def ordered_raw(lines):
+    """LINES as the raw log keeps them, newest first: lines that aren't sessions
+    at the top, where they're seen; then sessions by date and end time, the
+    latest first, ties keeping their order; blank lines dropped."""
+    bad, good = [], []
+    for line in lines:
+        if is_blank(line):
+            continue
+        e = parse_entry(line)
+        if e is None:
+            bad.append(line)
+        else:
+            good.append(((e.date, e.hm), line))
+    good.sort(key=lambda g: g[0], reverse=True)  # a reversed sort is still stable
+    return bad + [line for _, line in good]
+
+
+def write_raw(lines):
+    """Write the raw log whole, newest first, all at once: a crash or a failed
+    write leaves the old file as it was. Readable by this user only."""
+    data = "".join(line + "\n" for line in ordered_raw(lines))
     try:
         d = os.path.dirname(RAW_LOG)
         if d:
             os.makedirs(d, exist_ok=True)
-        fd = os.open(RAW_LOG, os.O_RDWR | os.O_APPEND | os.O_CREAT | os.O_CLOEXEC, 0o600)
+        write_atomic(RAW_LOG, data.encode("utf-8", "surrogateescape"))
     except OSError as e:
         raise LogUnchanged("cannot write %s" % _describe(e, RAW_LOG))
+
+
+def raw_lines():
+    """The raw log's lines; raises LogUnchanged when it can't be read."""
     try:
-        st = os.fstat(fd)
-        if st.st_mode & 0o077:  # a raw log from before v47 may be readable by others
-            os.fchmod(fd, st.st_mode & 0o700)
-        size = st.st_size
-        data = row.encode("utf-8", "surrogateescape") + b"\n"
-        if size and os.pread(fd, 1, size - 1) != b"\n":
-            data = b"\n" + data
-        try:
-            _write_all(fd, data)
-            os.fsync(fd)
-        except OSError:
-            try:
-                os.ftruncate(fd, size)
-            except OSError:
-                pass
-            raise
+        return _lines(read_raw_text() or "")
     except OSError as e:
-        raise LogUnchanged("cannot write %s" % _describe(e, RAW_LOG))
-    finally:
-        os.close(fd)
+        raise LogUnchanged("cannot read %s" % _describe(e, RAW_LOG))
+
+
+def add_rows(rows):
+    """Add ROWS to the raw log, which is rewritten newest first."""
+    write_raw(list(rows) + raw_lines())
+
+
+def _first_session(lines):
+    for raw in lines:
+        e = parse_entry(raw.decode("utf-8", "surrogateescape"))
+        if e is not None:
+            return e.date, e.hm
+    return None
+
+
+def raw_in_order():
+    """Whether the raw log's first session is no older than its last. Two small
+    reads, cheap enough for every panel tick, and they catch a log written
+    oldest first, as before v50, and a row added at the bottom by hand."""
+    try:
+        f = open(RAW_LOG, "rb")
+    except OSError:
+        return True
+    with f:
+        head = f.read(8192)
+        size = f.seek(0, os.SEEK_END)
+        f.seek(max(0, size - 8192))
+        tail = f.read()
+    whole = size <= 8192
+    top = _first_session(head.split(b"\n") if whole else head.split(b"\n")[:-1])
+    bottom = _first_session(reversed(tail.split(b"\n") if whole else tail.split(b"\n")[1:]))
+    return top is None or bottom is None or top >= bottom
 
 
 # ---- lock ----
@@ -1321,6 +1514,7 @@ def change_timer(decide, expect=None, secs=None, fail="failed to update the time
             if nxt is not None:
                 out.started = Running(nxt, now, boot_id(), sleep_clock())
                 write_state(out.started)
+                clear_break()  # back to work: a break button's break is over
             elif cur is not None:
                 clear_state()
         except OSError as e:
@@ -1338,7 +1532,7 @@ def change_timer(decide, expect=None, secs=None, fail="failed to update the time
         stamp = time.localtime(now)
         out.logged = (time.strftime("%Y-%m-%d", stamp), time.strftime("%H:%M", stamp))
         try:
-            append_row("%s\t%s\t%d\t%s" % (out.logged[0], out.logged[1], out.secs, cur.tag))
+            add_rows(["%s\t%s\t%d\t%s" % (out.logged[0], out.logged[1], out.secs, cur.tag)])
         except LogUnchanged as e:
             msg = "%s\n%s wasn't logged; recover it with: sw add %ds%s" % (
                 e.args[0], tag_label(cur.tag), out.secs, "" if cur.tag == "-" else " " + cur.tag)
@@ -1423,28 +1617,26 @@ def _since(epoch):
 
 
 def _todays_rows(today):
-    """The raw log's rows for TODAY, read from the end back to the first row
-    dated earlier, so a button's work stays the same however long the log
-    grows. Rows are appended in time order; one hand-edited into the middle
-    still counts in wlog.md, and on the buttons once it's at the end."""
+    """TODAY's rows, read from the top of the raw log, which is newest first,
+    down to the first session dated earlier: a button's work stays the same
+    however long the log grows. A row hand-edited out of order counts once
+    sw has put it back in order (see sync_logs)."""
     try:
         f = open(RAW_LOG, "rb")
     except FileNotFoundError:
         return []
+    rows = []
     with f:
-        pos = f.seek(0, os.SEEK_END)
-        data = b""
-        while pos > 0:
-            step = min(8192, pos)
-            pos -= step
-            f.seek(pos)
-            data = f.read(step) + data
-            lines = data.split(b"\n")
-            # Every line but the first is whole; stop once one is from before today.
-            if any(l.strip()[:10] < today.encode() for l in lines[1:] if l.strip()):
+        for raw in f:
+            line = raw.decode("utf-8", "surrogateescape").rstrip("\n")
+            e = parse_entry(line)
+            if e is None:
+                continue
+            if e.date < today:
                 break
-    rows = [l.decode("utf-8", "surrogateescape") for l in data.split(b"\n")]
-    return [r for r in rows if r.lstrip(" \t").startswith(today)]
+            if e.date == today:
+                rows.append(line)
+    return rows
 
 
 def tag_today(tag):
@@ -1812,6 +2004,7 @@ def render_config_seed():
             + "Daily target:          %dh\nWorking days per week: %d\n" % (CFG.daily_target, CFG.working_days)
             + "Remind after:          %dh\n" % CFG.remind_hours
             + "Pomodoro work:         %dm\nPomodoro break:        %dm\n" % (CFG.work_mins, CFG.break_mins)
+            + "Long break:            %dm\n" % CFG.long_break_mins
             + FENCE + "\n\n")
 
 
@@ -2044,6 +2237,34 @@ def play_sound(path):
         _run_quietly(["paplay", path], stderr=subprocess.DEVNULL)
 
 
+def _break_over():
+    play_sound(SOUND_BREAK_END)
+    if shutil.which("notify-send"):
+        _run_quietly(["notify-send", "⏰ break over", "back to work"])
+
+
+def cmd_sound(args):
+    """`sw sound`: play both chimes the way sw plays them, saying what's missing."""
+    if args:
+        die("sound: takes no arguments")
+    if not shutil.which("paplay"):
+        die("paplay isn't installed, so sw plays no chimes; install it with: %s" % SOUND_INSTALL)
+    for label, path in (("pomodoro end", SOUND_SESSION_END), ("break end", SOUND_BREAK_END)):
+        if not os.path.isfile(path):
+            say("%s: %s is missing; install it with: %s" % (label, path, SOUND_INSTALL))
+            continue
+        say("%s: playing %s" % (label, path))
+        try:
+            r = subprocess.run(["paplay", path], stderr=subprocess.PIPE, text=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            say("   paplay couldn't play it: %s" % _describe(e))
+            continue
+        if r.returncode:
+            say("   paplay couldn't play it: %s" % (r.stderr.strip() or "exit %d" % r.returncode))
+        time.sleep(0.5)
+    say("Heard nothing? Check the volume, and that the sound isn't muted.")
+
+
 # ---- modes ----
 
 
@@ -2160,15 +2381,13 @@ def run_break(tty, mins):
     say("")
     if TIMER.completed:
         say("⏰ break over!")
-        play_sound(SOUND_BREAK_END)
-        if shutil.which("notify-send"):
-            _run_quietly(["notify-send", "⏰ break over", "back to work"])
+        _break_over()
     else:
         say("⏭ break skipped")
 
 
 def cmd_break(args):
-    """`sw break [MINUTES]`: a break timer on its own."""
+    """`sw break [MINUTES]`: stop and log the running task, then a break timer."""
     mins, got = CFG.break_mins, False
     for a in args:
         if a.startswith("-"):
@@ -2181,7 +2400,19 @@ def cmd_break(args):
         if int(m.group(1)) < 1:
             die("break: minutes must be >= 1")
         mins, got = int(m.group(1)), True
-    run_break(open_tty(), mins)
+    tty = open_tty()
+    stop_for_break()
+    run_break(tty, mins)
+
+
+def stop_for_break():
+    """Every break starts by stopping and logging the running task, if any."""
+    _say_stale()
+    out = change_timer(lambda cur: None, fail="failed to stop the running task")
+    _say_stopped(out)
+    if out.logged:
+        say_day_total(out.logged[0])
+    return out
 
 
 # ---- the timer without a live view: commands, shortcuts, panel buttons ----
@@ -2237,6 +2468,10 @@ def cmd_status(args):
         die("status: takes no arguments")
     _say_stale()
     cur = read_state_or_die()
+    b = running_break()
+    if b is not None:
+        say("%s break running: %dm left, ends %s" % (b.kind, (b.end - int(time.time()) + 59) // 60,
+                                                     time.strftime("%H:%M", time.localtime(b.end))))
     total = day_total(datetime.date.today().isoformat())
     if cur is None:
         say("nothing running")
@@ -2312,6 +2547,160 @@ def _panel_face(tag, cur):
         txt = _esc(label) + (" " + _clock_hm(logged) if logged else "")
         tool = "%s: stopped\ntoday %s\nclick to start %s" % (
             label, fmt_mins(logged), "a new session" if logged else "it")
+    return _PAD + txt + _PAD, _esc(tool)
+
+
+# ---- break buttons ----
+#
+# Two panel buttons after the task buttons, a short break and a long one. A
+# click stops and logs the running task and starts the break; a click on the
+# break that's running ends it early. The break is a one-line file (kind, end,
+# minutes), so every button sees it; a small sw started by the click waits for
+# its end, then chimes and notifies, so the chime is on time whatever the
+# panel's refresh period. Starting any task ends a break.
+
+BREAK_KINDS = ("short", "long")
+
+
+class Break:
+    __slots__ = ("kind", "end", "mins")
+
+    def __init__(self, kind, end, mins):
+        self.kind, self.end, self.mins = kind, end, mins
+
+    def same(self, other):
+        return other is not None and (other.kind, other.end) == (self.kind, self.end)
+
+
+def break_length(kind):
+    return CFG.break_mins if kind == "short" else CFG.long_break_mins
+
+
+def read_break():
+    """The break a break button started, or None; a file that doesn't read as
+    one counts as none."""
+    try:
+        f = split_fields(_read_bytes(BREAK_FILE).decode("utf-8", "replace").strip())
+    except OSError:
+        return None
+    if len(f) == 3 and f[0] in BREAK_KINDS and _DIGITS.fullmatch(f[1]) and _DIGITS.fullmatch(f[2]):
+        return Break(f[0], int(f[1]), int(f[2]))
+    return None
+
+
+def running_break(now=None):
+    """The break still running at NOW, or None."""
+    now = int(time.time()) if now is None else now
+    b = read_break()
+    return b if b is not None and b.end > now else None
+
+
+def clear_break():
+    """End a break button's break. Best effort: it's only a timer."""
+    try:
+        os.unlink(BREAK_FILE)
+    except OSError:
+        pass
+
+
+def _locked(fn):
+    """fn() under the lock, with signals held; dies if the lock can't be had."""
+    fd = acquire_lock()
+    if fd is None:
+        die("failed to change the break")
+    try:
+        with held_signals():
+            return fn()
+    finally:
+        os.close(fd)
+
+
+def cmd_breakbutton(args):
+    """`sw breakbutton short|long`: what a break button's click runs. Ends that
+    break if it's running; otherwise stops and logs the running task and starts
+    the break, in place of any other break."""
+    if len(args) != 1 or args[0] not in BREAK_KINDS:
+        die("breakbutton: say which break: sw breakbutton short, or sw breakbutton long")
+    kind = args[0]
+    b = running_break()
+    if b is not None and b.kind == kind:
+        _locked(lambda: clear_break() if b.same(read_break()) else None)
+        say("break ended early")
+        refresh_buttons()
+        return
+    stop_for_break()
+    mins = break_length(kind)
+    end = int(time.time()) + mins * 60
+    try:
+        _locked(lambda: write_atomic(BREAK_FILE, ("%s\t%d\t%d\n" % (kind, end, mins)).encode()))
+    except OSError as e:
+        die("cannot write %s" % _describe(e, BREAK_FILE))
+    say("%dm break, ends %s" % (mins, time.strftime("%H:%M", time.localtime(end))))
+    try:
+        subprocess.Popen([sys.executable, "-S", os.path.realpath(__file__), "breakwait", kind, str(end)],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True,
+                         preexec_fn=lambda: signal.pthread_sigmask(signal.SIG_SETMASK, set()))
+    except OSError as e:
+        warn("the break's end won't chime: %s" % _describe(e))
+    refresh_buttons()
+
+
+def cmd_breakwait(args):
+    """The process a break button's click starts: wait for the break to end,
+    then chime and notify, unless it was ended or replaced meanwhile. Sleeps in
+    short steps against the wall clock, so a break that ends during a suspend
+    has ended when the lid opens. Redraws the buttons once a minute, so the
+    minutes left stay close."""
+    if len(args) != 2 or args[0] not in BREAK_KINDS or not _DIGITS.fullmatch(args[1]):
+        return
+    kind, end = args[0], int(args[1])
+    mine = Break(kind, end, 0)
+    drawn = time.time()
+    while True:
+        if not mine.same(read_break()):
+            return
+        now = time.time()
+        if now >= end:
+            break
+        if now - drawn >= 60:
+            refresh_buttons()
+            drawn = now
+        time.sleep(min(5, end - now))
+
+    def finish():
+        if mine.same(read_break()):
+            clear_break()
+            return True
+        return False
+
+    fd = acquire_lock()
+    if fd is None:
+        return
+    try:
+        with held_signals():
+            over = finish()
+    finally:
+        os.close(fd)
+    if over:
+        refresh_buttons()
+        _break_over()
+
+
+def _break_face(kind):
+    """A break button's text and tooltip, as Pango markup: italic, to set it
+    apart from the task buttons; bold, with the minutes left, while it runs."""
+    now = int(time.time())
+    b = running_break(now)
+    if b is not None and b.kind == kind:
+        txt = "<b><i>☕ %dm left</i></b>" % ((b.end - now + 59) // 60)
+        tool = "%dm break, ends %s\nclick to end it early" % (
+            b.mins, time.strftime("%H:%M", time.localtime(b.end)))
+    else:
+        mins = break_length(kind)
+        txt = "<i>☕ %dm</i>" % mins
+        tool = "%s break, %dm\nclick to stop and log the running task and %s" % (
+            kind, mins, "switch to this break" if b is not None else "start the break")
     return _PAD + txt + _PAD, _esc(tool)
 
 
@@ -2566,28 +2955,60 @@ def _start_panel():
         return False
 
 
+def _button_arg(b):
+    """What follows `panel` in button B's command: a slot number or a break kind."""
+    for command, _, _ in b.sources:
+        try:
+            words = shlex.split(command or "")
+        except ValueError:
+            continue
+        if len(words) >= 3:
+            return words[2]
+    return None
+
+
 def panel_sync(slots):
-    """Make sure the panel has at least SLOTS buttons for this sw, numbered 1,
-    2, ... in the order they sit: sw's existing buttons are renumbered (a
-    fixed-tag button becomes a slot), and missing ones are added after the
-    last of them. Buttons are never removed; spare slots show nothing. The
-    panel is stopped while its settings change, and only when something needs
-    changing. Returns what was done."""
+    """Make sure the panel has at least SLOTS task buttons for this sw, numbered
+    1, 2, ... in the order they sit, then the short and long break buttons.
+    sw's existing buttons are renumbered; missing task buttons are added after
+    the last task button, and missing break buttons beside the other break
+    button or after the task buttons. Buttons are never removed; spare slots
+    show nothing. The panel is stopped while its settings change, and only
+    when something needs changing. Returns what was done."""
     if shutil.which("xfconf-query") and not genmon_installed():
         raise PanelError("the panel buttons need the Generic Monitor plugin; install it with: %s, "
                          "then run sw today again" % GENMON_INSTALL)
     panels, buttons, top = panel_layout()
     me = _quote(os.path.abspath(sys.argv[0]))
-    todo = []
-    for n, b in enumerate(buttons, 1):
-        want = "%s panel %d" % (me, n)
-        if not b.matches(want):
-            todo.append((b.pid, want))
-    need = max(0, slots - len(buttons))
-    if not todo and not need:
+    breaks, tasks = {}, []
+    for b in buttons:
+        kind = _button_arg(b)
+        if kind in BREAK_KINDS and kind not in breaks:
+            breaks[kind] = b
+        else:
+            tasks.append(b)
+    todo = [(b.pid, "%s panel %d" % (me, n)) for n, b in enumerate(tasks, 1)]
+    todo += [(b.pid, "%s panel %s" % (me, k)) for k, b in breaks.items()]
+    todo = [(pid, want) for pid, want in todo
+            if not next(b for b in buttons if b.pid == pid).matches(want)]
+    need = max(0, slots - len(tasks))
+    missing = [k for k in BREAK_KINDS if k not in breaks]
+    if not todo and not need and not missing:
         return None
-    if need and not panels:
+    if (need or missing) and not panels:
         raise PanelError("no XFCE panel found to add buttons to")
+    layout = {p: list(pids) for p, pids in panels}
+    changed = set()
+    pids = iter(range(top + 1, top + 1 + need + len(missing)))
+
+    def add(panel, at, command):
+        pid = next(pids)
+        _xfq_set("/plugins/plugin-%d" % pid, "string", "genmon")
+        _configure(pid, command)
+        layout[panel].insert(at, pid)
+        changed.add(panel)
+        return Button(pid, panel, [])
+
     # Ctrl+C, logout or kill waits until the panel is running again: ending
     # sw between stopping the panel and starting it would leave no panel.
     with held_signals():
@@ -2598,17 +3019,29 @@ def panel_sync(slots):
             for pid, want in todo:
                 _configure(pid, want)
             if need:
-                panel = buttons[-1].panel if buttons else panels[0][0]
-                pids = dict(panels)[panel]
-                at = pids.index(buttons[-1].pid) + 1 if buttons else len(pids)
+                if tasks:
+                    panel, at = tasks[-1].panel, layout[tasks[-1].panel].index(tasks[-1].pid) + 1
+                elif breaks:
+                    first = next(b for b in buttons if b in breaks.values())
+                    panel, at = first.panel, layout[first.panel].index(first.pid)
+                else:
+                    panel, at = panels[0][0], len(layout[panels[0][0]])
                 for k in range(need):
-                    pid = top + 1 + k
-                    _xfq_set("/plugins/plugin-%d" % pid, "string", "genmon")
-                    _configure(pid, "%s panel %d" % (me, len(buttons) + k + 1))
-                    added.append(pid)
-                new = pids[:at] + added + pids[at:]
+                    added.append(add(panel, at + k, "%s panel %d" % (me, len(tasks) + k + 1)))
+            last = added[-1] if added else tasks[-1] if tasks else None
+            for kind in missing:
+                other = breaks.get("long" if kind == "short" else "short")
+                if other is not None:
+                    panel = other.panel
+                    at = layout[panel].index(other.pid) + (0 if kind == "short" else 1)
+                elif last is not None:
+                    panel, at = last.panel, layout[last.panel].index(last.pid) + 1
+                else:
+                    panel, at = panels[0][0], len(layout[panels[0][0]])
+                breaks[kind] = add(panel, at, "%s panel %s" % (me, kind))
+            for panel in changed:
                 args = ["-p", "/panels/panel-%d/plugin-ids" % panel, "-n", "--force-array"]
-                for pid in new:
+                for pid in layout[panel]:
                     args += ["-t", "int", "-s", str(pid)]
                 _xfq(*args)
         finally:
@@ -2621,10 +3054,12 @@ def panel_sync(slots):
     if todo:
         msg.append("renumbered %d %s" % (len(todo), "button" if len(todo) == 1 else "buttons"))
     if added:
-        first = len(buttons) + 1
+        first = len(tasks) + 1
         msg.append("added %s %s to the panel" % (
             "slot %d" % first if len(added) == 1 else "slots %d-%d" % (first, first + len(added) - 1),
             "button" if len(added) == 1 else "buttons"))
+    if missing:
+        msg.append("added the %s break %s" % (" and ".join(missing), "button" if len(missing) == 1 else "buttons"))
     note = "; ".join(msg)
     if backup:
         note += " (panel settings backed up to %s)" % _tilde(backup)
@@ -2681,9 +3116,12 @@ def _slot(args):
 
 
 def _task_names(args):
-    """ARGS as task names, one per word; dies on a word that isn't one or is given twice."""
+    """ARGS as task names, one per word; dies on a word that isn't one, has a
+    space in it, or is given twice."""
     tags = []
     for a in args:
+        if re.search(r"[ \t\n\v\f\r]", a.strip()):
+            die("today: task names are one word: use %s, not '%s'" % (args_to_tag([a]), a))
         t = args_to_tag([a])
         if t == "-":
             die("today: '%s' isn't a task name" % a)
@@ -2721,8 +3159,69 @@ def _new_task_list(args):
     return tags
 
 
+def _write_tasks(tags):
+    write_atomic(TASKS_FILE, "".join(t + "\n" for t in tags).encode("utf-8", "surrogateescape"))
+
+
+def _rename_task(args):
+    """`sw today rename OLD NEW`: rename a task on the list, today's sessions
+    under it, and the running timer if it's that task. Earlier days keep the
+    old name: a rename is a fix to today, and history is edited by hand."""
+    if len(args) != 2:
+        die("today: rename needs the old name and the new one, such as: sw today rename theolgy theology")
+    if same_tag(args_to_tag([args[0]]), args_to_tag([args[1]])):
+        die("today: the new name is the same as the old one; nothing changed")
+    old, new = _task_names(args)
+    current = read_tasks()
+    if not any(same_tag(old, x) for x in current):
+        die("today: %s isn't on the list; nothing changed" % old)
+    if any(same_tag(new, x) for x in current):
+        die("today: %s is already on the list; nothing changed" % new)
+    today = datetime.date.today().isoformat()
+
+    def change():
+        try:
+            cur = read_state()
+        except StateError as e:
+            raise LogUnchanged(e.args[0])
+        lines = raw_lines()
+        try:
+            _write_tasks([new if same_tag(x, old) else x for x in current])
+        except OSError as e:
+            raise LogUnchanged("cannot write %s" % _describe(e, TASKS_FILE))
+        running = cur is not None and same_tag(cur.tag, old)
+        if running:
+            try:
+                write_state(Running(new, cur.start, cur.boot, cur.slept))
+                mark = "%s\t%d" % (old, cur.start)
+                if _read_bytes(REMIND_FILE).decode("utf-8", "surrogateescape").strip() == mark:
+                    write_atomic(REMIND_FILE, ("%s\t%d\n" % (new, cur.start)).encode("utf-8", "surrogateescape"))
+            except FileNotFoundError:
+                pass
+            except OSError as e:
+                raise LogUnchanged("the list is renamed, but cannot write %s" % _describe(e, STATE_FILE))
+        n, out = 0, []
+        for line in lines:
+            e = parse_entry(line)
+            if e is not None and e.date == today and same_tag(e.tag, old):
+                out.append("%s\t%s\t%d\t%s" % (e.date, e.hm, e.secs, new))
+                n += 1
+            else:
+                out.append(line)
+        if not n:
+            raise NoChange((0, running))
+        write_raw(out)
+        return n, running
+
+    n, running = run_change(change, "failed to rename %s" % old)
+    done = ["%d %s today" % (n, "session" if n == 1 else "sessions")] if n else []
+    if running:
+        done.append("the running timer")
+    say("renamed %s to %s%s" % (old, new, ": " + " and ".join(done) if done else ""))
+
+
 def cmd_today(args):
-    """`sw today [add|remove] [TASK...]`: set, change or list the day's tasks, and make the panel match them."""
+    """`sw today [add|remove|rename] [TASK...]`: set, change or list the day's tasks, and make the panel match them."""
     if args in (["-c"], ["--clear"]):
         try:
             os.unlink(TASKS_FILE)
@@ -2730,13 +3229,15 @@ def cmd_today(args):
             pass
         except OSError as e:
             die("cannot remove %s" % _describe(e, TASKS_FILE))
-        say("no tasks set; the panel slots are empty")
+        say("no tasks set; the task buttons are empty")
         refresh_buttons()
         return
-    if args:
+    if args and args[0] == "rename":
+        _rename_task(args[1:])
+    elif args:
         tags = _new_task_list(args)
         try:
-            write_atomic(TASKS_FILE, "".join(t + "\n" for t in tags).encode("utf-8", "surrogateescape"))
+            _write_tasks(tags)
         except OSError as e:
             die("cannot write %s" % _describe(e, TASKS_FILE))
     tasks = read_tasks()
@@ -2769,40 +3270,47 @@ def _empty_slot(n):
 
 
 def cmd_panel(args):
-    """Print one task's button for the XFCE Generic Monitor plugin, which runs
-    this every period and shows what it prints. Always prints a button: on any
+    """Print one button for the XFCE Generic Monitor plugin, which runs this
+    every period and shows what it prints: a task's (sw panel 1 to 9) or a
+    break's (sw panel short, sw panel long). Always prints a button: on any
     failure, ⚠ with the reason in its tooltip, since the panel shows nothing
     else and a missing button would hide the problem."""
     global IN_PANEL
     IN_PANEL = True
     sys.stderr = io.StringIO()  # for the tooltip: the panel never shows stderr
     tag = "-"
+    kind = args[0] if len(args) == 1 and args[0] in BREAK_KINDS else None
+    slot = _slot(args)
     try:
         read_config()
         sync_logs()
-        slot = _slot(args)
-        if slot is None:
-            raise ValueError("a button's command should be sw panel 1 to sw panel %d, not sw panel %s; "
-                             "run sw today TASK... to set the buttons up" % (MAX_SLOTS, " ".join(args)))
-        tasks = read_tasks()
-        if slot > len(tasks):
-            _empty_slot(slot)
-            return
-        tag = args_to_tag([tasks[slot - 1]])
+        if kind is None and slot is None:
+            raise ValueError("a button's command should be sw panel 1 to sw panel %d, short or long, "
+                             "not sw panel %s; run sw today TASK... to set the buttons up"
+                             % (MAX_SLOTS, " ".join(args)))
+        if kind is None:
+            tasks = read_tasks()
+            if slot > len(tasks):
+                _empty_slot(slot)
+                return
+            tag = args_to_tag([tasks[slot - 1]])
         stale = resolve_stale()
         if stale:
             notify(stale)
         cur = read_state()
         remind_once(cur)
-        txt, tool = _panel_face(tag, cur)
+        txt, tool = _break_face(kind) if kind else _panel_face(tag, cur)
     except (Exception, SystemExit) as e:
         reason = sys.stderr.getvalue().strip()
         if not reason:
             reason = e.args[0] if isinstance(e, (StateError, ValueError)) else _describe(e)
-        txt = "%s⚠ %s%s" % (_PAD, _esc(tag_label(tag)), _PAD)
+        txt = "%s⚠ %s%s" % (_PAD, _esc(kind + " break" if kind else tag_label(tag)), _PAD)
         tool = _esc("%s\nrun sw status in a terminal for more" % reason)
     me = _quote(os.path.abspath(sys.argv[0]))
-    click = "%s toggle" % me if tag == "-" else "%s toggle -- %s" % (me, _quote(tag))
+    if kind is not None:
+        click = "%s breakbutton %s" % (me, kind)
+    else:
+        click = "%s toggle" % me if tag == "-" else "%s toggle -- %s" % (me, _quote(tag))
     _write(sys.stdout, "<txt>%s</txt><txtclick>%s</txtclick><tool>%s</tool>\n" % (txt, click, tool))
 
 
@@ -2865,7 +3373,7 @@ def cmd_add(args):
             busy.append((int(cur.start - midnight) // 60, now))
         for end, m in fill_breaks(round_mins(secs), busy, now):
             rows.append((today, "%02d:%02d" % divmod(end, 60), m * 60))
-        append_row("\n".join("%s\t%s\t%d\t%s" % (d, hm, s, tag) for d, hm, s in rows))
+        add_rows("%s\t%s\t%d\t%s" % (d, hm, s, tag) for d, hm, s in rows)
 
     run_change(change, "failed to add session")
     for d, hm, s in rows:
@@ -2897,7 +3405,8 @@ def version_line():
 
 def _init_paths():
     """Set the file paths from HOME and the settings at the top of this script."""
-    global RAW_LOG, MD_LOG, STATE_FILE, TASKS_FILE, REMIND_FILE, LOCK_DIR, LOCK_FILE, LOCK_DIR_IS_FALLBACK
+    global RAW_LOG, MD_LOG, STATE_FILE, TASKS_FILE, REMIND_FILE, BREAK_FILE, LOCK_DIR, LOCK_FILE
+    global LOCK_DIR_IS_FALLBACK
     home = os.environ.get("HOME")
     if home is None:
         die("HOME is not set")
@@ -2910,6 +3419,7 @@ def _init_paths():
     STATE_FILE = home + "/.stopwatch_running"
     TASKS_FILE = home + "/.stopwatch_tasks"
     REMIND_FILE = home + "/.stopwatch_reminded"
+    BREAK_FILE = home + "/.stopwatch_break"
     # Never /tmp: a lock file another account can create first would block
     # every commit. Only this user can write under ~/.cache.
     runtime = os.environ.get("XDG_RUNTIME_DIR")
@@ -2926,12 +3436,13 @@ def _mtime(path):
 
 
 def sync_logs():
-    """Make the work log follow the raw log: create the raw log if it doesn't
-    exist yet, and rebuild the work log when it's missing or older than the raw
-    log, as after pasting into or hand-editing the raw log. Best effort: a
-    problem here shows up on the next change that logs something."""
+    """Keep the logs in step after a hand edit or an update: create the raw log
+    if it doesn't exist yet; put it in newest-first order when it isn't (a log
+    from before v50, a row added by hand); and rebuild the work log when it's
+    missing or older than the raw log. Best effort: a problem here shows up on
+    the next change that logs something."""
     raw, md = _mtime(RAW_LOG), _mtime(MD_LOG)
-    if raw is not None and md is not None and md >= raw:
+    if raw is not None and md is not None and md >= raw and raw_in_order():
         return
     fd = acquire_lock(wait=False)
     if fd is None:
@@ -2943,7 +3454,12 @@ def sync_logs():
                 if d:
                     os.makedirs(d, exist_ok=True)
                 os.close(os.open(RAW_LOG, os.O_WRONLY | os.O_CREAT | os.O_CLOEXEC, 0o600))
+            lines = raw_lines()
+            if ordered_raw(lines) != [line for line in lines if not is_blank(line)]:
+                write_raw(lines)
             regenerate_md()
+    except LogUnchanged as e:
+        warn("%s; sw tries again on its next run" % e.args[0])
     except Exception as e:  # the raw log is untouched; the next run tries again
         warn("%s wasn't rebuilt (%s); sw tries again on its next run" % (MD_LOG, _describe(e)))
     finally:
@@ -2973,6 +3489,8 @@ def main(argv):
         pass
     _init_paths()
 
+    if argv and argv[0] in FLAGS:
+        argv = FLAGS[argv[0]] + argv[1:]
     first = argv[0] if argv else ""
     # help and version work even when the config is broken, so you can read how to fix it.
     if first in ("help", "-h", "--help"):
@@ -2985,9 +3503,12 @@ def main(argv):
     if first == "panel":
         cmd_panel(argv[1:])
         return 0
+    if first == "breakwait":
+        cmd_breakwait(argv[1:])
+        return 0
     # A panel click or a keyboard shortcut has no terminal: say what went wrong
     # in a desktop notification instead.
-    if first in ("start", "stop", "toggle") and not _stderr_is_tty():
+    if first in ("start", "stop", "toggle", "breakbutton") and not _stderr_is_tty():
         NOTICES = []
 
     try:
@@ -2996,7 +3517,7 @@ def main(argv):
         commands = {
             "add": cmd_add, "break": cmd_break,
             "start": cmd_start, "stop": cmd_stop, "toggle": cmd_toggle, "status": cmd_status,
-            "today": cmd_today,
+            "today": cmd_today, "sound": cmd_sound, "breakbutton": cmd_breakbutton,
         }
         if first == "--":
             # `--` ends subcommand matching, so tags named like subcommands stay reachable.

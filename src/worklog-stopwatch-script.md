@@ -180,7 +180,7 @@ Then open a terminal and check:
 sw version
 ```
 
-It prints `sw, v` and the version number, such as `sw, v51`.
+It prints `sw, v` and the version number, such as `sw, v52`.
 
 If it prints `bash: sw: command not found` instead, your session doesn't look in `~/.local/bin` yet.
 Run this once, then log out and back in:
@@ -493,7 +493,7 @@ A line `sw` can't read stops every command with a message naming it, so don't wr
 
 ### Fix, rename or remove sessions
 
-Every session lives in the raw log, `~/.stopwatch_log`.
+Every session lives in the raw log, `~/Documents/.stopwatch_log`.
 The name starts with a dot, so it's hidden; in the file manager, Ctrl+H shows it.
 Stop the timer before you edit it: a session logged while the file is open in your editor is lost when you save.
 Each line is one session, newest at the top:
@@ -518,7 +518,7 @@ The work log names it under `Updated`, such as `⚠ raw log line 1 isn't date, H
 To rename a tag on every day at once:
 
 ```bash
-sed -i 's/\ttheolgy$/\ttheology/' ~/.stopwatch_log
+sed -i 's/\ttheolgy$/\ttheology/' ~/Documents/.stopwatch_log
 ```
 
 It changes only tags that are exactly `theolgy`.
@@ -528,7 +528,7 @@ Also run `sw today rename theolgy theology` if it's on today's buttons.
 
 Two files hold everything:
 
-- `~/.stopwatch_log`, the raw log: every session you ever logged.
+- `~/Documents/.stopwatch_log`, the raw log: every session you ever logged.
 - `~/Documents/wlog.md`, the work log: your settings and notes. The rest of it is rebuilt from the raw log.
 
 Back up those two.
@@ -545,7 +545,7 @@ You can do this with a timer running.
 The two paths are at the top of the script:
 
 ```
-RAW_LOG_PATH = "~/.stopwatch_log"
+RAW_LOG_PATH = "~/Documents/.stopwatch_log"
 WORK_LOG_PATH = "~/Documents/wlog.md"
 ```
 
@@ -555,7 +555,7 @@ An update puts these paths back to the defaults, so set them again after each on
 
 ### The files sw uses
 
-- `~/.stopwatch_log`: the raw log.
+- `~/Documents/.stopwatch_log`: the raw log.
 - `~/Documents/wlog.md`: the work log.
 - `~/.stopwatch_running`: the running timer, if any.
 - `~/.stopwatch_break`: the break a break button started, if any.
@@ -584,6 +584,7 @@ The logs and timer files are readable by you only.
 | A fix you made is gone | You edited below `# log` in the work log. Make the change in the raw log. |
 | The work log is missing months | The raw log in use isn't the one with your history, often after an update reset the paths. Check the paths at the top of the script. |
 | Two timers seem to run at once | An old copy of `sw` is running in a terminal. Remove it, and use the link. |
+
 ## The script
 
 ````python3
